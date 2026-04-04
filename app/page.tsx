@@ -80,6 +80,8 @@ type DailyWorkerMonthlyRecord = {
   gross_amount: number;
 };
 
+type MonthlyRecordRow = Pick<DailyWorkerMonthlyRecord, "daily_worker_id" | "site_id" | "target_month" | "work_entries">;
+
 type JobCategoryFilter = "전체" | "직영" | "용역";
 
 function maskResidentNumber(rn: string) {
@@ -215,6 +217,7 @@ export default function Page() {
   const [selectedTargetMonth, setSelectedTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedDailyWorkerId, setSelectedDailyWorkerId] = useState<number | null>(null);
   const [selectedWorkEntries, setSelectedWorkEntries] = useState<WorkEntry[]>([]);
+  const [monthlyRecordRows, setMonthlyRecordRows] = useState<MonthlyRecordRow[]>([]);
 
   const monthDates = useMemo(() => getMonthDates(targetMonth), [targetMonth]);
 
@@ -265,18 +268,16 @@ export default function Page() {
   }, [employees, employeeNameQuery, employeeTypeFilter, employeeStatusFilter]);
 
   const payrollSummary = useMemo(() => {
-    const filtered = dailyWorkers.filter((worker) => {
-      if (selectedCompanyId && worker.company_id !== selectedCompanyId) return false;
-      if (selectedJobCategory !== "전체" && normalizeJobCategory(worker.job_type ?? "") !== selectedJobCategory) return false;
-      return true;
-    });
-
     const grouped = new Map<string, { workers: Array<{ worker: DailyWorker; work_units: number; amount: number }>; total_work_units: number; total_amount: number }>();
 
-    filtered.forEach((worker) => {
-      const key = `${worker.id}:${selectedSiteId ?? 0}`;
-      const workMap = records[key] ?? {};
-      const workUnits = Object.values(workMap).reduce((sum, value) => sum + value, 0);
+    monthlyRecordRows.forEach((record) => {
+      const worker = dailyWorkers.find((item) => item.id === record.daily_worker_id);
+      if (!worker) return;
+      if (selectedCompanyId && worker.company_id !== selectedCompanyId) return;
+      const normalizedCategory = normalizeJobCategory(worker.job_type ?? "");
+      if (selectedJobCategory !== "전체" && normalizedCategory !== selectedJobCategory) return;
+
+      const workUnits = (record.work_entries ?? []).reduce((sum, entry) => sum + Math.max(0, Number(entry.work_days ?? 0)), 0);
       const amount = workUnits * worker.daily_wage;
       const jobType = worker.job_type || "미분류";
       const existing = grouped.get(jobType) ?? { workers: [], total_work_units: 0, total_amount: 0 };
@@ -290,7 +291,7 @@ export default function Page() {
     const total_work_units = groups.reduce((sum, group) => sum + group.total_work_units, 0);
     const total_amount = groups.reduce((sum, group) => sum + group.total_amount, 0);
     return { groups, total_work_units, total_amount };
-  }, [dailyWorkers, records, selectedCompanyId, selectedSiteId, selectedJobCategory]);
+  }, [monthlyRecordRows, dailyWorkers, selectedCompanyId, selectedJobCategory]);
 
   const activeEmployeeCount = useMemo(() => employees.filter((employee) => employee.status === "재직").length, [employees]);
 
@@ -392,6 +393,7 @@ export default function Page() {
   async function fetchMonthlyRecords(month: string, siteId: number | null) {
     if (!siteId) {
       setRecords({});
+      setMonthlyRecordRows([]);
       setSelectedWorkEntries([]);
       return;
     }
@@ -407,7 +409,8 @@ export default function Page() {
       return;
     }
 
-    const rows = (data ?? []) as { daily_worker_id: number; site_id: number; target_month: string; work_entries: WorkEntry[] | null }[];
+    const rows = (data ?? []) as MonthlyRecordRow[];
+    setMonthlyRecordRows(rows);
 
     const next: Record<string, Record<string, number>> = {};
     rows.forEach((row) => {
@@ -441,9 +444,9 @@ export default function Page() {
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     void Promise.resolve().then(() => {
-      fetchMonthlyRecords(targetMonth, selectedSiteId);
+      fetchMonthlyRecords(selectedTargetMonth, selectedSiteId);
     });
-  }, [targetMonth, selectedSiteId]);
+  }, [selectedTargetMonth, selectedSiteId]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   async function submitEmployee(e: FormEvent<HTMLFormElement>) {
