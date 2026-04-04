@@ -136,7 +136,9 @@ export default function Page() {
   const selectedWorkMap = useMemo(() => {
     const map: Record<string, number> = {};
     safeEntries.forEach((entry) => {
-      map[entry.date] = entry.work_days ?? 0;
+      if (entry.work_days !== null && entry.work_days !== undefined) {
+        map[entry.date] = entry.work_days;
+      }
     });
     return map;
   }, [safeEntries]);
@@ -727,7 +729,10 @@ export default function Page() {
                             step="0.01"
                             min="0"
                             value={selectedWorkMap[date] ?? ""}
-                            onChange={(e) => updateWorkUnit(date, e.target.value === "" ? null : Number(e.target.value))}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              updateWorkUnit(date, raw === "" ? null : Number(raw));
+                            }}
                             className="w-20 min-w-[80px] rounded-md border px-2 py-1 text-sm"
                           />
                         </td>
