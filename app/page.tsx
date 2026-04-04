@@ -61,15 +61,14 @@ function normalizeEmployeeStatus(value: string | null): EmployeeStatus {
 
 function mapRecordRowToWorkMap(row: {
   work_dates: string[] | null;
-  work_entries: Array<{ date: string; units?: number | null; work_days?: number | null }> | null;
+  work_entries: WorkEntry[] | null;
 }): Record<string, number> {
   const mapped: Record<string, number> = {};
 
   if (Array.isArray(row.work_entries) && row.work_entries.length > 0) {
     row.work_entries.forEach((entry) => {
-      const rawWorkDays = entry?.work_days ?? entry?.units;
-      if (entry?.date && rawWorkDays !== null && rawWorkDays !== undefined) {
-        mapped[entry.date] = Math.max(0, Number(rawWorkDays) || 0);
+      if (entry?.date && entry?.work_days !== null && entry?.work_days !== undefined) {
+        mapped[entry.date] = Math.max(0, Number(entry.work_days) || 0);
       }
     });
     return mapped;
@@ -130,15 +129,14 @@ export default function Page() {
     () => dailyWorkers.find((worker) => worker.id === selectedDailyWorkerId) ?? null,
     [dailyWorkers, selectedDailyWorkerId]
   );
-  const safeSelectedWorkEntries = Array.isArray(selectedWorkEntries) ? selectedWorkEntries : [];
-  const selectedWorkMap = useMemo(
-    () =>
-      safeSelectedWorkEntries.reduce<Record<string, number | null>>((acc, entry) => {
-        acc[entry.date] = entry.work_days ?? null;
-        return acc;
-      }, {}),
-    [safeSelectedWorkEntries]
-  );
+  const safeEntries = useMemo(() => (Array.isArray(selectedWorkEntries) ? selectedWorkEntries : []), [selectedWorkEntries]);
+  const selectedWorkMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    safeEntries.forEach((entry) => {
+      map[entry.date] = entry.work_days ?? 0;
+    });
+    return map;
+  }, [safeEntries]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
@@ -245,7 +243,7 @@ export default function Page() {
       daily_worker_id: number;
       target_month: string;
       work_dates: string[] | null;
-      work_entries: Array<{ date: string; units?: number | null; work_days?: number | null }> | null;
+      work_entries: WorkEntry[] | null;
       total_work_units: number | null;
       worked_days_count: number | null;
       gross_amount: number | null;
@@ -418,7 +416,7 @@ export default function Page() {
 
   function updateWorkUnit(date: string, workDays: number | null) {
     setSelectedWorkEntries((prev) =>
-      prev.map((entry) =>
+      (Array.isArray(prev) ? prev : []).map((entry) =>
         entry.date === date
           ? {
               ...entry,
@@ -441,7 +439,7 @@ export default function Page() {
     }
 
     setSavingMonthlyRecord(true);
-    const normalizedEntries = safeSelectedWorkEntries
+    const normalizedEntries = safeEntries
       .map((entry) => ({
         date: entry.date,
         work_days: entry.work_days === null || entry.work_days === undefined ? null : Number(entry.work_days),
