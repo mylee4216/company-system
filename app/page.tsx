@@ -144,8 +144,8 @@ export default function Home() {
   );
 
   const dailyEmployeeCount = useMemo(
-    () => employees.filter((item) => normalizeEmployeeType(item.type) === "일용직").length,
-    [employees]
+    () => dailyWorkers.length,
+    [dailyWorkers]
   );
 
   const estimatedPayout = useMemo(
