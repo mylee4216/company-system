@@ -79,6 +79,7 @@ export default function Home() {
     joinDate: "",
     status: "재직",
   });
+  const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
 
   const [dailyWorkers, setDailyWorkers] = useState<DailyWorker[]>([]);
   const [dailyForm, setDailyForm] = useState({
@@ -179,7 +180,18 @@ export default function Home() {
     Number(taxForm.nonTaxable || 0)
   );
 
-  const addEmployee = async () => {
+  const resetEmployeeForm = () => {
+    setEmployeeForm({
+      name: "",
+      type: "상용직",
+      position: "",
+      joinDate: "",
+      status: "재직",
+    });
+    setEditingEmployeeId(null);
+  };
+
+  const saveEmployee = async () => {
     if (!employeeForm.name || !employeeForm.position || !employeeForm.joinDate) {
       alert("직원 이름, 직급, 입사일을 입력해주세요.");
       return;
@@ -187,6 +199,45 @@ export default function Home() {
 
     const normalizedType = normalizeEmployeeType(employeeForm.type);
     const normalizedStatus = normalizeEmployeeStatus(employeeForm.status);
+
+    if (editingEmployeeId !== null) {
+      const { data, error } = await supabase
+        .from("employees")
+        .update({
+          name: employeeForm.name,
+          type: normalizedType,
+          position: employeeForm.position,
+          join_date: employeeForm.joinDate,
+          status: normalizedStatus,
+        })
+        .eq("id", editingEmployeeId)
+        .select("id, name, type, position, join_date, status")
+        .single();
+
+      if (error) {
+        alert("수정 실패: " + error.message);
+        return;
+      }
+
+      setEmployees((prev) =>
+        prev.map((item) =>
+          item.id === editingEmployeeId
+            ? {
+                id: data.id,
+                name: data.name,
+                type: normalizeEmployeeType(data.type),
+                position: data.position,
+                joinDate: data.join_date,
+                status: normalizeEmployeeStatus(data.status),
+              }
+            : item
+        )
+      );
+
+      resetEmployeeForm();
+      alert("직원 정보가 수정되었습니다.");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("employees")
@@ -219,15 +270,21 @@ export default function Home() {
       },
     ]);
 
-    setEmployeeForm({
-      name: "",
-      type: "상용직",
-      position: "",
-      joinDate: "",
-      status: "재직",
-    });
+    resetEmployeeForm();
 
     alert("직원이 저장되었습니다.");
+  };
+
+  const startEditEmployee = (employee: Employee) => {
+    setEditingEmployeeId(employee.id);
+    setEmployeeForm({
+      name: employee.name,
+      type: normalizeEmployeeType(employee.type),
+      position: employee.position,
+      joinDate: employee.joinDate,
+      status: normalizeEmployeeStatus(employee.status),
+    });
+    setCurrentMenu("employees");
   };
 
   const deleteEmployee = async (employee: Employee) => {
@@ -242,6 +299,11 @@ export default function Home() {
     }
 
     setEmployees((prev) => prev.filter((item) => item.id !== employee.id));
+
+    if (editingEmployeeId === employee.id) {
+      resetEmployeeForm();
+    }
+
     alert("직원이 삭제되었습니다.");
   };
 
@@ -501,7 +563,9 @@ export default function Home() {
                     </div>
                   </div>
                   <div style={{ marginTop: "16px" }}>
-                    <button style={primaryButtonStyle} onClick={addEmployee}>직원 등록하기</button>
+                    <button style={primaryButtonStyle} onClick={saveEmployee}>
+                      {editingEmployeeId !== null ? "수정 저장" : "직원 등록하기"}
+                    </button>
                   </div>
                 </div>
 
@@ -549,7 +613,10 @@ export default function Home() {
                           <td style={tdStyle}>{employee.joinDate}</td>
                           <td style={tdStyle}>{normalizeEmployeeStatus(employee.status)}</td>
                           <td style={tdStyle}>
-                            <button style={dangerButtonStyle} onClick={() => deleteEmployee(employee)}>삭제</button>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <button style={secondaryButtonStyle} onClick={() => startEditEmployee(employee)}>수정</button>
+                              <button style={dangerButtonStyle} onClick={() => deleteEmployee(employee)}>삭제</button>
+                            </div>
                           </td>
                         </tr>
                       ))}
