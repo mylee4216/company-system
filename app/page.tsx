@@ -112,17 +112,13 @@ export default function Page() {
 
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedDailyWorkerId, setSelectedDailyWorkerId] = useState<number | null>(null);
+  const [selectedWorkEntries, setSelectedWorkEntries] = useState<Record<string, number>>({});
 
   const monthDates = useMemo(() => getMonthDates(targetMonth), [targetMonth]);
 
   const selectedWorker = useMemo(
     () => dailyWorkers.find((worker) => worker.id === selectedDailyWorkerId) ?? null,
     [dailyWorkers, selectedDailyWorkerId]
-  );
-
-  const selectedWorkerWorkMap = useMemo(
-    () => (selectedDailyWorkerId ? records[selectedDailyWorkerId] ?? {} : {}),
-    [records, selectedDailyWorkerId]
   );
 
   const filteredEmployees = useMemo(() => {
@@ -150,6 +146,15 @@ export default function Page() {
       return sum + units * worker.daily_wage;
     }, 0);
   }, [dailyWorkers, records]);
+
+  function selectDailyWorker(workerId: number | null) {
+    setSelectedDailyWorkerId(workerId);
+    if (!workerId) {
+      setSelectedWorkEntries({});
+      return;
+    }
+    setSelectedWorkEntries(records[workerId] ?? {});
+  }
 
   async function fetchEmployees() {
     setLoadingEmployees(true);
@@ -232,6 +237,11 @@ export default function Page() {
       next[row.daily_worker_id] = mapRecordRowToWorkMap(row);
     });
     setRecords(next);
+    if (selectedDailyWorkerId) {
+      setSelectedWorkEntries(next[selectedDailyWorkerId] ?? {});
+    } else {
+      setSelectedWorkEntries({});
+    }
   }
 
   useEffect(() => {
@@ -381,25 +391,18 @@ export default function Page() {
       return;
     }
     if (selectedDailyWorkerId === id) {
-      setSelectedDailyWorkerId(null);
+      selectDailyWorker(null);
     }
     fetchDailyWorkers();
     fetchMonthlyRecords(targetMonth);
   }
 
-  function updateWorkEntry(date: string, value: number) {
-    if (!selectedDailyWorkerId) return;
-    const units = Number.isFinite(value) ? Math.max(0, value) : 0;
-    setRecords((prev) => {
-      const current = prev[selectedDailyWorkerId] ?? {};
-      return {
-        ...prev,
-        [selectedDailyWorkerId]: {
-          ...current,
-          [date]: units,
-        },
-      };
-    });
+  function updateWorkUnit(date: string, units: number) {
+    const normalizedUnits = Number.isFinite(units) ? Math.max(0, units) : 0;
+    setSelectedWorkEntries((prev) => ({
+      ...prev,
+      [date]: normalizedUnits,
+    }));
   }
 
   async function saveMonthlyRecord() {
@@ -409,24 +412,21 @@ export default function Page() {
     }
 
     setSavingMonthlyRecord(true);
-    const workMap = records[selectedWorker.id] ?? {};
+    const normalizedEntries = Object.entries(selectedWorkEntries)
+      .map(([date, units]) => ({ date, units: Number(units) }))
+      .filter((entry) => entry.units > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
 
-    const entries: WorkEntry[] = monthDates.map((date) => ({
-      date,
-      units: Math.max(0, Number(workMap[date] ?? 0)),
-    }));
-
-    const usedEntries = entries.filter((entry) => entry.units > 0);
-    const workDates = usedEntries.map((entry) => entry.date);
-    const totalWorkUnits = usedEntries.reduce((sum, entry) => sum + Number(entry.units), 0);
-    const workedDaysCount = usedEntries.length;
+    const workDates = normalizedEntries.map((entry) => entry.date);
+    const totalWorkUnits = normalizedEntries.reduce((sum, entry) => sum + Number(entry.units), 0);
+    const workedDaysCount = normalizedEntries.length;
     const grossAmount = Number(selectedWorker.daily_wage) * totalWorkUnits;
 
     const payload: DailyWorkerMonthlyRecord = {
       daily_worker_id: selectedWorker.id,
       target_month: targetMonth,
       work_dates: workDates,
-      work_entries: usedEntries,
+      work_entries: normalizedEntries,
       total_work_units: totalWorkUnits,
       worked_days_count: workedDaysCount,
       gross_amount: grossAmount,
@@ -632,7 +632,7 @@ export default function Page() {
                     <button type="button" onClick={() => deleteDailyWorker(worker.id)}>
                       삭제
                     </button>
-                    <button type="button" onClick={() => setSelectedDailyWorkerId(worker.id)}>
+                    <button type="button" onClick={() => selectDailyWorker(worker.id)}>
                       공수입력
                     </button>
                   </td>
@@ -648,7 +648,7 @@ export default function Page() {
             <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} />
             <select
               value={selectedDailyWorkerId ?? ""}
-              onChange={(e) => setSelectedDailyWorkerId(e.target.value ? Number(e.target.value) : null)}
+              onChange={(e) => selectDailyWorker(e.target.value ? Number(e.target.value) : null)}
             >
               <option value="">일용직 선택</option>
               {dailyWorkers.map((worker) => (
@@ -686,8 +686,8 @@ export default function Page() {
                             type="number"
                             min="0"
                             step="0.01"
-                            value={selectedWorkerWorkMap[date] ?? 0}
-                            onChange={(e) => updateWorkEntry(date, Number(e.target.value || 0))}
+                            value={selectedWorkEntries[date] ?? ""}
+                            onChange={(e) => updateWorkUnit(date, Number(e.target.value || 0))}
                           />
                         </td>
                       </tr>
