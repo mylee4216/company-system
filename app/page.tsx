@@ -15,6 +15,10 @@ type Employee = {
   join_date: string;
   status: EmployeeStatus;
   resignation_date: string | null;
+  resident_number: string;
+  phone: string;
+  company_id: number | null;
+  site_id: number | null;
 };
 
 type Company = {
@@ -98,6 +102,14 @@ function formatResidentNumber(value: string) {
   return `${numbers.slice(0, 6)}-${numbers.slice(6, 13)}`;
 }
 
+function formatPhoneNumber(value: string) {
+  const onlyNums = value.replace(/\D/g, "").slice(0, 11);
+
+  if (onlyNums.length <= 3) return onlyNums;
+  if (onlyNums.length <= 7) return `${onlyNums.slice(0, 3)}-${onlyNums.slice(3)}`;
+  return `${onlyNums.slice(0, 3)}-${onlyNums.slice(3, 7)}-${onlyNums.slice(7)}`;
+}
+
 function getMonthDates(targetMonth: string): string[] {
   const [yearText, monthText] = targetMonth.split("-");
   const year = Number(yearText);
@@ -154,6 +166,8 @@ export default function Page() {
     type: "상용직" as EmployeeType,
     position: "",
     join_date: "",
+    resident_number: "",
+    phone: "",
     status: "재직" as EmployeeStatus,
     resignation_date: "",
     company_id: "",
@@ -163,6 +177,8 @@ export default function Page() {
     assignment_end_date: "",
   });
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
+  const [selectedCompanyManageId, setSelectedCompanyManageId] = useState<number | null>(null);
+  const [selectedSiteManageId, setSelectedSiteManageId] = useState<number | null>(null);
   const [companyForm, setCompanyForm] = useState({
     name: "",
     business_number: "",
@@ -176,7 +192,6 @@ export default function Page() {
     construction_start_date: "",
     construction_end_date: "",
   });
-  const [editingSiteId, setEditingSiteId] = useState<number | null>(null);
 
   const [dailyWorkerForm, setDailyWorkerForm] = useState({
     name: "",
@@ -295,7 +310,7 @@ export default function Page() {
     setLoadingEmployees(true);
     const { data, error } = await supabase
       .from("employees")
-      .select("id, name, type, position, join_date, status, resignation_date")
+      .select("id, name, type, position, join_date, status, resignation_date, resident_number, phone, company_id, site_id")
       .order("id", { ascending: true });
 
     if (error) {
@@ -312,6 +327,10 @@ export default function Page() {
       join_date: string;
       status: string | null;
       resignation_date: string | null;
+      resident_number: string | null;
+      phone: string | null;
+      company_id: number | null;
+      site_id: number | null;
     }[];
 
     setEmployees(
@@ -323,6 +342,10 @@ export default function Page() {
         join_date: row.join_date,
         status: normalizeEmployeeStatus(row.status),
         resignation_date: row.resignation_date,
+        resident_number: row.resident_number ?? "",
+        phone: row.phone ?? "",
+        company_id: row.company_id ?? null,
+        site_id: row.site_id ?? null,
       }))
     );
     setLoadingEmployees(false);
@@ -441,8 +464,12 @@ export default function Page() {
           type: employeeForm.type,
           position: employeeForm.position.trim(),
           join_date: employeeForm.join_date,
+          resident_number: employeeForm.resident_number.trim(),
+          phone: employeeForm.phone.trim(),
           status: employeeForm.status,
           resignation_date: normalizedResignationDate,
+          company_id: employeeForm.company_id ? Number(employeeForm.company_id) : null,
+          site_id: employeeForm.site_id ? Number(employeeForm.site_id) : null,
         })
         .eq("id", editingEmployeeId);
 
@@ -458,8 +485,12 @@ export default function Page() {
           type: employeeForm.type,
           position: employeeForm.position.trim(),
           join_date: employeeForm.join_date,
+          resident_number: employeeForm.resident_number.trim(),
+          phone: employeeForm.phone.trim(),
           status: employeeForm.status,
           resignation_date: normalizedResignationDate,
+          company_id: employeeForm.company_id ? Number(employeeForm.company_id) : null,
+          site_id: employeeForm.site_id ? Number(employeeForm.site_id) : null,
         })
         .select("id")
         .single();
@@ -505,6 +536,8 @@ export default function Page() {
       type: "상용직",
       position: "",
       join_date: "",
+      resident_number: "",
+      phone: "",
       status: "재직",
       resignation_date: "",
       company_id: "",
@@ -515,6 +548,7 @@ export default function Page() {
     });
     setEditingEmployeeId(null);
     fetchEmployees();
+    alert(editingEmployeeId ? "직원 정보가 수정되었습니다." : "직원이 등록되었습니다.");
   }
 
   async function startEditEmployee(employee: Employee) {
@@ -535,10 +569,12 @@ export default function Page() {
       type: employee.type,
       position: employee.position,
       join_date: employee.join_date,
+      resident_number: employee.resident_number ?? "",
+      phone: employee.phone ?? "",
       status: employee.status,
       resignation_date: employee.resignation_date ?? "",
-      company_id: currentAssignment ? String(currentAssignment.company_id) : "",
-      site_id: currentAssignment?.site_id ? String(currentAssignment.site_id) : "",
+      company_id: employee.company_id ? String(employee.company_id) : currentAssignment ? String(currentAssignment.company_id) : "",
+      site_id: employee.site_id ? String(employee.site_id) : currentAssignment?.site_id ? String(currentAssignment.site_id) : "",
       assignment_type: currentAssignment?.assignment_type ?? "정규소속",
       assignment_start_date: currentAssignment?.start_date ?? "",
       assignment_end_date: currentAssignment?.end_date ?? "",
@@ -553,6 +589,7 @@ export default function Page() {
       return;
     }
     fetchEmployees();
+    alert("직원 삭제 성공");
   }
 
   async function saveDailyWorker(e: FormEvent<HTMLFormElement>) {
@@ -613,6 +650,7 @@ export default function Page() {
     });
     setEditingDailyWorkerId(null);
     fetchDailyWorkers();
+    alert(editingDailyWorkerId ? "일용직 정보가 수정되었습니다." : "일용직이 등록되었습니다.");
   }
 
   async function submitCompany(e: FormEvent<HTMLFormElement>) {
@@ -623,19 +661,62 @@ export default function Page() {
       return;
     }
 
-    const { error } = await supabase.from("companies").insert({
+    const payload = {
       name: companyForm.name.trim(),
       business_number: companyForm.business_number.trim(),
       address: companyForm.address.trim(),
-    });
+    };
+
+    const { error } = selectedCompanyManageId
+      ? await supabase.from("companies").update(payload).eq("id", selectedCompanyManageId)
+      : await supabase.from("companies").insert(payload);
 
     if (error) {
-      alert(`회사 등록 실패: ${error.message}`);
+      alert(`회사 ${selectedCompanyManageId ? "수정" : "등록"} 실패: ${error.message}`);
       return;
     }
 
     setCompanyForm({ name: "", business_number: "", address: "" });
+    setSelectedCompanyManageId(null);
     fetchCompanies();
+    alert(`회사 ${selectedCompanyManageId ? "수정" : "등록"} 성공`);
+  }
+
+  function selectCompanyForEdit(nextId: number | null) {
+    setSelectedCompanyManageId(nextId);
+    if (!nextId) {
+      setCompanyForm({ name: "", business_number: "", address: "" });
+      return;
+    }
+
+    const target = companies.find((company) => company.id === nextId);
+    if (!target) return;
+    setCompanyForm({
+      name: target.name ?? "",
+      business_number: target.business_number ?? "",
+      address: target.address ?? "",
+    });
+  }
+
+  async function deleteCompany() {
+    if (!selectedCompanyManageId) return;
+    const hasLinkedSite = sites.some((site) => site.company_id === selectedCompanyManageId);
+    if (hasLinkedSite) {
+      alert("연결된 현장이 있어 회사를 삭제할 수 없습니다.");
+      return;
+    }
+    if (!confirm("선택한 회사를 삭제하시겠습니까?")) return;
+
+    const { error } = await supabase.from("companies").delete().eq("id", selectedCompanyManageId);
+    if (error) {
+      alert(`회사 삭제 실패: ${error.message}`);
+      return;
+    }
+
+    setSelectedCompanyManageId(null);
+    setCompanyForm({ name: "", business_number: "", address: "" });
+    fetchCompanies();
+    alert("회사 삭제 성공");
   }
 
   async function createSite() {
@@ -653,11 +734,12 @@ export default function Page() {
       return false;
     }
 
+    alert("현장 등록 성공");
     return true;
   }
 
   async function updateSite() {
-    if (!editingSiteId) return false;
+    if (!selectedSiteManageId) return false;
 
     const { error } = await supabase
       .from("sites")
@@ -669,13 +751,14 @@ export default function Page() {
         construction_start_date: siteForm.construction_start_date,
         construction_end_date: siteForm.construction_end_date || null,
       })
-      .eq("id", editingSiteId);
+      .eq("id", selectedSiteManageId);
 
     if (error) {
       alert(`현장 수정 실패: ${error.message}`);
       return false;
     }
 
+    alert("현장 수정 성공");
     return true;
   }
 
@@ -703,7 +786,7 @@ export default function Page() {
       return;
     }
 
-    const isSuccess = editingSiteId ? await updateSite() : await createSite();
+    const isSuccess = selectedSiteManageId ? await updateSite() : await createSite();
     if (!isSuccess) {
       return;
     }
@@ -716,13 +799,25 @@ export default function Page() {
       construction_start_date: "",
       construction_end_date: "",
     });
-    setEditingSiteId(null);
+    setSelectedSiteManageId(null);
     fetchSites();
   }
 
-  function startEditSite(site: Site) {
-    setCurrentMenu("dashboard");
-    setEditingSiteId(site.id);
+  function selectSiteForEdit(nextId: number | null) {
+    setSelectedSiteManageId(nextId);
+    if (!nextId) {
+      setSiteForm({
+        name: "",
+        company_id: "",
+        client_name: "",
+        contract_type: "",
+        construction_start_date: "",
+        construction_end_date: "",
+      });
+      return;
+    }
+    const site = sites.find((item) => item.id === nextId);
+    if (!site) return;
     setSiteForm({
       name: site.name,
       company_id: String(site.company_id),
@@ -731,6 +826,42 @@ export default function Page() {
       construction_start_date: site.construction_start_date ?? "",
       construction_end_date: site.construction_end_date ?? "",
     });
+  }
+
+  async function deleteSite() {
+    if (!selectedSiteManageId) return;
+
+    const { count, error: countError } = await supabase
+      .from("daily_worker_monthly_records")
+      .select("id", { count: "exact", head: true })
+      .eq("site_id", selectedSiteManageId);
+    if (countError) {
+      alert(`현장 삭제 가능 여부 확인 실패: ${countError.message}`);
+      return;
+    }
+    if ((count ?? 0) > 0) {
+      alert("공수 기록이 있어 현장을 삭제할 수 없습니다.");
+      return;
+    }
+    if (!confirm("선택한 현장을 삭제하시겠습니까?")) return;
+
+    const { error } = await supabase.from("sites").delete().eq("id", selectedSiteManageId);
+    if (error) {
+      alert(`현장 삭제 실패: ${error.message}`);
+      return;
+    }
+
+    setSelectedSiteManageId(null);
+    setSiteForm({
+      name: "",
+      company_id: "",
+      client_name: "",
+      contract_type: "",
+      construction_start_date: "",
+      construction_end_date: "",
+    });
+    fetchSites();
+    alert("현장 삭제 성공");
   }
 
   function startEditDailyWorker(worker: DailyWorker) {
@@ -764,6 +895,7 @@ export default function Page() {
     }
     fetchDailyWorkers();
     fetchMonthlyRecords(targetMonth, selectedSiteId);
+    alert("일용직 삭제 성공");
   }
 
   function updateWorkUnit(date: string, workDays: number | null) {
@@ -871,18 +1003,30 @@ export default function Page() {
             {currentMenu === "dashboard" && (
               <>
                 <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>회사 / 현장 등록</h2>
+                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>회사 / 현장 관리</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
                     <form onSubmit={submitCompany} style={{ ...formGridStyle, gridTemplateColumns: "1fr" }}>
-                      <div style={labelStyle}>회사 등록</div>
+                      <div style={labelStyle}>회사 관리</div>
+                      <select style={inputStyle} value={selectedCompanyManageId ?? ""} onChange={(e) => selectCompanyForEdit(e.target.value ? Number(e.target.value) : null)}>
+                        <option value="">회사 선택 (신규 등록은 선택 안 함)</option>
+                        {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
+                      </select>
                       <input style={inputStyle} placeholder="회사명" value={companyForm.name} onChange={(e) => setCompanyForm((prev) => ({ ...prev, name: e.target.value }))} />
                       <input style={inputStyle} placeholder="사업자번호" value={companyForm.business_number} onChange={(e) => setCompanyForm((prev) => ({ ...prev, business_number: e.target.value }))} />
                       <input style={inputStyle} placeholder="주소" value={companyForm.address} onChange={(e) => setCompanyForm((prev) => ({ ...prev, address: e.target.value }))} />
-                      <button type="submit" style={primaryButtonStyle}>회사 등록</button>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <button type="submit" style={primaryButtonStyle}>{selectedCompanyManageId ? "회사 수정" : "회사 등록"}</button>
+                        <button type="button" style={dangerButtonStyle} disabled={!selectedCompanyManageId} onClick={deleteCompany}>회사 삭제</button>
+                        <button type="button" style={secondaryButtonStyle} onClick={() => selectCompanyForEdit(null)}>수정 취소</button>
+                      </div>
                     </form>
 
                     <form onSubmit={submitSite} style={{ ...formGridStyle, gridTemplateColumns: "1fr" }}>
-                      <div style={labelStyle}>{editingSiteId ? "현장 수정" : "현장 등록"}</div>
+                      <div style={labelStyle}>현장 관리</div>
+                      <select style={inputStyle} value={selectedSiteManageId ?? ""} onChange={(e) => selectSiteForEdit(e.target.value ? Number(e.target.value) : null)}>
+                        <option value="">현장 선택 (신규 등록은 선택 안 함)</option>
+                        {sites.map((site) => (<option key={site.id} value={site.id}>{site.name}</option>))}
+                      </select>
                       <input style={inputStyle} placeholder="현장명" value={siteForm.name} onChange={(e) => setSiteForm((prev) => ({ ...prev, name: e.target.value }))} />
                       <select style={inputStyle} value={siteForm.company_id} onChange={(e) => setSiteForm((prev) => ({ ...prev, company_id: e.target.value }))}>
                         <option value="">회사 선택</option>
@@ -918,26 +1062,11 @@ export default function Page() {
                           }
                         />
                       </div>
-                      <button type="submit" style={primaryButtonStyle}>{editingSiteId ? "현장 수정" : "현장 등록"}</button>
-                      {editingSiteId && (
-                        <button
-                          type="button"
-                          style={secondaryButtonStyle}
-                          onClick={() => {
-                            setEditingSiteId(null);
-                            setSiteForm({
-                              name: "",
-                              company_id: "",
-                              client_name: "",
-                              contract_type: "",
-                              construction_start_date: "",
-                              construction_end_date: "",
-                            });
-                          }}
-                        >
-                          수정 취소
-                        </button>
-                      )}
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <button type="submit" style={primaryButtonStyle}>{selectedSiteManageId ? "현장 수정" : "현장 등록"}</button>
+                        <button type="button" style={dangerButtonStyle} disabled={!selectedSiteManageId} onClick={deleteSite}>현장 삭제</button>
+                        <button type="button" style={secondaryButtonStyle} onClick={() => selectSiteForEdit(null)}>수정 취소</button>
+                      </div>
                     </form>
                   </div>
 
@@ -965,13 +1094,6 @@ export default function Page() {
                   <div style={{ color: "#475569", fontSize: "14px" }}>
                     회사 목록: {companies.map((company) => company.name).join(", ") || "없음"}<br />
                     현장 목록: {sites.map((site) => site.name).join(", ") || "없음"}
-                  </div>
-                  <div style={{ marginTop: "12px", display: "grid", gap: "8px" }}>
-                    {sites.map((site) => (
-                      <button key={site.id} type="button" style={secondaryButtonStyle} onClick={() => startEditSite(site)}>
-                        {site.name} 수정
-                      </button>
-                    ))}
                   </div>
                 </div>
 
@@ -1067,6 +1189,20 @@ export default function Page() {
                       <option value="일용직">일용직</option>
                     </select>
                     <input style={inputStyle} placeholder="직책" value={employeeForm.position} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, position: e.target.value }))} />
+                    <input
+                      style={inputStyle}
+                      type="text"
+                      placeholder="주민번호 (예: 8312151234567)"
+                      value={employeeForm.resident_number}
+                      onChange={(e) => setEmployeeForm((prev) => ({ ...prev, resident_number: formatResidentNumber(e.target.value) }))}
+                    />
+                    <input
+                      style={inputStyle}
+                      type="text"
+                      placeholder="전화번호 (예: 01012345678)"
+                      value={employeeForm.phone}
+                      onChange={(e) => setEmployeeForm((prev) => ({ ...prev, phone: formatPhoneNumber(e.target.value) }))}
+                    />
                     <div>
                       <div style={labelStyle}>입사일</div>
                       <input
@@ -1154,6 +1290,8 @@ export default function Page() {
                         <th style={thStyle}>이름</th>
                         <th style={thStyle}>구분</th>
                         <th style={thStyle}>직책</th>
+                        <th style={thStyle}>주민번호</th>
+                        <th style={thStyle}>전화번호</th>
                         <th style={thStyle}>입사일</th>
                         <th style={thStyle}>퇴사일</th>
                         <th style={thStyle}>상태</th>
@@ -1162,14 +1300,16 @@ export default function Page() {
                     </thead>
                     <tbody>
                       {loadingEmployees ? (
-                        <tr><td style={tdStyle} colSpan={7}>불러오는 중...</td></tr>
+                        <tr><td style={tdStyle} colSpan={9}>불러오는 중...</td></tr>
                       ) : filteredEmployees.length === 0 ? (
-                        <tr><td style={tdStyle} colSpan={7}>데이터가 없습니다.</td></tr>
+                        <tr><td style={tdStyle} colSpan={9}>데이터가 없습니다.</td></tr>
                       ) : filteredEmployees.map((employee) => (
                         <tr key={employee.id}>
                           <td style={tdStyle}>{employee.name}</td>
                           <td style={tdStyle}>{employee.type}</td>
                           <td style={tdStyle}>{employee.position}</td>
+                          <td style={tdStyle}>{maskResidentNumber(employee.resident_number)}</td>
+                          <td style={tdStyle}>{employee.phone || "-"}</td>
                           <td style={tdStyle}>{employee.join_date}</td>
                           <td style={tdStyle}>{employee.status === "퇴사" ? (employee.resignation_date ?? "-") : ""}</td>
                           <td style={tdStyle}>{employee.status}</td>
@@ -1198,7 +1338,7 @@ export default function Page() {
                     <input
                       style={inputStyle}
                       type="text"
-                      placeholder="최초근무일 (YYYY-MM-DD)"
+                      placeholder="최초근무일 (예: 20260404)"
                       value={dailyWorkerForm.first_work_date}
                       onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, first_work_date: formatDateInput(e.target.value) }))}
                     />
@@ -1212,7 +1352,12 @@ export default function Page() {
                         setDailyWorkerForm((prev) => ({ ...prev, resident_number: formatResidentNumber(e.target.value) }))
                       }
                     />
-                    <input style={inputStyle} placeholder="전화번호" value={dailyWorkerForm.phone} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, phone: e.target.value }))} />
+                    <input
+                      style={inputStyle}
+                      placeholder="전화번호 (예: 01012345678)"
+                      value={dailyWorkerForm.phone}
+                      onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, phone: formatPhoneNumber(e.target.value) }))}
+                    />
                     <input style={inputStyle} placeholder="은행명" value={dailyWorkerForm.bank_name} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, bank_name: e.target.value }))} />
                     <input style={inputStyle} placeholder="계좌번호" value={dailyWorkerForm.account_number} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, account_number: e.target.value }))} />
                     <input style={inputStyle} placeholder="직종" value={dailyWorkerForm.job_type} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, job_type: e.target.value }))} />

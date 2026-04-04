@@ -68,7 +68,11 @@ create unique index if not exists daily_worker_monthly_records_worker_site_month
 
 -- 5) employees 상태/퇴사일 확장
 alter table if exists public.employees
-  add column if not exists resignation_date date;
+  add column if not exists resignation_date date,
+  add column if not exists phone text,
+  add column if not exists resident_number text,
+  add column if not exists company_id bigint references public.companies(id),
+  add column if not exists site_id bigint references public.sites(id);
 
 do $$
 begin
