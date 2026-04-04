@@ -120,6 +120,7 @@ export default function Page() {
     () => dailyWorkers.find((worker) => worker.id === selectedDailyWorkerId) ?? null,
     [dailyWorkers, selectedDailyWorkerId]
   );
+  const selectedWorkMap = useMemo(() => selectedWorkEntries, [selectedWorkEntries]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
@@ -412,7 +413,7 @@ export default function Page() {
     }
 
     setSavingMonthlyRecord(true);
-    const normalizedEntries = Object.entries(selectedWorkEntries)
+    const normalizedEntries = Object.entries(selectedWorkMap)
       .map(([date, units]) => ({ date, units: Number(units) }))
       .filter((entry) => entry.units > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -686,8 +687,9 @@ export default function Page() {
                             type="number"
                             step="0.01"
                             min="0"
-                            value={selectedWorkEntries[date] === 0 ? "" : (selectedWorkEntries[date] ?? "")}
+                            value={selectedWorkMap[date] === 0 ? "" : (selectedWorkMap[date] ?? "")}
                             onChange={(e) => updateWorkUnit(date, e.target.value === "" ? 0 : Number(e.target.value))}
+                            style={{ width: "100%", boxSizing: "border-box" }}
                           />
                         </td>
                       </tr>
