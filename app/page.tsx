@@ -1,5 +1,7 @@
 "use client";
 
+console.log("코덱스 연결 확인");
+
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
