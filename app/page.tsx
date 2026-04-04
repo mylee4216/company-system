@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+type Menu = "dashboard" | "employees" | "daily" | "tax";
+
 type Employee = {
   id: number;
   name: string;
@@ -10,6 +12,15 @@ type Employee = {
   position: string;
   joinDate: string;
   status: string;
+};
+
+type EmployeeRow = {
+  id: number;
+  name: string;
+  type: string | null;
+  position: string;
+  join_date: string;
+  status: string | null;
 };
 
 type DailyWorker = {
@@ -28,51 +39,94 @@ type DailyWorkerRow = {
   created_at: string;
 };
 
+type WorkEntry = {
+  date: string;
+  units: number;
+};
+
 type MonthlyRecordRow = {
   daily_worker_id: number;
+  target_month: string;
   work_dates: string[] | null;
+  work_entries: WorkEntry[] | null;
+  total_work_units: number | null;
+  worked_days_count: number | null;
+  gross_amount: number | null;
 };
 
 function normalizeEmployeeType(value: string | null | undefined) {
-  const text = (value ?? "").trim();
-  return text.includes("일용직") ? "일용직" : "상용직";
+  return (value ?? "").includes("일용") ? "일용직" : "상용직";
 }
 
 function normalizeEmployeeStatus(value: string | null | undefined) {
-  const text = (value ?? "").trim();
-  return text.includes("재직") ? "재직" : "퇴사";
+  return (value ?? "").includes("퇴") ? "퇴사" : "재직";
 }
 
-function calculateTax(dailyWage: number, workDays: number, nonTaxable: number) {
-  const taxablePerDay = Math.max(dailyWage - nonTaxable - 150000, 0);
-  const taxableAmount = taxablePerDay * workDays;
+function mapDailyWorkerRowToState(row: DailyWorkerRow): DailyWorker {
+  return {
+    id: row.id,
+    name: row.name,
+    dailyWage: Number(row.daily_wage ?? 0),
+    nonTaxable: Number(row.non_taxable ?? 0),
+    createdAt: row.created_at,
+  };
+}
+
+function getTotalWorkUnits(entries: WorkEntry[]) {
+  return entries.reduce((sum, entry) => sum + Number(entry.units || 0), 0);
+}
+
+function getWorkedDaysCount(entries: WorkEntry[]) {
+  return entries.filter((entry) => entry.units > 0).length;
+}
+
+function mapMonthlyRowToEntries(row: MonthlyRecordRow): WorkEntry[] {
+  if (Array.isArray(row.work_entries)) {
+    return row.work_entries
+      .map((entry) => ({
+        date: String(entry.date),
+        units: Number(entry.units || 0),
+      }))
+      .filter((entry) => entry.date && entry.units > 0);
+  }
+
+  return Array.isArray(row.work_dates)
+    ? row.work_dates.map((date) => ({ date, units: 1 }))
+    : [];
+}
+
+function getDatesOfMonth(targetMonth: string) {
+  const [yearText, monthText] = targetMonth.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+
+  if (!year || !month) return [];
+
+  const totalDays = new Date(year, month, 0).getDate();
+  return Array.from({ length: totalDays }, (_, index) => {
+    const day = String(index + 1).padStart(2, "0");
+    return `${targetMonth}-${day}`;
+  });
+}
+
+function calculateTaxByGross(grossAmount: number, workedDaysCount: number, nonTaxable: number) {
+  const deductionBase = 150000 * workedDaysCount + nonTaxable * workedDaysCount;
+  const taxableAmount = Math.max(grossAmount - deductionBase, 0);
   const incomeTax = Math.floor((taxableAmount * 0.027) / 10) * 10;
   const localTax = Math.floor((incomeTax * 0.1) / 10) * 10;
-  const totalTax = incomeTax + localTax;
-
   return {
     taxableAmount,
     incomeTax,
     localTax,
-    totalTax,
+    totalTax: incomeTax + localTax,
   };
 }
 
-function mapDailyWorkerRowToState(item: DailyWorkerRow): DailyWorker {
-  return {
-    id: item.id,
-    name: item.name,
-    dailyWage: item.daily_wage,
-    nonTaxable: item.non_taxable,
-    createdAt: item.created_at,
-  };
-}
-
-export default function Home() {
-  const [currentMenu, setCurrentMenu] = useState("dashboard");
-  const [loadingEmployees, setLoadingEmployees] = useState(true);
+export default function Page() {
+  const [currentMenu, setCurrentMenu] = useState<Menu>("dashboard");
 
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [employeeSearchKeyword, setEmployeeSearchKeyword] = useState("");
   const [employeeTypeFilter, setEmployeeTypeFilter] = useState("전체");
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState("전체");
@@ -86,212 +140,152 @@ export default function Home() {
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
 
   const [dailyWorkers, setDailyWorkers] = useState<DailyWorker[]>([]);
+  const [loadingDailyWorkers, setLoadingDailyWorkers] = useState(false);
   const [dailyForm, setDailyForm] = useState({
     name: "",
     dailyWage: "",
     nonTaxable: "0",
   });
   const [editingDailyWorkerId, setEditingDailyWorkerId] = useState<number | null>(null);
-  const [dailyStartDate, setDailyStartDate] = useState("");
-  const [dailyEndDate, setDailyEndDate] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedWorkDates, setSelectedWorkDates] = useState<string[]>([]);
-  const [monthlyRecords, setMonthlyRecords] = useState<Record<number, string[]>>({});
-  const [monthColumnName, setMonthColumnName] = useState<"target_month" | "year_month" | null>(null);
-  const [monthlyOnConflict, setMonthlyOnConflict] = useState<string>("");
+  const [selectedWorkEntries, setSelectedWorkEntries] = useState<WorkEntry[]>([]);
+  const [monthlyRecords, setMonthlyRecords] = useState<Record<number, WorkEntry[]>>({});
 
-  const [taxForm, setTaxForm] = useState({
-    dailyWage: "180000",
-    workDays: "10",
-    nonTaxable: "0",
-  });
+  const [taxPreviewWorkerId, setTaxPreviewWorkerId] = useState<number | "">("");
 
-  useEffect(() => {
-    const detectMonthlyRecordColumns = async () => {
-      const targetMonthProbe = await supabase
-        .from("daily_worker_monthly_records")
-        .select("daily_worker_id, target_month, work_dates")
-        .limit(1);
+  const monthDates = useMemo(() => getDatesOfMonth(selectedMonth), [selectedMonth]);
 
-      if (!targetMonthProbe.error) {
-        setMonthColumnName("target_month");
-        setMonthlyOnConflict("daily_worker_id,target_month");
-        return;
-      }
-
-      const yearMonthProbe = await supabase
-        .from("daily_worker_monthly_records")
-        .select("daily_worker_id, year_month, work_dates")
-        .limit(1);
-
-      if (!yearMonthProbe.error) {
-        setMonthColumnName("year_month");
-        setMonthlyOnConflict("daily_worker_id,year_month");
-        return;
-      }
-
-      alert("월별 기록 테이블 컬럼 확인 실패: target_month/year_month 중 하나가 필요합니다.");
-    };
-
-    const fetchEmployees = async () => {
-      setLoadingEmployees(true);
-
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, name, type, position, join_date, status")
-        .order("id", { ascending: true });
-
-      if (error) {
-        alert("직원 불러오기 실패: " + error.message);
-        setLoadingEmployees(false);
-        return;
-      }
-
-      const converted = (data || []).map((item) => ({
-        id: item.id,
-        name: item.name,
-        type: normalizeEmployeeType(item.type),
-        position: item.position,
-        joinDate: item.join_date,
-        status: normalizeEmployeeStatus(item.status),
-      }));
-
-      setEmployees(converted);
-      setLoadingEmployees(false);
-    };
-
-    const fetchDailyWorkers = async () => {
-      const { data, error } = await supabase
-        .from("daily_workers")
-        .select("id, name, daily_wage, non_taxable, created_at")
-        .order("created_at", { ascending: true });
-
-      if (error) {
-        alert("일용직 불러오기 실패: " + error.message);
-        return;
-      }
-
-      const converted = (data || []).map((item) => mapDailyWorkerRowToState(item));
-      setDailyWorkers(converted);
-    };
-
-    fetchEmployees();
-    fetchDailyWorkers();
-    detectMonthlyRecordColumns();
-  }, []);
-
-  useEffect(() => {
-    const fetchMonthlyRecords = async () => {
-      if (!monthColumnName) return;
-
-      const { data, error } = await supabase
-        .from("daily_worker_monthly_records")
-        .select("daily_worker_id, work_dates")
-        .eq(monthColumnName, selectedMonth);
-
-      if (error) {
-        alert("월별 근무일 불러오기 실패: " + error.message);
-        return;
-      }
-
-      const nextRecords: Record<number, string[]> = {};
-      (data as MonthlyRecordRow[] | null)?.forEach((item) => {
-        nextRecords[item.daily_worker_id] = Array.isArray(item.work_dates) ? item.work_dates : [];
-      });
-
-      setMonthlyRecords(nextRecords);
-      setSelectedWorkDates([]);
-    };
-
-    fetchMonthlyRecords();
-  }, [monthColumnName, selectedMonth]);
-
-  const activeEmployees = useMemo(
-    () => employees.filter((item) => normalizeEmployeeStatus(item.status) === "재직").length,
-    [employees]
-  );
+  const selectedWorkMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    selectedWorkEntries.forEach((entry) => {
+      map[entry.date] = entry.units;
+    });
+    return map;
+  }, [selectedWorkEntries]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
-      const normalizedName = employee.name.toLowerCase();
-      const searchKeyword = employeeSearchKeyword.trim().toLowerCase();
-      const matchesName = searchKeyword === "" || normalizedName.includes(searchKeyword);
-
-      const employeeType = normalizeEmployeeType(employee.type);
-      const matchesType = employeeTypeFilter === "전체" || employeeType === employeeTypeFilter;
-
-      const employeeStatus = normalizeEmployeeStatus(employee.status);
-      const matchesStatus = employeeStatusFilter === "전체" || employeeStatus === employeeStatusFilter;
-
+      const matchesName =
+        employeeSearchKeyword.trim() === "" ||
+        employee.name.toLowerCase().includes(employeeSearchKeyword.trim().toLowerCase());
+      const matchesType = employeeTypeFilter === "전체" || normalizeEmployeeType(employee.type) === employeeTypeFilter;
+      const matchesStatus =
+        employeeStatusFilter === "전체" || normalizeEmployeeStatus(employee.status) === employeeStatusFilter;
       return matchesName && matchesType && matchesStatus;
     });
   }, [employees, employeeSearchKeyword, employeeTypeFilter, employeeStatusFilter]);
 
-  const dailyEmployeeCount = useMemo(
-    () => dailyWorkers.length,
-    [dailyWorkers]
+  const activeEmployeeCount = useMemo(
+    () => employees.filter((employee) => normalizeEmployeeStatus(employee.status) === "재직").length,
+    [employees]
   );
 
-  const estimatedPayout = useMemo(
-    () =>
-      dailyWorkers.reduce((sum, item) => {
-        const workDays = monthlyRecords[item.id]?.length ?? 0;
-        return sum + item.dailyWage * workDays;
-      }, 0),
-    [dailyWorkers, monthlyRecords]
-  );
+  const estimatedPayout = useMemo(() => {
+    return dailyWorkers.reduce((sum, worker) => {
+      const entries = monthlyRecords[worker.id] ?? [];
+      return sum + worker.dailyWage * getTotalWorkUnits(entries);
+    }, 0);
+  }, [dailyWorkers, monthlyRecords]);
 
-  const filteredDailyWorkers = useMemo(() => {
-    return dailyWorkers.filter((worker) => {
-      const workerDate = worker.createdAt.slice(0, 10);
-      const matchesStartDate = dailyStartDate === "" || workerDate >= dailyStartDate;
-      const matchesEndDate = dailyEndDate === "" || workerDate <= dailyEndDate;
-      return matchesStartDate && matchesEndDate;
+  const taxPreview = useMemo(() => {
+    const worker = dailyWorkers.find((item) => item.id === taxPreviewWorkerId);
+    if (!worker) return null;
+
+    const entries = monthlyRecords[worker.id] ?? [];
+    const totalWorkUnits = getTotalWorkUnits(entries);
+    const workedDaysCount = getWorkedDaysCount(entries);
+    const grossAmount = worker.dailyWage * totalWorkUnits;
+    return {
+      worker,
+      totalWorkUnits,
+      workedDaysCount,
+      grossAmount,
+      ...calculateTaxByGross(grossAmount, workedDaysCount, worker.nonTaxable),
+    };
+  }, [taxPreviewWorkerId, dailyWorkers, monthlyRecords]);
+
+  async function fetchEmployees() {
+    setLoadingEmployees(true);
+    const { data, error } = await supabase
+      .from("employees")
+      .select("id, name, type, position, join_date, status")
+      .order("id", { ascending: true });
+
+    if (error) {
+      alert(`직원 목록 조회 실패: ${error.message}`);
+      setLoadingEmployees(false);
+      return;
+    }
+
+    const rows = (data ?? []) as EmployeeRow[];
+    setEmployees(
+      rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        type: normalizeEmployeeType(row.type),
+        position: row.position,
+        joinDate: row.join_date,
+        status: normalizeEmployeeStatus(row.status),
+      }))
+    );
+    setLoadingEmployees(false);
+  }
+
+  async function fetchDailyWorkers() {
+    setLoadingDailyWorkers(true);
+    const { data, error } = await supabase
+      .from("daily_workers")
+      .select("id, name, daily_wage, non_taxable, created_at")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      alert(`일용직 목록 조회 실패: ${error.message}`);
+      setLoadingDailyWorkers(false);
+      return;
+    }
+
+    const rows = (data ?? []) as DailyWorkerRow[];
+    setDailyWorkers(rows.map(mapDailyWorkerRowToState));
+    setLoadingDailyWorkers(false);
+  }
+
+  async function fetchMonthlyRecords(targetMonth: string) {
+    const { data, error } = await supabase
+      .from("daily_worker_monthly_records")
+      .select(
+        "daily_worker_id, target_month, work_dates, work_entries, total_work_units, worked_days_count, gross_amount"
+      )
+      .eq("target_month", targetMonth);
+
+    if (error) {
+      alert(`월별 공수 조회 실패: ${error.message}`);
+      return;
+    }
+
+    const rows = (data ?? []) as MonthlyRecordRow[];
+    const recordMap: Record<number, WorkEntry[]> = {};
+
+    rows.forEach((row) => {
+      recordMap[row.daily_worker_id] = mapMonthlyRowToEntries(row);
     });
-  }, [dailyWorkers, dailyStartDate, dailyEndDate]);
 
-  const filteredDailyTotalPayout = useMemo(
-    () =>
-      filteredDailyWorkers.reduce((sum, worker) => {
-        const workDays = monthlyRecords[worker.id]?.length ?? 0;
-        return sum + worker.dailyWage * workDays;
-      }, 0),
-    [filteredDailyWorkers, monthlyRecords]
-  );
+    setMonthlyRecords(recordMap);
+  }
 
-  const currentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
-  const thisMonthTotalPayout = useMemo(
-    () =>
-      dailyWorkers
-        .filter((worker) => worker.createdAt.slice(0, 7) === currentMonth)
-        .reduce((sum, worker) => {
-          const workDays = monthlyRecords[worker.id]?.length ?? 0;
-          return sum + worker.dailyWage * workDays;
-        }, 0),
-    [dailyWorkers, currentMonth, monthlyRecords]
-  );
+  useEffect(() => {
+    fetchEmployees();
+    fetchDailyWorkers();
+  }, []);
 
-  const monthDateOptions = useMemo(() => {
-    const [yearText, monthText] = selectedMonth.split("-");
-    const year = Number(yearText);
-    const month = Number(monthText);
-
-    if (!year || !month) return [];
-
-    const totalDays = new Date(year, month, 0).getDate();
-    return Array.from({ length: totalDays }, (_, index) => {
-      const day = String(index + 1).padStart(2, "0");
-      return `${selectedMonth}-${day}`;
-    });
+  useEffect(() => {
+    fetchMonthlyRecords(selectedMonth);
+    if (editingDailyWorkerId !== null) {
+      setSelectedWorkEntries(monthlyRecords[editingDailyWorkerId] ?? []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth]);
 
-  const taxPreview = calculateTax(
-    Number(taxForm.dailyWage || 0),
-    Number(taxForm.workDays || 0),
-    Number(taxForm.nonTaxable || 0)
-  );
-
-  const resetEmployeeForm = () => {
+  function resetEmployeeForm() {
     setEmployeeForm({
       name: "",
       type: "상용직",
@@ -300,93 +294,85 @@ export default function Home() {
       status: "재직",
     });
     setEditingEmployeeId(null);
-  };
+  }
 
-  const saveEmployee = async () => {
+  async function saveEmployee() {
     if (!employeeForm.name || !employeeForm.position || !employeeForm.joinDate) {
-      alert("직원 이름, 직급, 입사일을 입력해주세요.");
+      alert("이름, 직급, 입사일을 입력해주세요.");
       return;
     }
-
-    const normalizedType = normalizeEmployeeType(employeeForm.type);
-    const normalizedStatus = normalizeEmployeeStatus(employeeForm.status);
 
     if (editingEmployeeId !== null) {
       const { data, error } = await supabase
         .from("employees")
         .update({
           name: employeeForm.name,
-          type: normalizedType,
+          type: normalizeEmployeeType(employeeForm.type),
           position: employeeForm.position,
           join_date: employeeForm.joinDate,
-          status: normalizedStatus,
+          status: normalizeEmployeeStatus(employeeForm.status),
         })
         .eq("id", editingEmployeeId)
         .select("id, name, type, position, join_date, status")
         .single();
 
       if (error) {
-        alert("수정 실패: " + error.message);
+        alert(`직원 수정 실패: ${error.message}`);
         return;
       }
 
+      const row = data as EmployeeRow;
       setEmployees((prev) =>
-        prev.map((item) =>
-          item.id === editingEmployeeId
+        prev.map((employee) =>
+          employee.id === editingEmployeeId
             ? {
-                id: data.id,
-                name: data.name,
-                type: normalizeEmployeeType(data.type),
-                position: data.position,
-                joinDate: data.join_date,
-                status: normalizeEmployeeStatus(data.status),
+                id: row.id,
+                name: row.name,
+                type: normalizeEmployeeType(row.type),
+                position: row.position,
+                joinDate: row.join_date,
+                status: normalizeEmployeeStatus(row.status),
               }
-            : item
+            : employee
         )
       );
-
       resetEmployeeForm();
-      alert("직원 정보가 수정되었습니다.");
       return;
     }
 
     const { data, error } = await supabase
       .from("employees")
-      .insert([
-        {
-          name: employeeForm.name,
-          type: normalizedType,
-          position: employeeForm.position,
-          join_date: employeeForm.joinDate,
-          status: normalizedStatus,
-        },
-      ])
+      .insert({
+        name: employeeForm.name,
+        type: normalizeEmployeeType(employeeForm.type),
+        position: employeeForm.position,
+        join_date: employeeForm.joinDate,
+        status: normalizeEmployeeStatus(employeeForm.status),
+      })
       .select("id, name, type, position, join_date, status")
       .single();
 
     if (error) {
-      alert("저장 실패: " + error.message);
+      alert(`직원 등록 실패: ${error.message}`);
       return;
     }
 
+    const row = data as EmployeeRow;
     setEmployees((prev) => [
       ...prev,
       {
-        id: data.id,
-        name: data.name,
-        type: normalizeEmployeeType(data.type),
-        position: data.position,
-        joinDate: data.join_date,
-        status: normalizeEmployeeStatus(data.status),
+        id: row.id,
+        name: row.name,
+        type: normalizeEmployeeType(row.type),
+        position: row.position,
+        joinDate: row.join_date,
+        status: normalizeEmployeeStatus(row.status),
       },
     ]);
-
     resetEmployeeForm();
+  }
 
-    alert("직원이 저장되었습니다.");
-  };
-
-  const startEditEmployee = (employee: Employee) => {
+  function startEditEmployee(employee: Employee) {
     setEditingEmployeeId(employee.id);
     setEmployeeForm({
       name: employee.name,
@@ -396,155 +382,142 @@ export default function Home() {
       status: normalizeEmployeeStatus(employee.status),
     });
     setCurrentMenu("employees");
-  };
+  }
 
-  const deleteEmployee = async (employee: Employee) => {
-    const ok = confirm(`${employee.name} 직원을 삭제할까요?`);
-    if (!ok) return;
+  async function deleteEmployee(employee: Employee) {
+    if (!confirm(`${employee.name} 직원을 삭제할까요?`)) return;
 
     const { error } = await supabase.from("employees").delete().eq("id", employee.id);
-
     if (error) {
-      alert("삭제 실패: " + error.message);
+      alert(`직원 삭제 실패: ${error.message}`);
       return;
     }
 
     setEmployees((prev) => prev.filter((item) => item.id !== employee.id));
-
     if (editingEmployeeId === employee.id) {
       resetEmployeeForm();
     }
+  }
 
-    alert("직원이 삭제되었습니다.");
-  };
-
-  const resetDailyWorkerForm = () => {
+  function resetDailyWorkerForm() {
     setDailyForm({
       name: "",
       dailyWage: "",
       nonTaxable: "0",
     });
     setEditingDailyWorkerId(null);
-    setSelectedWorkDates([]);
-  };
+    setSelectedWorkEntries([]);
+  }
 
-  const saveDailyWorker = async () => {
+  function updateWorkEntry(date: string, units: number) {
+    setSelectedWorkEntries((prev) => {
+      const filtered = prev.filter((entry) => entry.date !== date);
+      if (units <= 0) return filtered;
+      return [...filtered, { date, units }].sort((a, b) => a.date.localeCompare(b.date));
+    });
+  }
+
+  async function saveDailyWorker() {
     if (!dailyForm.name || !dailyForm.dailyWage) {
-      alert("이름, 일급을 입력해주세요.");
+      alert("이름과 일급을 입력해주세요.");
       return;
     }
 
-    if (!monthColumnName || !monthlyOnConflict) {
-      alert("월별 기록 컬럼 정보를 찾지 못했습니다.");
-      return;
-    }
+    const wage = Number(dailyForm.dailyWage || 0);
+    const nonTaxable = Number(dailyForm.nonTaxable || 0);
 
-    let savedWorkerId: number | null = null;
+    let workerId = editingDailyWorkerId;
 
     if (editingDailyWorkerId !== null) {
       const { data, error } = await supabase
         .from("daily_workers")
         .update({
           name: dailyForm.name,
-          daily_wage: Number(dailyForm.dailyWage),
-          non_taxable: Number(dailyForm.nonTaxable || 0),
+          daily_wage: wage,
+          non_taxable: nonTaxable,
         })
         .eq("id", editingDailyWorkerId)
         .select("id, name, daily_wage, non_taxable, created_at")
         .single();
 
       if (error) {
-        alert("일용직 수정 실패: " + error.message);
+        alert(`일용직 수정 실패: ${error.message}`);
         return;
       }
 
+      const row = data as DailyWorkerRow;
       setDailyWorkers((prev) =>
-        prev.map((item) => (item.id === editingDailyWorkerId ? mapDailyWorkerRowToState(data) : item))
+        prev.map((worker) => (worker.id === editingDailyWorkerId ? mapDailyWorkerRowToState(row) : worker))
       );
-      savedWorkerId = data.id;
+      workerId = row.id;
     } else {
       const { data, error } = await supabase
         .from("daily_workers")
-        .insert([
-          {
-            name: dailyForm.name,
-            daily_wage: Number(dailyForm.dailyWage),
-            non_taxable: Number(dailyForm.nonTaxable || 0),
-          },
-        ])
+        .insert({
+          name: dailyForm.name,
+          daily_wage: wage,
+          non_taxable: nonTaxable,
+        })
         .select("id, name, daily_wage, non_taxable, created_at")
         .single();
 
       if (error) {
-        alert("일용직 저장 실패: " + error.message);
+        alert(`일용직 등록 실패: ${error.message}`);
         return;
       }
 
-      setDailyWorkers((prev) => [...prev, mapDailyWorkerRowToState(data)]);
-      savedWorkerId = data.id;
+      const row = data as DailyWorkerRow;
+      setDailyWorkers((prev) => [...prev, mapDailyWorkerRowToState(row)]);
+      workerId = row.id;
     }
 
-    if (savedWorkerId === null) return;
+    if (workerId === null) return;
 
-    const sortedWorkDates = [...selectedWorkDates].sort();
+    const workEntries = selectedWorkEntries.filter((entry) => entry.units > 0);
+    const workDates = workEntries.map((entry) => entry.date);
+    const totalWorkUnits = getTotalWorkUnits(workEntries);
+    const workedDaysCount = getWorkedDaysCount(workEntries);
+    const grossAmount = wage * totalWorkUnits;
 
-    const monthlyPayload: Record<string, string | number | string[]> = {
-      daily_worker_id: savedWorkerId,
-      work_dates: sortedWorkDates,
-    };
-    monthlyPayload[monthColumnName] = selectedMonth;
-
-    const { error: monthlyError } = await supabase
-      .from("daily_worker_monthly_records")
-      .upsert([monthlyPayload], { onConflict: monthlyOnConflict });
+    const { error: monthlyError } = await supabase.from("daily_worker_monthly_records").upsert(
+      {
+        daily_worker_id: workerId,
+        target_month: selectedMonth,
+        work_entries: workEntries,
+        work_dates: workDates,
+        total_work_units: totalWorkUnits,
+        worked_days_count: workedDaysCount,
+        gross_amount: grossAmount,
+      },
+      { onConflict: "daily_worker_id,target_month" }
+    );
 
     if (monthlyError) {
-      alert("월별 근무일 저장 실패: " + monthlyError.message);
+      alert(`월별 공수 저장 실패: ${monthlyError.message}`);
       return;
     }
 
-    setMonthlyRecords((prev) => ({
-      ...prev,
-      [savedWorkerId]: sortedWorkDates,
-    }));
-
+    setMonthlyRecords((prev) => ({ ...prev, [workerId]: workEntries }));
     resetDailyWorkerForm();
+  }
 
-    if (editingDailyWorkerId !== null) {
-      alert("일용직 정보가 수정되었습니다.");
-      return;
-    }
-
-    alert("일용직 정보가 등록되었습니다.");
-  };
-
-  const toggleWorkDate = (workDate: string) => {
-    setSelectedWorkDates((prev) => {
-      if (prev.includes(workDate)) {
-        return prev.filter((item) => item !== workDate);
-      }
-      return [...prev, workDate].sort();
-    });
-  };
-
-  const startEditDailyWorker = (worker: DailyWorker) => {
+  function startEditDailyWorker(worker: DailyWorker) {
     setEditingDailyWorkerId(worker.id);
     setDailyForm({
       name: worker.name,
       dailyWage: String(worker.dailyWage),
       nonTaxable: String(worker.nonTaxable),
     });
-    setSelectedWorkDates(monthlyRecords[worker.id] || []);
-  };
+    setSelectedWorkEntries(monthlyRecords[worker.id] ?? []);
+    setCurrentMenu("daily");
+  }
 
-  const deleteDailyWorker = async (worker: DailyWorker) => {
-    const ok = confirm(`${worker.name} 일용직 정보를 삭제할까요?`);
-    if (!ok) return;
+  async function deleteDailyWorker(worker: DailyWorker) {
+    if (!confirm(`${worker.name} 일용직 정보를 삭제할까요?`)) return;
 
     const { error } = await supabase.from("daily_workers").delete().eq("id", worker.id);
-
     if (error) {
-      alert("일용직 삭제 실패: " + error.message);
+      alert(`일용직 삭제 실패: ${error.message}`);
       return;
     }
 
@@ -558,26 +531,18 @@ export default function Home() {
     if (editingDailyWorkerId === worker.id) {
       resetDailyWorkerForm();
     }
-
-    alert("일용직 정보가 삭제되었습니다.");
-  };
+  }
 
   return (
     <main style={{ minHeight: "100vh", background: "#f8fafc", padding: "24px", fontFamily: "Arial, sans-serif" }}>
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
         <h1 style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "8px" }}>회사 관리시스템</h1>
-        <p style={{ color: "#475569", marginBottom: "24px" }}>직원 등록, 조회, 삭제와 간단한 일용직 계산까지 가능한 첫 실전 버전입니다.</p>
+        <p style={{ color: "#475569", marginBottom: "24px" }}>
+          직원관리와 일용직 월별 공수/세금 계산을 한 화면에서 처리합니다.
+        </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "24px" }}>
-          <aside
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: "16px",
-              padding: "20px",
-              height: "fit-content",
-            }}
-          >
+          <aside style={{ ...cardStyle, height: "fit-content" }}>
             <div style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "20px" }}>메뉴</div>
             <div style={{ display: "grid", gap: "10px" }}>
               <button style={currentMenu === "dashboard" ? activeMenuButtonStyle : menuButtonStyle} onClick={() => setCurrentMenu("dashboard")}>대시보드</button>
@@ -591,91 +556,58 @@ export default function Home() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
               <div style={cardStyle}>
                 <div style={cardTitleStyle}>재직 직원 수</div>
-                <div style={cardNumberStyle}>{activeEmployees}명</div>
-                <div style={cardDescStyle}>현재 등록 데이터 기준</div>
+                <div style={cardNumberStyle}>{activeEmployeeCount}명</div>
+                <div style={cardDescStyle}>employees 테이블 기준</div>
               </div>
-
               <div style={cardStyle}>
                 <div style={cardTitleStyle}>일용직 인원</div>
-                <div style={cardNumberStyle}>{dailyEmployeeCount}명</div>
-                <div style={cardDescStyle}>직원 목록 기준</div>
+                <div style={cardNumberStyle}>{dailyWorkers.length}명</div>
+                <div style={cardDescStyle}>daily_workers 테이블 기준</div>
               </div>
-
               <div style={cardStyle}>
                 <div style={cardTitleStyle}>예상 지급액</div>
                 <div style={cardNumberStyle}>{estimatedPayout.toLocaleString()}원</div>
-                <div style={cardDescStyle}>일용직 입력 합계</div>
+                <div style={cardDescStyle}>{selectedMonth} 월 기준</div>
               </div>
             </div>
 
             {currentMenu === "dashboard" && (
-              <>
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>직원 목록</h2>
-                  {loadingEmployees && <div style={{ marginBottom: "12px", color: "#64748b" }}>직원 데이터를 불러오는 중입니다...</div>}
-                  <div style={{ marginBottom: "12px", color: "#64748b", fontSize: "14px" }}>
-                    현재 검색/필터 결과: {filteredEmployees.length}명
-                  </div>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#f1f5f9" }}>
-                        <th style={thStyle}>이름</th>
-                        <th style={thStyle}>구분</th>
-                        <th style={thStyle}>직급</th>
-                        <th style={thStyle}>입사일</th>
-                        <th style={thStyle}>상태</th>
-                        <th style={thStyle}>관리</th>
+              <div style={cardStyle}>
+                <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>직원 요약</h2>
+                <div style={{ color: "#64748b", marginBottom: "12px" }}>
+                  등록 직원: {employees.length}명 / 재직: {activeEmployeeCount}명 / 퇴사: {employees.length - activeEmployeeCount}명
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: "#f1f5f9" }}>
+                      <th style={thStyle}>이름</th>
+                      <th style={thStyle}>구분</th>
+                      <th style={thStyle}>직급</th>
+                      <th style={thStyle}>입사일</th>
+                      <th style={thStyle}>상태</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employees.map((employee) => (
+                      <tr key={employee.id}>
+                        <td style={tdStyle}>{employee.name}</td>
+                        <td style={tdStyle}>{normalizeEmployeeType(employee.type)}</td>
+                        <td style={tdStyle}>{employee.position}</td>
+                        <td style={tdStyle}>{employee.joinDate}</td>
+                        <td style={tdStyle}>{normalizeEmployeeStatus(employee.status)}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredEmployees.map((employee) => (
-                        <tr key={employee.id}>
-                          <td style={tdStyle}>{employee.name}</td>
-                          <td style={tdStyle}>{normalizeEmployeeType(employee.type)}</td>
-                          <td style={tdStyle}>{employee.position}</td>
-                          <td style={tdStyle}>{employee.joinDate}</td>
-                          <td style={tdStyle}>{normalizeEmployeeStatus(employee.status)}</td>
-                          <td style={tdStyle}>
-                            <button style={dangerButtonStyle} onClick={() => deleteEmployee(employee)}>삭제</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                  <div style={cardStyle}>
-                    <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>일용직 세금 계산 예시</h2>
-                    <div style={{ display: "grid", gap: "10px" }}>
-                      <div>일급: 180,000원</div>
-                      <div>근무일수: 10일</div>
-                      <div>비과세: 0원</div>
-                      <div>과세금액: 300,000원</div>
-                      <div>소득세: 8,100원</div>
-                      <div>주민세: 810원</div>
-                      <div style={{ fontWeight: "bold" }}>총 공제세액: 8,910원</div>
-                    </div>
-                  </div>
-
-                  <div style={cardStyle}>
-                    <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>다음 단계</h2>
-                    <div style={{ display: "grid", gap: "10px", color: "#334155" }}>
-                      <div>1. 직원 등록 완료</div>
-                      <div>2. 직원 불러오기 완료</div>
-                      <div>3. 직원 삭제 완료</div>
-                      <div>4. 다음은 직원 수정 기능 추가</div>
-                      <div>5. 그 다음은 일용직 DB 연결</div>
-                    </div>
-                  </div>
-                </div>
-              </>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {currentMenu === "employees" && (
               <>
                 <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>직원 등록</h2>
+                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>
+                    {editingEmployeeId !== null ? "직원 수정" : "직원 등록"}
+                  </h2>
                   <div style={formGridStyle}>
                     <div>
                       <div style={labelStyle}>이름</div>
@@ -683,16 +615,7 @@ export default function Home() {
                     </div>
                     <div>
                       <div style={labelStyle}>구분</div>
-                      <select
-                        style={inputStyle}
-                        value={employeeForm.type}
-                        onChange={(e) =>
-                          setEmployeeForm({
-                            ...employeeForm,
-                            type: normalizeEmployeeType(e.target.value),
-                          })
-                        }
-                      >
+                      <select style={inputStyle} value={employeeForm.type} onChange={(e) => setEmployeeForm({ ...employeeForm, type: e.target.value })}>
                         <option value="상용직">상용직</option>
                         <option value="일용직">일용직</option>
                       </select>
@@ -707,38 +630,25 @@ export default function Home() {
                     </div>
                     <div>
                       <div style={labelStyle}>상태</div>
-                      <select
-                        style={inputStyle}
-                        value={employeeForm.status}
-                        onChange={(e) =>
-                          setEmployeeForm({
-                            ...employeeForm,
-                            status: normalizeEmployeeStatus(e.target.value),
-                          })
-                        }
-                      >
+                      <select style={inputStyle} value={employeeForm.status} onChange={(e) => setEmployeeForm({ ...employeeForm, status: e.target.value })}>
                         <option value="재직">재직</option>
                         <option value="퇴사">퇴사</option>
                       </select>
                     </div>
                   </div>
-                  <div style={{ marginTop: "16px" }}>
-                    <button style={primaryButtonStyle} onClick={saveEmployee}>
-                      {editingEmployeeId !== null ? "수정 저장" : "직원 등록하기"}
-                    </button>
+                  <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+                    <button style={primaryButtonStyle} onClick={saveEmployee}>{editingEmployeeId !== null ? "수정 저장" : "직원 등록하기"}</button>
+                    {editingEmployeeId !== null && (
+                      <button style={secondaryButtonStyle} onClick={resetEmployeeForm}>취소</button>
+                    )}
                   </div>
                 </div>
 
                 <div style={cardStyle}>
                   <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>직원 목록</h2>
-                  {loadingEmployees && <div style={{ marginBottom: "12px", color: "#64748b" }}>직원 데이터를 불러오는 중입니다...</div>}
+                  {loadingEmployees && <div style={{ color: "#64748b", marginBottom: "10px" }}>직원 데이터를 불러오는 중입니다...</div>}
                   <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-                    <input
-                      style={inputStyle}
-                      value={employeeSearchKeyword}
-                      onChange={(e) => setEmployeeSearchKeyword(e.target.value)}
-                      placeholder="이름 검색 (부분일치)"
-                    />
+                    <input style={inputStyle} value={employeeSearchKeyword} onChange={(e) => setEmployeeSearchKeyword(e.target.value)} placeholder="이름 검색" />
                     <select style={inputStyle} value={employeeTypeFilter} onChange={(e) => setEmployeeTypeFilter(e.target.value)}>
                       <option value="전체">전체</option>
                       <option value="상용직">상용직</option>
@@ -750,9 +660,7 @@ export default function Home() {
                       <option value="퇴사">퇴사</option>
                     </select>
                   </div>
-                  <div style={{ marginBottom: "12px", color: "#64748b", fontSize: "14px" }}>
-                    검색/필터 적용 결과: {filteredEmployees.length}명
-                  </div>
+                  <div style={{ color: "#64748b", marginBottom: "10px" }}>검색 결과: {filteredEmployees.length}명</div>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "#f1f5f9" }}>
@@ -789,7 +697,9 @@ export default function Home() {
             {currentMenu === "daily" && (
               <>
                 <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>일용직 등록</h2>
+                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>
+                    {editingDailyWorkerId !== null ? "일용직 수정" : "일용직 등록"}
+                  </h2>
                   <div style={formGridStyle}>
                     <div>
                       <div style={labelStyle}>이름</div>
@@ -800,73 +710,56 @@ export default function Home() {
                       <input type="number" style={inputStyle} value={dailyForm.dailyWage} onChange={(e) => setDailyForm({ ...dailyForm, dailyWage: e.target.value })} placeholder="예: 180000" />
                     </div>
                     <div>
-                      <div style={labelStyle}>기준 월</div>
-                      <input type="month" style={inputStyle} value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
-                    </div>
-                    <div>
                       <div style={labelStyle}>비과세</div>
                       <input type="number" style={inputStyle} value={dailyForm.nonTaxable} onChange={(e) => setDailyForm({ ...dailyForm, nonTaxable: e.target.value })} placeholder="없으면 0" />
                     </div>
-                  </div>
-                  <div style={{ marginTop: "16px" }}>
-                    <div style={labelStyle}>근무 날짜 체크 ({selectedWorkDates.length}일)</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "8px" }}>
-                      {monthDateOptions.map((workDate) => {
-                        const checked = selectedWorkDates.includes(workDate);
-                        return (
-                          <label key={workDate} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "#334155" }}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleWorkDate(workDate)}
-                            />
-                            {workDate.slice(8, 10)}일
-                          </label>
-                        );
-                      })}
+                    <div>
+                      <div style={labelStyle}>기준 월</div>
+                      <input type="month" style={inputStyle} value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
                     </div>
                   </div>
+
                   <div style={{ marginTop: "16px" }}>
-                    <button style={primaryButtonStyle} onClick={saveDailyWorker}>
-                      {editingDailyWorkerId !== null ? "수정 저장" : "일용직 등록하기"}
-                    </button>
+                    <div style={{ ...labelStyle, marginBottom: "8px" }}>날짜별 공수 입력</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "8px" }}>
+                      {monthDates.map((date) => (
+                        <div key={date} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "8px" }}>
+                          <div style={{ fontSize: "12px", color: "#475569", marginBottom: "6px" }}>{date.slice(8, 10)}일</div>
+                          <select
+                            style={{ ...inputStyle, padding: "8px", fontSize: "13px" }}
+                            value={String(selectedWorkMap[date] ?? 0)}
+                            onChange={(e) => updateWorkEntry(date, Number(e.target.value))}
+                          >
+                            <option value="0">0</option>
+                            <option value="0.5">0.5</option>
+                            <option value="1">1</option>
+                            <option value="1.5">1.5</option>
+                            <option value="2">2</option>
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: "16px", display: "flex", gap: "10px" }}>
+                    <button style={primaryButtonStyle} onClick={saveDailyWorker}>{editingDailyWorkerId !== null ? "수정 저장" : "일용직 등록하기"}</button>
+                    {editingDailyWorkerId !== null && (
+                      <button style={secondaryButtonStyle} onClick={resetDailyWorkerForm}>취소</button>
+                    )}
                   </div>
                 </div>
 
                 <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>일용직 목록</h2>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-                    <div>
-                      <div style={labelStyle}>시작일</div>
-                      <input
-                        type="date"
-                        style={inputStyle}
-                        value={dailyStartDate}
-                        onChange={(e) => setDailyStartDate(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <div style={labelStyle}>종료일</div>
-                      <input
-                        type="date"
-                        style={inputStyle}
-                        value={dailyEndDate}
-                        onChange={(e) => setDailyEndDate(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div style={{ marginBottom: "12px", color: "#64748b", fontSize: "14px" }}>
-                    기간 필터 결과: {filteredDailyWorkers.length}건 / 총 지급액: {filteredDailyTotalPayout.toLocaleString()}원
-                  </div>
-                  <div style={{ marginBottom: "12px", color: "#64748b", fontSize: "14px" }}>
-                    이번 달 합계: {thisMonthTotalPayout.toLocaleString()}원
-                  </div>
+                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>일용직 목록 ({selectedMonth})</h2>
+                  {loadingDailyWorkers && <div style={{ color: "#64748b", marginBottom: "10px" }}>일용직 데이터를 불러오는 중입니다...</div>}
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "#f1f5f9" }}>
                         <th style={thStyle}>이름</th>
                         <th style={thStyle}>일급</th>
                         <th style={thStyle}>근무일수</th>
+                        <th style={thStyle}>총 공수</th>
+                        <th style={thStyle}>지급총액</th>
                         <th style={thStyle}>비과세</th>
                         <th style={thStyle}>소득세</th>
                         <th style={thStyle}>주민세</th>
@@ -875,18 +768,24 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredDailyWorkers.map((worker) => {
-                        const workDays = monthlyRecords[worker.id]?.length ?? 0;
-                        const result = calculateTax(worker.dailyWage, workDays, worker.nonTaxable);
+                      {dailyWorkers.map((worker) => {
+                        const entries = monthlyRecords[worker.id] ?? [];
+                        const totalWorkUnits = getTotalWorkUnits(entries);
+                        const workedDaysCount = getWorkedDaysCount(entries);
+                        const grossAmount = worker.dailyWage * totalWorkUnits;
+                        const tax = calculateTaxByGross(grossAmount, workedDaysCount, worker.nonTaxable);
+
                         return (
                           <tr key={worker.id}>
                             <td style={tdStyle}>{worker.name}</td>
                             <td style={tdStyle}>{worker.dailyWage.toLocaleString()}원</td>
-                            <td style={tdStyle}>{workDays}일</td>
+                            <td style={tdStyle}>{workedDaysCount}일</td>
+                            <td style={tdStyle}>{totalWorkUnits.toLocaleString()}</td>
+                            <td style={tdStyle}>{grossAmount.toLocaleString()}원</td>
                             <td style={tdStyle}>{worker.nonTaxable.toLocaleString()}원</td>
-                            <td style={tdStyle}>{result.incomeTax.toLocaleString()}원</td>
-                            <td style={tdStyle}>{result.localTax.toLocaleString()}원</td>
-                            <td style={tdStyle}>{result.totalTax.toLocaleString()}원</td>
+                            <td style={tdStyle}>{tax.incomeTax.toLocaleString()}원</td>
+                            <td style={tdStyle}>{tax.localTax.toLocaleString()}원</td>
+                            <td style={tdStyle}>{tax.totalTax.toLocaleString()}원</td>
                             <td style={tdStyle}>
                               <div style={{ display: "flex", gap: "8px" }}>
                                 <button style={secondaryButtonStyle} onClick={() => startEditDailyWorker(worker)}>수정</button>
@@ -903,37 +802,32 @@ export default function Home() {
             )}
 
             {currentMenu === "tax" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>세금 계산 입력</h2>
-                  <div style={{ display: "grid", gap: "14px" }}>
-                    <div>
-                      <div style={labelStyle}>일급</div>
-                      <input type="number" style={inputStyle} value={taxForm.dailyWage} onChange={(e) => setTaxForm({ ...taxForm, dailyWage: e.target.value })} />
-                    </div>
-                    <div>
-                      <div style={labelStyle}>근무일수</div>
-                      <input type="number" style={inputStyle} value={taxForm.workDays} onChange={(e) => setTaxForm({ ...taxForm, workDays: e.target.value })} />
-                    </div>
-                    <div>
-                      <div style={labelStyle}>비과세</div>
-                      <input type="number" style={inputStyle} value={taxForm.nonTaxable} onChange={(e) => setTaxForm({ ...taxForm, nonTaxable: e.target.value })} />
-                    </div>
-                  </div>
+              <div style={cardStyle}>
+                <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>세금 계산</h2>
+                <div style={{ marginBottom: "12px" }}>
+                  <div style={labelStyle}>일용직 선택</div>
+                  <select style={inputStyle} value={taxPreviewWorkerId} onChange={(e) => setTaxPreviewWorkerId(e.target.value ? Number(e.target.value) : "") }>
+                    <option value="">선택하세요</option>
+                    {dailyWorkers.map((worker) => (
+                      <option key={worker.id} value={worker.id}>{worker.name}</option>
+                    ))}
+                  </select>
                 </div>
 
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>세금 계산 결과</h2>
-                  <div style={{ display: "grid", gap: "12px" }}>
+                {taxPreview ? (
+                  <div style={{ display: "grid", gap: "10px" }}>
+                    <div style={resultRowStyle}><span>기준 월</span><strong>{selectedMonth}</strong></div>
+                    <div style={resultRowStyle}><span>근무일수</span><strong>{taxPreview.workedDaysCount}일</strong></div>
+                    <div style={resultRowStyle}><span>총 공수</span><strong>{taxPreview.totalWorkUnits}</strong></div>
+                    <div style={resultRowStyle}><span>지급총액 (gross)</span><strong>{taxPreview.grossAmount.toLocaleString()}원</strong></div>
                     <div style={resultRowStyle}><span>과세금액</span><strong>{taxPreview.taxableAmount.toLocaleString()}원</strong></div>
                     <div style={resultRowStyle}><span>소득세</span><strong>{taxPreview.incomeTax.toLocaleString()}원</strong></div>
                     <div style={resultRowStyle}><span>주민세</span><strong>{taxPreview.localTax.toLocaleString()}원</strong></div>
-                    <div style={{ ...resultRowStyle, background: "#0f172a", color: "white" }}><span>총 공제세액</span><strong>{taxPreview.totalTax.toLocaleString()}원</strong></div>
+                    <div style={{ ...resultRowStyle, background: "#0f172a", color: "#fff" }}><span>총 공제세액</span><strong>{taxPreview.totalTax.toLocaleString()}원</strong></div>
                   </div>
-                  <div style={{ marginTop: "16px", color: "#475569", fontSize: "14px" }}>
-                    계산식: (일급 - 비과세 - 150,000원) × 근무일수 → 2.7% → 주민세 10%
-                  </div>
-                </div>
+                ) : (
+                  <div style={{ color: "#64748b" }}>일용직을 선택하면 {selectedMonth} 기준 세금을 계산합니다.</div>
+                )}
               </div>
             )}
           </section>
