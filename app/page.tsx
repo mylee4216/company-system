@@ -25,7 +25,7 @@ type DailyWorker = {
 
 type WorkEntry = {
   date: string;
-  units: number;
+  work_days: number | null;
 };
 
 type DailyWorkerMonthlyRecord = {
@@ -61,13 +61,16 @@ function normalizeEmployeeStatus(value: string | null): EmployeeStatus {
 
 function mapRecordRowToWorkMap(row: {
   work_dates: string[] | null;
-  work_entries: WorkEntry[] | null;
+  work_entries: Array<{ date: string; units?: number | null; work_days?: number | null }> | null;
 }): Record<string, number> {
   const mapped: Record<string, number> = {};
 
   if (Array.isArray(row.work_entries) && row.work_entries.length > 0) {
     row.work_entries.forEach((entry) => {
-      if (entry?.date) mapped[entry.date] = Math.max(0, Number(entry.units) || 0);
+      const rawWorkDays = entry?.work_days ?? entry?.units;
+      if (entry?.date && rawWorkDays !== null && rawWorkDays !== undefined) {
+        mapped[entry.date] = Math.max(0, Number(rawWorkDays) || 0);
+      }
     });
     return mapped;
   }
@@ -79,6 +82,13 @@ function mapRecordRowToWorkMap(row: {
   }
 
   return mapped;
+}
+
+function buildSelectedWorkEntries(monthDates: string[], workMap: Record<string, number> = {}): WorkEntry[] {
+  return monthDates.map((date) => ({
+    date,
+    work_days: workMap[date] ?? null,
+  }));
 }
 
 export default function Page() {
@@ -112,7 +122,7 @@ export default function Page() {
 
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedDailyWorkerId, setSelectedDailyWorkerId] = useState<number | null>(null);
-  const [selectedWorkEntries, setSelectedWorkEntries] = useState<Record<string, number>>({});
+  const [selectedWorkEntries, setSelectedWorkEntries] = useState<WorkEntry[]>([]);
 
   const monthDates = useMemo(() => getMonthDates(targetMonth), [targetMonth]);
 
@@ -120,7 +130,15 @@ export default function Page() {
     () => dailyWorkers.find((worker) => worker.id === selectedDailyWorkerId) ?? null,
     [dailyWorkers, selectedDailyWorkerId]
   );
-  const selectedWorkMap = useMemo(() => selectedWorkEntries, [selectedWorkEntries]);
+  const safeSelectedWorkEntries = Array.isArray(selectedWorkEntries) ? selectedWorkEntries : [];
+  const selectedWorkMap = useMemo(
+    () =>
+      safeSelectedWorkEntries.reduce<Record<string, number | null>>((acc, entry) => {
+        acc[entry.date] = entry.work_days ?? null;
+        return acc;
+      }, {}),
+    [safeSelectedWorkEntries]
+  );
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
@@ -151,10 +169,10 @@ export default function Page() {
   function selectDailyWorker(workerId: number | null) {
     setSelectedDailyWorkerId(workerId);
     if (!workerId) {
-      setSelectedWorkEntries({});
+      setSelectedWorkEntries([]);
       return;
     }
-    setSelectedWorkEntries(records[workerId] ?? {});
+    setSelectedWorkEntries(buildSelectedWorkEntries(monthDates, records[workerId] ?? {}));
   }
 
   async function fetchEmployees() {
@@ -227,7 +245,7 @@ export default function Page() {
       daily_worker_id: number;
       target_month: string;
       work_dates: string[] | null;
-      work_entries: WorkEntry[] | null;
+      work_entries: Array<{ date: string; units?: number | null; work_days?: number | null }> | null;
       total_work_units: number | null;
       worked_days_count: number | null;
       gross_amount: number | null;
@@ -239,9 +257,9 @@ export default function Page() {
     });
     setRecords(next);
     if (selectedDailyWorkerId) {
-      setSelectedWorkEntries(next[selectedDailyWorkerId] ?? {});
+      setSelectedWorkEntries(buildSelectedWorkEntries(monthDates, next[selectedDailyWorkerId] ?? {}));
     } else {
-      setSelectedWorkEntries({});
+      setSelectedWorkEntries([]);
     }
   }
 
@@ -398,12 +416,22 @@ export default function Page() {
     fetchMonthlyRecords(targetMonth);
   }
 
-  function updateWorkUnit(date: string, units: number) {
-    const normalizedUnits = Number.isFinite(units) ? Math.max(0, units) : 0;
-    setSelectedWorkEntries((prev) => ({
-      ...prev,
-      [date]: normalizedUnits,
-    }));
+  function updateWorkUnit(date: string, workDays: number | null) {
+    setSelectedWorkEntries((prev) =>
+      prev.map((entry) =>
+        entry.date === date
+          ? {
+              ...entry,
+              work_days:
+                workDays === null
+                  ? null
+                  : Number.isFinite(workDays)
+                    ? Math.max(0, workDays)
+                    : null,
+            }
+          : entry
+      )
+    );
   }
 
   async function saveMonthlyRecord() {
@@ -413,14 +441,24 @@ export default function Page() {
     }
 
     setSavingMonthlyRecord(true);
-    const normalizedEntries = Object.entries(selectedWorkMap)
-      .map(([date, units]) => ({ date, units: Number(units) }))
-      .filter((entry) => entry.units > 0)
+    const normalizedEntries = safeSelectedWorkEntries
+      .map((entry) => ({
+        date: entry.date,
+        work_days: entry.work_days === null || entry.work_days === undefined ? null : Number(entry.work_days),
+      }))
+      .map((entry) => ({
+        ...entry,
+        work_days:
+          entry.work_days === null || Number.isNaN(entry.work_days)
+            ? null
+            : Math.max(0, Number(entry.work_days)),
+      }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    const workDates = normalizedEntries.map((entry) => entry.date);
-    const totalWorkUnits = normalizedEntries.reduce((sum, entry) => sum + Number(entry.units), 0);
-    const workedDaysCount = normalizedEntries.length;
+    const paidEntries = normalizedEntries.filter((entry) => entry.work_days !== null && entry.work_days > 0);
+    const workDates = paidEntries.map((entry) => entry.date);
+    const totalWorkUnits = paidEntries.reduce((sum, entry) => sum + Number(entry.work_days), 0);
+    const workedDaysCount = paidEntries.length;
     const grossAmount = Number(selectedWorker.daily_wage) * totalWorkUnits;
 
     const payload: DailyWorkerMonthlyRecord = {
@@ -681,15 +719,15 @@ export default function Page() {
                   <tbody>
                     {monthDates.map((date) => (
                       <tr key={date}>
-                        <td>{date}</td>
-                        <td>
+                        <td className="whitespace-nowrap px-2 py-2">{date}</td>
+                        <td className="whitespace-nowrap px-2 py-2">
                           <input
                             type="number"
                             step="0.01"
                             min="0"
-                            value={selectedWorkMap[date] === 0 ? "" : (selectedWorkMap[date] ?? "")}
-                            onChange={(e) => updateWorkUnit(date, e.target.value === "" ? 0 : Number(e.target.value))}
-                            style={{ width: "100%", boxSizing: "border-box" }}
+                            value={selectedWorkMap[date] ?? ""}
+                            onChange={(e) => updateWorkUnit(date, e.target.value === "" ? null : Number(e.target.value))}
+                            className="w-20 min-w-[80px] rounded-md border px-2 py-1 text-sm"
                           />
                         </td>
                       </tr>
