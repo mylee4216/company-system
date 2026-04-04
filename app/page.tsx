@@ -136,9 +136,7 @@ export default function Page() {
   const selectedWorkMap = useMemo(() => {
     const map: Record<string, number> = {};
     safeEntries.forEach((entry) => {
-      if (entry.work_days !== null && entry.work_days !== undefined) {
-        map[entry.date] = entry.work_days;
-      }
+      map[entry.date] = entry.work_days ?? 0;
     });
     return map;
   }, [safeEntries]);
@@ -164,8 +162,8 @@ export default function Page() {
   const expectedPayout = useMemo(() => {
     return dailyWorkers.reduce((sum, worker) => {
       const map = records[worker.id] ?? {};
-      const units = Object.values(map).reduce((acc, value) => acc + Number(value), 0);
-      return sum + units * worker.daily_wage;
+      const totalWorkDays = Object.values(map).reduce((acc, value) => acc + Number(value), 0);
+      return sum + totalWorkDays * worker.daily_wage;
     }, 0);
   }, [dailyWorkers, records]);
 
@@ -419,21 +417,22 @@ export default function Page() {
     fetchMonthlyRecords(targetMonth);
   }
 
-  function updateWorkUnit(date: string, work_days: number | null) {
+  function updateWorkUnit(date: string, workDays: number | null) {
     setSelectedWorkEntries((prev) =>
-      (Array.isArray(prev) ? prev : []).map((entry) =>
-        entry.date === date
-          ? {
-              ...entry,
-              work_days:
-                work_days === null
-                  ? null
-                  : Number.isFinite(work_days)
-                    ? Math.max(0, work_days)
-                    : null,
-            }
-          : entry
-      )
+      {
+        const safePrev = Array.isArray(prev) ? prev : [];
+        const exists = safePrev.some((entry) => entry.date === date);
+
+        if (exists) {
+          return safePrev.map((entry) =>
+            entry.date === date
+              ? { ...entry, work_days: workDays }
+              : entry
+          );
+        }
+
+        return [...safePrev, { date, work_days: workDays }];
+      }
     );
   }
 
