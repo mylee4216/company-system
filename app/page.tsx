@@ -81,6 +81,29 @@ function mapRecordRowToWorkMap(row: {
   return mapped;
 }
 
+function buildSelectedWorkEntries(
+  value: Record<string, number> | WorkEntry[] | null | undefined
+): WorkEntry[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry) => entry?.date)
+      .map((entry) => ({
+        date: entry.date,
+        units: Math.max(0, Number(entry.units) || 0),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  if (!value || typeof value !== "object") return [];
+
+  return Object.entries(value)
+    .map(([date, units]) => ({
+      date,
+      units: Math.max(0, Number(units) || 0),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export default function Page() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [dailyWorkers, setDailyWorkers] = useState<DailyWorker[]>([]);
@@ -112,7 +135,7 @@ export default function Page() {
 
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedDailyWorkerId, setSelectedDailyWorkerId] = useState<number | null>(null);
-  const [selectedWorkEntries, setSelectedWorkEntries] = useState<Record<string, number>>({});
+  const [selectedWorkEntries, setSelectedWorkEntries] = useState<WorkEntry[]>([]);
 
   const monthDates = useMemo(() => getMonthDates(targetMonth), [targetMonth]);
 
@@ -120,6 +143,16 @@ export default function Page() {
     () => dailyWorkers.find((worker) => worker.id === selectedDailyWorkerId) ?? null,
     [dailyWorkers, selectedDailyWorkerId]
   );
+  const safeEntries = useMemo(
+    () => (Array.isArray(selectedWorkEntries) ? selectedWorkEntries : []),
+    [selectedWorkEntries]
+  );
+  const selectedWorkMap = useMemo(() => {
+    return safeEntries.reduce<Record<string, number>>((acc, entry) => {
+      acc[entry.date] = Number(entry.units) || 0;
+      return acc;
+    }, {});
+  }, [safeEntries]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
@@ -150,10 +183,10 @@ export default function Page() {
   function selectDailyWorker(workerId: number | null) {
     setSelectedDailyWorkerId(workerId);
     if (!workerId) {
-      setSelectedWorkEntries({});
+      setSelectedWorkEntries([]);
       return;
     }
-    setSelectedWorkEntries(records[workerId] ?? {});
+    setSelectedWorkEntries(buildSelectedWorkEntries(records[workerId] ?? null) ?? []);
   }
 
   async function fetchEmployees() {
@@ -238,9 +271,9 @@ export default function Page() {
     });
     setRecords(next);
     if (selectedDailyWorkerId) {
-      setSelectedWorkEntries(next[selectedDailyWorkerId] ?? {});
+      setSelectedWorkEntries(buildSelectedWorkEntries(next[selectedDailyWorkerId] ?? null) ?? []);
     } else {
-      setSelectedWorkEntries({});
+      setSelectedWorkEntries([]);
     }
   }
 
@@ -399,10 +432,17 @@ export default function Page() {
 
   function updateWorkUnit(date: string, units: number) {
     const normalizedUnits = Number.isFinite(units) ? Math.max(0, units) : 0;
-    setSelectedWorkEntries((prev) => ({
-      ...prev,
-      [date]: normalizedUnits,
-    }));
+    setSelectedWorkEntries((prev) => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const index = safePrev.findIndex((entry) => entry.date === date);
+      const next = [...safePrev];
+      if (index >= 0) {
+        next[index] = { date, units: normalizedUnits };
+      } else {
+        next.push({ date, units: normalizedUnits });
+      }
+      return next;
+    });
   }
 
   async function saveMonthlyRecord() {
@@ -412,8 +452,8 @@ export default function Page() {
     }
 
     setSavingMonthlyRecord(true);
-    const normalizedEntries = Object.entries(selectedWorkEntries)
-      .map(([date, units]) => ({ date, units: Number(units) }))
+    const normalizedEntries = safeEntries
+      .map((entry) => ({ date: entry.date, units: Number(entry.units) }))
       .filter((entry) => entry.units > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -686,8 +726,9 @@ export default function Page() {
                             type="number"
                             step="0.01"
                             min="0"
-                            value={selectedWorkEntries[date] === 0 ? "" : (selectedWorkEntries[date] ?? "")}
+                            value={selectedWorkMap[date] === 0 ? "" : (selectedWorkMap[date] ?? "")}
                             onChange={(e) => updateWorkUnit(date, e.target.value === "" ? 0 : Number(e.target.value))}
+                            style={{ width: "100%", boxSizing: "border-box" }}
                           />
                         </td>
                       </tr>
