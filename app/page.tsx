@@ -449,22 +449,23 @@ export default function Page() {
 
     setSavingMonthlyRecord(true);
     const normalizedEntries = safeEntries
-      .map((entry) => ({
-        date: entry.date,
-        work_days: entry.work_days === null || entry.work_days === undefined ? null : Number(entry.work_days),
-      }))
-      .map((entry) => ({
-        ...entry,
-        work_days:
-          entry.work_days === null || Number.isNaN(entry.work_days)
-            ? null
-            : Math.max(0, Number(entry.work_days)),
-      }))
+      .map((entry) => {
+        if (entry.work_days === null || entry.work_days === undefined) {
+          return { ...entry, work_days: null };
+        }
+
+        const workDays = Number(entry.work_days);
+        if (Number.isNaN(workDays)) {
+          return { ...entry, work_days: null };
+        }
+
+        return { ...entry, work_days: Math.max(0, workDays) };
+      })
       .sort((a, b) => a.date.localeCompare(b.date));
 
     const paidEntries = normalizedEntries.filter((entry) => entry.work_days !== null && entry.work_days > 0);
     const workDates = paidEntries.map((entry) => entry.date);
-    const totalWorkUnits = paidEntries.reduce((sum, entry) => sum + Number(entry.work_days), 0);
+    const totalWorkUnits = paidEntries.reduce((sum, entry) => sum + (entry.work_days ?? 0), 0);
     const workedDaysCount = paidEntries.length;
     const grossAmount = Number(selectedWorker.daily_wage) * totalWorkUnits;
 
