@@ -686,8 +686,8 @@ export default function Page() {
                             type="number"
                             step="0.01"
                             min="0"
-                            value={selectedWorkEntries[date] ?? ""}
-                            onChange={(e) => updateWorkUnit(date, Number(e.target.value || 0))}
+                            value={selectedWorkEntries[date] === 0 ? "" : (selectedWorkEntries[date] ?? "")}
+                            onChange={(e) => updateWorkUnit(date, e.target.value === "" ? 0 : Number(e.target.value))}
                           />
                         </td>
                       </tr>
