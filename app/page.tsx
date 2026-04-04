@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase";
 
 type EmployeeType = "상용직" | "일용직";
 type EmployeeStatus = "재직" | "퇴사";
-type WorkUnit = 0 | 0.5 | 1 | 1.5 | 2;
 
 type Employee = {
   id: number;
@@ -26,7 +25,7 @@ type DailyWorker = {
 
 type WorkEntry = {
   date: string;
-  units: WorkUnit;
+  units: number;
 };
 
 type DailyWorkerMonthlyRecord = {
@@ -38,8 +37,6 @@ type DailyWorkerMonthlyRecord = {
   worked_days_count: number;
   gross_amount: number;
 };
-
-const WORK_UNIT_OPTIONS: WorkUnit[] = [0, 0.5, 1, 1.5, 2];
 
 function getMonthDates(targetMonth: string): string[] {
   const [yearText, monthText] = targetMonth.split("-");
@@ -62,20 +59,15 @@ function normalizeEmployeeStatus(value: string | null): EmployeeStatus {
   return value === "퇴사" ? "퇴사" : "재직";
 }
 
-function toWorkUnit(value: number): WorkUnit {
-  if (value === 0 || value === 0.5 || value === 1 || value === 1.5 || value === 2) return value;
-  return 0;
-}
-
 function mapRecordRowToWorkMap(row: {
   work_dates: string[] | null;
   work_entries: WorkEntry[] | null;
-}): Record<string, WorkUnit> {
-  const mapped: Record<string, WorkUnit> = {};
+}): Record<string, number> {
+  const mapped: Record<string, number> = {};
 
   if (Array.isArray(row.work_entries) && row.work_entries.length > 0) {
     row.work_entries.forEach((entry) => {
-      if (entry?.date) mapped[entry.date] = toWorkUnit(Number(entry.units));
+      if (entry?.date) mapped[entry.date] = Math.max(0, Number(entry.units) || 0);
     });
     return mapped;
   }
@@ -92,7 +84,7 @@ function mapRecordRowToWorkMap(row: {
 export default function Page() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [dailyWorkers, setDailyWorkers] = useState<DailyWorker[]>([]);
-  const [records, setRecords] = useState<Record<number, Record<string, WorkUnit>>>({});
+  const [records, setRecords] = useState<Record<number, Record<string, number>>>({});
 
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [loadingDailyWorkers, setLoadingDailyWorkers] = useState(false);
@@ -235,7 +227,7 @@ export default function Page() {
       gross_amount: number | null;
     }[];
 
-    const next: Record<number, Record<string, WorkUnit>> = {};
+    const next: Record<number, Record<string, number>> = {};
     rows.forEach((row) => {
       next[row.daily_worker_id] = mapRecordRowToWorkMap(row);
     });
@@ -325,7 +317,7 @@ export default function Page() {
     fetchEmployees();
   }
 
-  async function submitDailyWorker(e: FormEvent<HTMLFormElement>) {
+  async function saveDailyWorker(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     const dailyWage = Number(dailyWorkerForm.daily_wage || 0);
@@ -395,8 +387,10 @@ export default function Page() {
     fetchMonthlyRecords(targetMonth);
   }
 
-  function updateSelectedWorkerEntry(date: string, units: WorkUnit) {
+  function updateWorkEntry(date: string, value: string) {
     if (!selectedDailyWorkerId) return;
+    const parsed = Number(value);
+    const units = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
     setRecords((prev) => {
       const current = prev[selectedDailyWorkerId] ?? {};
       return {
@@ -420,14 +414,14 @@ export default function Page() {
 
     const entries: WorkEntry[] = monthDates.map((date) => ({
       date,
-      units: toWorkUnit(Number(workMap[date] ?? 0)),
+      units: Math.max(0, Number(workMap[date] ?? 0)),
     }));
 
     const usedEntries = entries.filter((entry) => entry.units > 0);
     const workDates = usedEntries.map((entry) => entry.date);
-    const totalWorkUnits = usedEntries.reduce((sum, entry) => sum + entry.units, 0);
+    const totalWorkUnits = usedEntries.reduce((sum, entry) => sum + Number(entry.units), 0);
     const workedDaysCount = usedEntries.length;
-    const grossAmount = totalWorkUnits * selectedWorker.daily_wage;
+    const grossAmount = Number(selectedWorker.daily_wage) * totalWorkUnits;
 
     const payload: DailyWorkerMonthlyRecord = {
       daily_worker_id: selectedWorker.id,
@@ -580,7 +574,7 @@ export default function Page() {
         <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>일용직관리</h2>
 
         <form
-          onSubmit={submitDailyWorker}
+          onSubmit={saveDailyWorker}
           style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 8, marginBottom: 12 }}
         >
           <input
@@ -591,6 +585,7 @@ export default function Page() {
           <input
             type="number"
             min={0}
+            step={1}
             placeholder="일당"
             value={dailyWorkerForm.daily_wage}
             onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, daily_wage: e.target.value }))}
@@ -688,16 +683,13 @@ export default function Page() {
                       <tr key={date}>
                         <td>{date}</td>
                         <td>
-                          <select
-                            value={String(selectedWorkerWorkMap[date] ?? 0)}
-                            onChange={(e) => updateSelectedWorkerEntry(date, toWorkUnit(Number(e.target.value)))}
-                          >
-                            {WORK_UNIT_OPTIONS.map((unit) => (
-                              <option key={unit} value={unit}>
-                                {unit}
-                              </option>
-                            ))}
-                          </select>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={selectedWorkerWorkMap[date] ?? 0}
+                            onChange={(e) => updateWorkEntry(date, e.target.value)}
+                          />
                         </td>
                       </tr>
                     ))}
