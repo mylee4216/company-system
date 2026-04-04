@@ -136,9 +136,9 @@ export default function Page() {
   const safeEntries = Array.isArray(selectedWorkEntries) ? selectedWorkEntries : [];
 
   const selectedWorkMap = useMemo(() => {
-    const map: Record<string, number> = {};
+    const map: Record<string, number | null> = {};
     safeEntries.forEach((entry) => {
-      map[entry.date] = entry.work_days ?? 0;
+      map[entry.date] = entry.work_days ?? null;
     });
     return map;
   }, [safeEntries]);
