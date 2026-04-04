@@ -2,9 +2,9 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { ASSIGNMENT_TYPES, EMPLOYEE_STATUSES, type AssignmentType, type EmployeeStatus } from "@/lib/employee-status";
 
 type EmployeeType = "상용직" | "일용직";
-type EmployeeStatus = "재직" | "퇴사";
 type Menu = "dashboard" | "employees" | "daily";
 
 type Employee = {
@@ -14,6 +14,7 @@ type Employee = {
   position: string;
   join_date: string;
   status: EmployeeStatus;
+  resignation_date: string | null;
 };
 
 type Company = {
@@ -29,6 +30,18 @@ type Site = {
   company_id: number;
   start_date: string;
   end_date: string | null;
+};
+
+type EmployeeAssignment = {
+  id: number;
+  employee_id: number;
+  company_id: number;
+  site_id: number | null;
+  assignment_type: AssignmentType;
+  start_date: string;
+  end_date: string | null;
+  memo: string | null;
+  is_current: boolean;
 };
 
 type DailyWorker = {
@@ -84,7 +97,8 @@ function normalizeEmployeeType(value: string | null): EmployeeType {
 }
 
 function normalizeEmployeeStatus(value: string | null): EmployeeStatus {
-  return value === "퇴사" ? "퇴사" : "재직";
+  if (value === "퇴사" || value === "휴직" || value === "전출" || value === "파견") return value;
+  return "재직";
 }
 
 function buildSelectedWorkEntries(monthDates: string[], workMap: Record<string, number> = {}): WorkEntry[] {
@@ -116,6 +130,12 @@ export default function Page() {
     position: "",
     join_date: "",
     status: "재직" as EmployeeStatus,
+    resignation_date: "",
+    company_id: "",
+    site_id: "",
+    assignment_type: "정규소속" as AssignmentType,
+    assignment_start_date: "",
+    assignment_end_date: "",
   });
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
   const [companyForm, setCompanyForm] = useState({
@@ -243,7 +263,7 @@ export default function Page() {
     setLoadingEmployees(true);
     const { data, error } = await supabase
       .from("employees")
-      .select("id, name, type, position, join_date, status")
+      .select("id, name, type, position, join_date, status, resignation_date")
       .order("id", { ascending: true });
 
     if (error) {
@@ -259,6 +279,7 @@ export default function Page() {
       position: string;
       join_date: string;
       status: string | null;
+      resignation_date: string | null;
     }[];
 
     setEmployees(
@@ -269,6 +290,7 @@ export default function Page() {
         position: row.position,
         join_date: row.join_date,
         status: normalizeEmployeeStatus(row.status),
+        resignation_date: row.resignation_date,
       }))
     );
     setLoadingEmployees(false);
@@ -373,6 +395,9 @@ export default function Page() {
       return;
     }
 
+    const normalizedResignationDate = employeeForm.status === "퇴사" ? (employeeForm.resignation_date || null) : null;
+
+    let targetEmployeeId = editingEmployeeId;
     if (editingEmployeeId) {
       const { error } = await supabase
         .from("employees")
@@ -382,6 +407,7 @@ export default function Page() {
           position: employeeForm.position.trim(),
           join_date: employeeForm.join_date,
           status: employeeForm.status,
+          resignation_date: normalizedResignationDate,
         })
         .eq("id", editingEmployeeId);
 
@@ -390,34 +416,97 @@ export default function Page() {
         return;
       }
     } else {
-      const { error } = await supabase.from("employees").insert({
-        name: employeeForm.name.trim(),
-        type: employeeForm.type,
-        position: employeeForm.position.trim(),
-        join_date: employeeForm.join_date,
-        status: employeeForm.status,
-      });
+      const { data, error } = await supabase
+        .from("employees")
+        .insert({
+          name: employeeForm.name.trim(),
+          type: employeeForm.type,
+          position: employeeForm.position.trim(),
+          join_date: employeeForm.join_date,
+          status: employeeForm.status,
+          resignation_date: normalizedResignationDate,
+        })
+        .select("id")
+        .single();
 
       if (error) {
         alert(`직원 등록 실패: ${error.message}`);
         return;
       }
+      targetEmployeeId = data.id;
     }
 
-    setEmployeeForm({ name: "", type: "상용직", position: "", join_date: "", status: "재직" });
+    if (targetEmployeeId && employeeForm.company_id && employeeForm.assignment_start_date) {
+      const payload = {
+        employee_id: targetEmployeeId,
+        company_id: Number(employeeForm.company_id),
+        site_id: employeeForm.site_id ? Number(employeeForm.site_id) : null,
+        assignment_type: employeeForm.assignment_type,
+        start_date: employeeForm.assignment_start_date,
+        end_date: employeeForm.assignment_end_date || null,
+        is_current: !employeeForm.assignment_end_date,
+      };
+
+      const { error: closeError } = await supabase
+        .from("employee_assignments")
+        .update({ is_current: false })
+        .eq("employee_id", targetEmployeeId)
+        .eq("is_current", true);
+
+      if (closeError) {
+        alert(`기존 소속 이력 종료 실패: ${closeError.message}`);
+        return;
+      }
+
+      const { error: assignmentError } = await supabase.from("employee_assignments").insert(payload);
+      if (assignmentError) {
+        alert(`소속 이력 저장 실패: ${assignmentError.message}`);
+        return;
+      }
+    }
+
+    setEmployeeForm({
+      name: "",
+      type: "상용직",
+      position: "",
+      join_date: "",
+      status: "재직",
+      resignation_date: "",
+      company_id: "",
+      site_id: "",
+      assignment_type: "정규소속",
+      assignment_start_date: "",
+      assignment_end_date: "",
+    });
     setEditingEmployeeId(null);
     fetchEmployees();
   }
 
-  function startEditEmployee(employee: Employee) {
+  async function startEditEmployee(employee: Employee) {
     setCurrentMenu("employees");
     setEditingEmployeeId(employee.id);
+    const { data } = await supabase
+      .from("employee_assignments")
+      .select("id, employee_id, company_id, site_id, assignment_type, start_date, end_date, memo, is_current")
+      .eq("employee_id", employee.id)
+      .eq("is_current", true)
+      .order("start_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const currentAssignment = (data as EmployeeAssignment | null) ?? null;
     setEmployeeForm({
       name: employee.name,
       type: employee.type,
       position: employee.position,
       join_date: employee.join_date,
       status: employee.status,
+      resignation_date: employee.resignation_date ?? "",
+      company_id: currentAssignment ? String(currentAssignment.company_id) : "",
+      site_id: currentAssignment?.site_id ? String(currentAssignment.site_id) : "",
+      assignment_type: currentAssignment?.assignment_type ?? "정규소속",
+      assignment_start_date: currentAssignment?.start_date ?? "",
+      assignment_end_date: currentAssignment?.end_date ?? "",
     });
   }
 
@@ -793,9 +882,30 @@ export default function Page() {
                     <input style={inputStyle} placeholder="직책" value={employeeForm.position} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, position: e.target.value }))} />
                     <input style={inputStyle} type="date" value={employeeForm.join_date} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, join_date: e.target.value }))} />
                     <select style={inputStyle} value={employeeForm.status} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, status: e.target.value as EmployeeStatus }))}>
-                      <option value="재직">재직</option>
-                      <option value="퇴사">퇴사</option>
+                      {EMPLOYEE_STATUSES.map((status) => (<option key={status} value={status}>{status}</option>))}
                     </select>
+                    <input
+                      style={inputStyle}
+                      type="date"
+                      value={employeeForm.resignation_date}
+                      disabled={employeeForm.status !== "퇴사"}
+                      onChange={(e) => setEmployeeForm((prev) => ({ ...prev, resignation_date: e.target.value }))}
+                    />
+                    <select style={inputStyle} value={employeeForm.company_id} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, company_id: e.target.value }))}>
+                      <option value="">현재 법인 선택</option>
+                      {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
+                    </select>
+                    <select style={inputStyle} value={employeeForm.site_id} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, site_id: e.target.value }))}>
+                      <option value="">현재 현장 선택</option>
+                      {sites
+                        .filter((site) => !employeeForm.company_id || site.company_id === Number(employeeForm.company_id))
+                        .map((site) => (<option key={site.id} value={site.id}>{site.name}</option>))}
+                    </select>
+                    <select style={inputStyle} value={employeeForm.assignment_type} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, assignment_type: e.target.value as AssignmentType }))}>
+                      {ASSIGNMENT_TYPES.map((type) => (<option key={type} value={type}>{type}</option>))}
+                    </select>
+                    <input style={inputStyle} type="date" value={employeeForm.assignment_start_date} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, assignment_start_date: e.target.value }))} />
+                    <input style={inputStyle} type="date" value={employeeForm.assignment_end_date} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, assignment_end_date: e.target.value }))} />
                     <button type="submit" style={primaryButtonStyle}>{editingEmployeeId ? "수정 저장" : "직원 등록하기"}</button>
                   </form>
                 </div>
@@ -811,8 +921,7 @@ export default function Page() {
                     </select>
                     <select style={inputStyle} value={employeeStatusFilter} onChange={(e) => setEmployeeStatusFilter(e.target.value as "전체" | EmployeeStatus)}>
                       <option value="전체">전체</option>
-                      <option value="재직">재직</option>
-                      <option value="퇴사">퇴사</option>
+                      {EMPLOYEE_STATUSES.map((status) => (<option key={status} value={status}>{status}</option>))}
                     </select>
                   </div>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -822,21 +931,23 @@ export default function Page() {
                         <th style={thStyle}>구분</th>
                         <th style={thStyle}>직책</th>
                         <th style={thStyle}>입사일</th>
+                        <th style={thStyle}>퇴사일</th>
                         <th style={thStyle}>상태</th>
                         <th style={thStyle}>작업</th>
                       </tr>
                     </thead>
                     <tbody>
                       {loadingEmployees ? (
-                        <tr><td style={tdStyle} colSpan={6}>불러오는 중...</td></tr>
+                        <tr><td style={tdStyle} colSpan={7}>불러오는 중...</td></tr>
                       ) : filteredEmployees.length === 0 ? (
-                        <tr><td style={tdStyle} colSpan={6}>데이터가 없습니다.</td></tr>
+                        <tr><td style={tdStyle} colSpan={7}>데이터가 없습니다.</td></tr>
                       ) : filteredEmployees.map((employee) => (
                         <tr key={employee.id}>
                           <td style={tdStyle}>{employee.name}</td>
                           <td style={tdStyle}>{employee.type}</td>
                           <td style={tdStyle}>{employee.position}</td>
                           <td style={tdStyle}>{employee.join_date}</td>
+                          <td style={tdStyle}>{employee.status === "퇴사" ? (employee.resignation_date ?? "-") : ""}</td>
                           <td style={tdStyle}>{employee.status}</td>
                           <td style={tdStyle}>
                             <div style={{ display: "flex", gap: "8px" }}>
