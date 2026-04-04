@@ -76,6 +76,8 @@ type DailyWorkerMonthlyRecord = {
   gross_amount: number;
 };
 
+type JobCategoryFilter = "전체" | "직영" | "용역";
+
 function maskResidentNumber(rn: string) {
   if (!rn) return "";
   return rn.slice(0, 8) + "******";
@@ -116,6 +118,12 @@ function normalizeEmployeeType(value: string | null): EmployeeType {
 function normalizeEmployeeStatus(value: string | null): EmployeeStatus {
   if (value === "퇴사" || value === "휴직" || value === "전출" || value === "파견") return value;
   return "재직";
+}
+
+function normalizeJobCategory(jobType: string): Exclude<JobCategoryFilter, "전체"> | null {
+  if (jobType.includes("직영")) return "직영";
+  if (jobType.includes("용역")) return "용역";
+  return null;
 }
 
 function buildSelectedWorkEntries(monthDates: string[], workMap: Record<string, number> = {}): WorkEntry[] {
@@ -187,6 +195,8 @@ export default function Page() {
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
   const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
+  const [selectedJobCategory, setSelectedJobCategory] = useState<JobCategoryFilter>("전체");
+  const [selectedTargetMonth, setSelectedTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedDailyWorkerId, setSelectedDailyWorkerId] = useState<number | null>(null);
   const [selectedWorkEntries, setSelectedWorkEntries] = useState<WorkEntry[]>([]);
 
@@ -241,6 +251,7 @@ export default function Page() {
   const payrollSummary = useMemo(() => {
     const filtered = dailyWorkers.filter((worker) => {
       if (selectedCompanyId && worker.company_id !== selectedCompanyId) return false;
+      if (selectedJobCategory !== "전체" && normalizeJobCategory(worker.job_type ?? "") !== selectedJobCategory) return false;
       return true;
     });
 
@@ -263,7 +274,7 @@ export default function Page() {
     const total_work_units = groups.reduce((sum, group) => sum + group.total_work_units, 0);
     const total_amount = groups.reduce((sum, group) => sum + group.total_amount, 0);
     return { groups, total_work_units, total_amount };
-  }, [dailyWorkers, records, selectedCompanyId, selectedSiteId]);
+  }, [dailyWorkers, records, selectedCompanyId, selectedSiteId, selectedJobCategory]);
 
   const activeEmployeeCount = useMemo(() => employees.filter((employee) => employee.status === "재직").length, [employees]);
 
@@ -969,11 +980,43 @@ export default function Page() {
 
                 <div style={cardStyle}>
                   <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>노무비 명세표</h2>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px", marginBottom: "12px" }}>
+                    <select
+                      style={inputStyle}
+                      value={selectedCompanyId ?? ""}
+                      onChange={(e) => {
+                        const nextCompanyId = e.target.value ? Number(e.target.value) : null;
+                        setSelectedCompanyId(nextCompanyId);
+                        setSelectedSiteId(null);
+                      }}
+                    >
+                      <option value="">회사 선택</option>
+                      {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
+                    </select>
+                    <select style={inputStyle} value={selectedSiteId ?? ""} onChange={(e) => setSelectedSiteId(e.target.value ? Number(e.target.value) : null)}>
+                      <option value="">현장 선택</option>
+                      {filteredSites.map((site) => (<option key={site.id} value={site.id}>{site.name}</option>))}
+                    </select>
+                    <select style={inputStyle} value={selectedJobCategory} onChange={(e) => setSelectedJobCategory(e.target.value as JobCategoryFilter)}>
+                      <option value="전체">전체</option>
+                      <option value="직영">직영</option>
+                      <option value="용역">용역</option>
+                    </select>
+                    <input
+                      style={inputStyle}
+                      type="month"
+                      value={selectedTargetMonth}
+                      onChange={(e) => {
+                        setSelectedTargetMonth(e.target.value);
+                        setTargetMonth(e.target.value);
+                      }}
+                    />
+                  </div>
                   <div style={{ marginBottom: "12px", color: "#334155" }}>
-                    회사명: {companies.find((company) => company.id === selectedCompanyId)?.name ?? "전체"} / 현장명: {selectedSite?.name ?? "미선택"}
+                    회사명: {companies.find((company) => company.id === selectedCompanyId)?.name ?? "전체"} / 현장명: {selectedSite?.name ?? "미선택"} / 직종 구분: {selectedJobCategory}
                   </div>
                   {!selectedSiteId && (
-                    <p style={{ color: "#64748b", marginBottom: "12px" }}>현장을 선택하면 해당 현장 기준으로 명세표를 확인할 수 있습니다.</p>
+                    <p style={{ color: "#64748b", marginBottom: "12px" }}>회사, 현장, 직종 구분을 선택하면 해당 조건 기준으로 명세표를 확인할 수 있습니다.</p>
                   )}
                   {payrollSummary.groups.map((group) => (
                     <div key={group.job_type} style={{ marginBottom: "16px" }}>
@@ -1166,7 +1209,15 @@ export default function Page() {
                       <option value="">소속 회사 선택</option>
                       {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
                     </select>
-                    <input style={inputStyle} type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} />
+                    <input
+                      style={inputStyle}
+                      type="month"
+                      value={targetMonth}
+                      onChange={(e) => {
+                        setTargetMonth(e.target.value);
+                        setSelectedTargetMonth(e.target.value);
+                      }}
+                    />
                     <select style={inputStyle} value={selectedCompanyId ?? ""} onChange={(e) => {
                       const nextCompanyId = e.target.value ? Number(e.target.value) : null;
                       setSelectedCompanyId(nextCompanyId);
