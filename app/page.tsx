@@ -20,6 +20,15 @@ type DailyWorker = {
   nonTaxable: number;
 };
 
+type DailyWorkerRow = {
+  id: number;
+  name: string;
+  daily_wage: number;
+  work_days: number;
+  non_taxable: number;
+  created_at: string;
+};
+
 function normalizeEmployeeType(value: string | null | undefined) {
   const text = (value ?? "").trim();
   return text.includes("일용직") ? "일용직" : "상용직";
@@ -42,6 +51,16 @@ function calculateTax(dailyWage: number, workDays: number, nonTaxable: number) {
     incomeTax,
     localTax,
     totalTax,
+  };
+}
+
+function mapDailyWorkerRowToState(item: DailyWorkerRow): DailyWorker {
+  return {
+    id: item.id,
+    name: item.name,
+    dailyWage: item.daily_wage,
+    workDays: item.work_days,
+    nonTaxable: item.non_taxable,
   };
 }
 
@@ -100,7 +119,23 @@ export default function Home() {
       setLoadingEmployees(false);
     };
 
+    const fetchDailyWorkers = async () => {
+      const { data, error } = await supabase
+        .from("daily_workers")
+        .select("id, name, daily_wage, work_days, non_taxable, created_at")
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        alert("일용직 불러오기 실패: " + error.message);
+        return;
+      }
+
+      const converted = (data || []).map((item) => mapDailyWorkerRowToState(item));
+      setDailyWorkers(converted);
+    };
+
     fetchEmployees();
+    fetchDailyWorkers();
   }, []);
 
   const activeEmployees = useMemo(
@@ -190,21 +225,31 @@ export default function Home() {
     alert("직원이 삭제되었습니다.");
   };
 
-  const addDailyWorker = () => {
+  const addDailyWorker = async () => {
     if (!dailyForm.name || !dailyForm.dailyWage || !dailyForm.workDays) {
       alert("이름, 일급, 근무일수를 입력해주세요.");
       return;
     }
 
-    const newWorker: DailyWorker = {
-      id: Date.now(),
-      name: dailyForm.name,
-      dailyWage: Number(dailyForm.dailyWage),
-      workDays: Number(dailyForm.workDays),
-      nonTaxable: Number(dailyForm.nonTaxable || 0),
-    };
+    const { data, error } = await supabase
+      .from("daily_workers")
+      .insert([
+        {
+          name: dailyForm.name,
+          daily_wage: Number(dailyForm.dailyWage),
+          work_days: Number(dailyForm.workDays),
+          non_taxable: Number(dailyForm.nonTaxable || 0),
+        },
+      ])
+      .select("id, name, daily_wage, work_days, non_taxable, created_at")
+      .single();
 
-    setDailyWorkers((prev) => [...prev, newWorker]);
+    if (error) {
+      alert("일용직 저장 실패: " + error.message);
+      return;
+    }
+
+    setDailyWorkers((prev) => [...prev, mapDailyWorkerRowToState(data)]);
     setDailyForm({
       name: "",
       dailyWage: "",
