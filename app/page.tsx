@@ -69,6 +69,9 @@ export default function Home() {
   const [loadingEmployees, setLoadingEmployees] = useState(true);
 
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeSearchKeyword, setEmployeeSearchKeyword] = useState("");
+  const [employeeTypeFilter, setEmployeeTypeFilter] = useState("전체");
+  const [employeeStatusFilter, setEmployeeStatusFilter] = useState("전체");
   const [employeeForm, setEmployeeForm] = useState({
     name: "",
     type: "상용직",
@@ -143,6 +146,22 @@ export default function Home() {
     () => employees.filter((item) => normalizeEmployeeStatus(item.status) === "재직").length,
     [employees]
   );
+
+  const filteredEmployees = useMemo(() => {
+    return employees.filter((employee) => {
+      const normalizedName = employee.name.toLowerCase();
+      const searchKeyword = employeeSearchKeyword.trim().toLowerCase();
+      const matchesName = searchKeyword === "" || normalizedName.includes(searchKeyword);
+
+      const employeeType = normalizeEmployeeType(employee.type);
+      const matchesType = employeeTypeFilter === "전체" || employeeType === employeeTypeFilter;
+
+      const employeeStatus = normalizeEmployeeStatus(employee.status);
+      const matchesStatus = employeeStatusFilter === "전체" || employeeStatus === employeeStatusFilter;
+
+      return matchesName && matchesType && matchesStatus;
+    });
+  }, [employees, employeeSearchKeyword, employeeTypeFilter, employeeStatusFilter]);
 
   const dailyEmployeeCount = useMemo(
     () => dailyWorkers.length,
@@ -372,6 +391,9 @@ export default function Home() {
                 <div style={cardStyle}>
                   <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>직원 목록</h2>
                   {loadingEmployees && <div style={{ marginBottom: "12px", color: "#64748b" }}>직원 데이터를 불러오는 중입니다...</div>}
+                  <div style={{ marginBottom: "12px", color: "#64748b", fontSize: "14px" }}>
+                    현재 검색/필터 결과: {filteredEmployees.length}명
+                  </div>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "#f1f5f9" }}>
@@ -384,7 +406,7 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {employees.map((employee) => (
+                      {filteredEmployees.map((employee) => (
                         <tr key={employee.id}>
                           <td style={tdStyle}>{employee.name}</td>
                           <td style={tdStyle}>{normalizeEmployeeType(employee.type)}</td>
@@ -486,6 +508,27 @@ export default function Home() {
                 <div style={cardStyle}>
                   <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>직원 목록</h2>
                   {loadingEmployees && <div style={{ marginBottom: "12px", color: "#64748b" }}>직원 데이터를 불러오는 중입니다...</div>}
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                    <input
+                      style={inputStyle}
+                      value={employeeSearchKeyword}
+                      onChange={(e) => setEmployeeSearchKeyword(e.target.value)}
+                      placeholder="이름 검색 (부분일치)"
+                    />
+                    <select style={inputStyle} value={employeeTypeFilter} onChange={(e) => setEmployeeTypeFilter(e.target.value)}>
+                      <option value="전체">전체</option>
+                      <option value="상용직">상용직</option>
+                      <option value="일용직">일용직</option>
+                    </select>
+                    <select style={inputStyle} value={employeeStatusFilter} onChange={(e) => setEmployeeStatusFilter(e.target.value)}>
+                      <option value="전체">전체</option>
+                      <option value="재직">재직</option>
+                      <option value="퇴사">퇴사</option>
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: "12px", color: "#64748b", fontSize: "14px" }}>
+                    검색/필터 적용 결과: {filteredEmployees.length}명
+                  </div>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "#f1f5f9" }}>
@@ -498,7 +541,7 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {employees.map((employee) => (
+                      {filteredEmployees.map((employee) => (
                         <tr key={employee.id}>
                           <td style={tdStyle}>{employee.name}</td>
                           <td style={tdStyle}>{normalizeEmployeeType(employee.type)}</td>
