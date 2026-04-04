@@ -684,8 +684,8 @@ export default function Page() {
                         <td>
                           <input
                             type="number"
-                            min="0"
                             step="0.01"
+                            min="0"
                             value={selectedWorkEntries[date] ?? ""}
                             onChange={(e) => updateWorkUnit(date, Number(e.target.value || 0))}
                           />
