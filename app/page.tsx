@@ -84,6 +84,7 @@ export default function Home() {
     workDays: "",
     nonTaxable: "0",
   });
+  const [editingDailyWorkerId, setEditingDailyWorkerId] = useState<number | null>(null);
 
   const [taxForm, setTaxForm] = useState({
     dailyWage: "180000",
@@ -225,9 +226,45 @@ export default function Home() {
     alert("직원이 삭제되었습니다.");
   };
 
-  const addDailyWorker = async () => {
+  const resetDailyWorkerForm = () => {
+    setDailyForm({
+      name: "",
+      dailyWage: "",
+      workDays: "",
+      nonTaxable: "0",
+    });
+    setEditingDailyWorkerId(null);
+  };
+
+  const saveDailyWorker = async () => {
     if (!dailyForm.name || !dailyForm.dailyWage || !dailyForm.workDays) {
       alert("이름, 일급, 근무일수를 입력해주세요.");
+      return;
+    }
+
+    if (editingDailyWorkerId !== null) {
+      const { data, error } = await supabase
+        .from("daily_workers")
+        .update({
+          name: dailyForm.name,
+          daily_wage: Number(dailyForm.dailyWage),
+          work_days: Number(dailyForm.workDays),
+          non_taxable: Number(dailyForm.nonTaxable || 0),
+        })
+        .eq("id", editingDailyWorkerId)
+        .select("id, name, daily_wage, work_days, non_taxable, created_at")
+        .single();
+
+      if (error) {
+        alert("일용직 수정 실패: " + error.message);
+        return;
+      }
+
+      setDailyWorkers((prev) =>
+        prev.map((item) => (item.id === editingDailyWorkerId ? mapDailyWorkerRowToState(data) : item))
+      );
+      resetDailyWorkerForm();
+      alert("일용직 정보가 수정되었습니다.");
       return;
     }
 
@@ -250,13 +287,38 @@ export default function Home() {
     }
 
     setDailyWorkers((prev) => [...prev, mapDailyWorkerRowToState(data)]);
-    setDailyForm({
-      name: "",
-      dailyWage: "",
-      workDays: "",
-      nonTaxable: "0",
-    });
+    resetDailyWorkerForm();
     alert("일용직 정보가 등록되었습니다.");
+  };
+
+  const startEditDailyWorker = (worker: DailyWorker) => {
+    setEditingDailyWorkerId(worker.id);
+    setDailyForm({
+      name: worker.name,
+      dailyWage: String(worker.dailyWage),
+      workDays: String(worker.workDays),
+      nonTaxable: String(worker.nonTaxable),
+    });
+  };
+
+  const deleteDailyWorker = async (worker: DailyWorker) => {
+    const ok = confirm(`${worker.name} 일용직 정보를 삭제할까요?`);
+    if (!ok) return;
+
+    const { error } = await supabase.from("daily_workers").delete().eq("id", worker.id);
+
+    if (error) {
+      alert("일용직 삭제 실패: " + error.message);
+      return;
+    }
+
+    setDailyWorkers((prev) => prev.filter((item) => item.id !== worker.id));
+
+    if (editingDailyWorkerId === worker.id) {
+      resetDailyWorkerForm();
+    }
+
+    alert("일용직 정보가 삭제되었습니다.");
   };
 
   return (
@@ -477,7 +539,9 @@ export default function Home() {
                     </div>
                   </div>
                   <div style={{ marginTop: "16px" }}>
-                    <button style={primaryButtonStyle} onClick={addDailyWorker}>일용직 등록하기</button>
+                    <button style={primaryButtonStyle} onClick={saveDailyWorker}>
+                      {editingDailyWorkerId !== null ? "수정 저장" : "일용직 등록하기"}
+                    </button>
                   </div>
                 </div>
 
@@ -493,6 +557,7 @@ export default function Home() {
                         <th style={thStyle}>소득세</th>
                         <th style={thStyle}>주민세</th>
                         <th style={thStyle}>총 공제세액</th>
+                        <th style={thStyle}>관리</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -507,6 +572,12 @@ export default function Home() {
                             <td style={tdStyle}>{result.incomeTax.toLocaleString()}원</td>
                             <td style={tdStyle}>{result.localTax.toLocaleString()}원</td>
                             <td style={tdStyle}>{result.totalTax.toLocaleString()}원</td>
+                            <td style={tdStyle}>
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button style={secondaryButtonStyle} onClick={() => startEditDailyWorker(worker)}>수정</button>
+                                <button style={dangerButtonStyle} onClick={() => deleteDailyWorker(worker)}>삭제</button>
+                              </div>
+                            </td>
                           </tr>
                         );
                       })}
@@ -648,6 +719,16 @@ const dangerButtonStyle = {
   border: "none",
   background: "#dc2626",
   color: "white",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const secondaryButtonStyle = {
+  padding: "8px 12px",
+  borderRadius: "8px",
+  border: "1px solid #94a3b8",
+  background: "#ffffff",
+  color: "#0f172a",
   fontWeight: "bold",
   cursor: "pointer",
 };
