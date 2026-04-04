@@ -129,11 +129,26 @@ export default function Page() {
 
   const monthDates = useMemo(() => getMonthDates(targetMonth), [targetMonth]);
 
-  const selectedWorker = useMemo(
+  const selectedDailyWorker = useMemo(
     () => dailyWorkers.find((worker) => worker.id === selectedDailyWorkerId) ?? null,
     [dailyWorkers, selectedDailyWorkerId]
   );
-  const safeEntries = Array.isArray(selectedWorkEntries) ? selectedWorkEntries : [];
+  const safeEntries = useMemo(
+    () => (Array.isArray(selectedWorkEntries) ? selectedWorkEntries : []),
+    [selectedWorkEntries]
+  );
+  const totalWorkUnits = useMemo(
+    () =>
+      safeEntries.reduce(
+        (sum, entry) => sum + (entry.work_days ?? 0),
+        0
+      ),
+    [safeEntries]
+  );
+  const expectedAmount = useMemo(
+    () => totalWorkUnits * (selectedDailyWorker?.daily_wage ?? 0),
+    [totalWorkUnits, selectedDailyWorker]
+  );
 
   const selectedWorkMap = useMemo(() => {
     const map: Record<string, number | null> = {};
@@ -160,14 +175,6 @@ export default function Page() {
   );
 
   const dailyWorkerCount = dailyWorkers.length;
-
-  const expectedPayout = useMemo(() => {
-    return dailyWorkers.reduce((sum, worker) => {
-      const map = records[worker.id] ?? {};
-      const totalWorkDays = Object.values(map).reduce((acc, value) => acc + Number(value), 0);
-      return sum + totalWorkDays * worker.daily_wage;
-    }, 0);
-  }, [dailyWorkers, records]);
 
   function selectDailyWorker(workerId: number | null) {
     setCurrentMenu("daily");
@@ -442,7 +449,7 @@ export default function Page() {
   }
 
   async function saveMonthlyRecord() {
-    if (!selectedWorker) {
+    if (!selectedDailyWorker) {
       alert("일용직을 선택하세요.");
       return;
     }
@@ -467,10 +474,10 @@ export default function Page() {
     const workDates = paidEntries.map((entry) => entry.date);
     const totalWorkUnits = paidEntries.reduce((sum, entry) => sum + (entry.work_days ?? 0), 0);
     const workedDaysCount = paidEntries.length;
-    const grossAmount = Number(selectedWorker.daily_wage) * totalWorkUnits;
+    const grossAmount = Number(selectedDailyWorker.daily_wage) * totalWorkUnits;
 
     const payload: DailyWorkerMonthlyRecord = {
-      daily_worker_id: selectedWorker.id,
+      daily_worker_id: selectedDailyWorker.id,
       target_month: targetMonth,
       work_dates: workDates,
       work_entries: normalizedEntries,
@@ -522,7 +529,7 @@ export default function Page() {
               </div>
               <div style={cardStyle}>
                 <div style={cardTitleStyle}>예상 지급액</div>
-                <div style={cardNumberStyle}>{expectedPayout.toLocaleString()}원</div>
+                <div style={cardNumberStyle}>{expectedAmount.toLocaleString()}원</div>
                 <div style={cardDescStyle}>{targetMonth} 월 기준</div>
               </div>
             </div>
@@ -626,12 +633,15 @@ export default function Page() {
 
                   <div style={{ marginTop: "16px" }}>
                     <div style={{ ...labelStyle, marginBottom: "8px" }}>일용직 공수 입력 달력</div>
-                    {!selectedWorker ? (
+                    {!selectedDailyWorker ? (
                       <p style={{ color: "#64748b" }}>일용직을 선택하면 날짜별 공수 입력이 표시됩니다.</p>
                     ) : (
                       <>
                         <p style={{ color: "#334155", marginBottom: "8px" }}>
-                          {selectedWorker.name} / 일당 {selectedWorker.daily_wage.toLocaleString()}원
+                          {selectedDailyWorker.name} / 일당 {selectedDailyWorker.daily_wage.toLocaleString()}원
+                        </p>
+                        <p style={{ color: "#334155", marginBottom: "12px", fontWeight: "bold" }}>
+                          총 공수: {totalWorkUnits} / 예상 지급액: {expectedAmount.toLocaleString()}원
                         </p>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "8px" }}>
                           {monthDates.map((date) => (
