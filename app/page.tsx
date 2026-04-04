@@ -18,6 +18,7 @@ type DailyWorker = {
   dailyWage: number;
   workDays: number;
   nonTaxable: number;
+  createdAt: string;
 };
 
 type DailyWorkerRow = {
@@ -61,6 +62,7 @@ function mapDailyWorkerRowToState(item: DailyWorkerRow): DailyWorker {
     dailyWage: item.daily_wage,
     workDays: item.work_days,
     nonTaxable: item.non_taxable,
+    createdAt: item.created_at,
   };
 }
 
@@ -89,6 +91,8 @@ export default function Home() {
     nonTaxable: "0",
   });
   const [editingDailyWorkerId, setEditingDailyWorkerId] = useState<number | null>(null);
+  const [dailyStartDate, setDailyStartDate] = useState("");
+  const [dailyEndDate, setDailyEndDate] = useState("");
 
   const [taxForm, setTaxForm] = useState({
     dailyWage: "180000",
@@ -172,6 +176,29 @@ export default function Home() {
   const estimatedPayout = useMemo(
     () => dailyWorkers.reduce((sum, item) => sum + item.dailyWage * item.workDays, 0),
     [dailyWorkers]
+  );
+
+  const filteredDailyWorkers = useMemo(() => {
+    return dailyWorkers.filter((worker) => {
+      const workerDate = worker.createdAt.slice(0, 10);
+      const matchesStartDate = dailyStartDate === "" || workerDate >= dailyStartDate;
+      const matchesEndDate = dailyEndDate === "" || workerDate <= dailyEndDate;
+      return matchesStartDate && matchesEndDate;
+    });
+  }, [dailyWorkers, dailyStartDate, dailyEndDate]);
+
+  const filteredDailyTotalPayout = useMemo(
+    () => filteredDailyWorkers.reduce((sum, worker) => sum + worker.dailyWage * worker.workDays, 0),
+    [filteredDailyWorkers]
+  );
+
+  const currentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const thisMonthTotalPayout = useMemo(
+    () =>
+      dailyWorkers
+        .filter((worker) => worker.createdAt.slice(0, 7) === currentMonth)
+        .reduce((sum, worker) => sum + worker.dailyWage * worker.workDays, 0),
+    [dailyWorkers, currentMonth]
   );
 
   const taxPreview = calculateTax(
@@ -657,6 +684,32 @@ export default function Home() {
 
                 <div style={cardStyle}>
                   <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>일용직 목록</h2>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                    <div>
+                      <div style={labelStyle}>시작일</div>
+                      <input
+                        type="date"
+                        style={inputStyle}
+                        value={dailyStartDate}
+                        onChange={(e) => setDailyStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <div style={labelStyle}>종료일</div>
+                      <input
+                        type="date"
+                        style={inputStyle}
+                        value={dailyEndDate}
+                        onChange={(e) => setDailyEndDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: "12px", color: "#64748b", fontSize: "14px" }}>
+                    기간 필터 결과: {filteredDailyWorkers.length}건 / 총 지급액: {filteredDailyTotalPayout.toLocaleString()}원
+                  </div>
+                  <div style={{ marginBottom: "12px", color: "#64748b", fontSize: "14px" }}>
+                    이번 달 합계: {thisMonthTotalPayout.toLocaleString()}원
+                  </div>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "#f1f5f9" }}>
@@ -671,7 +724,7 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dailyWorkers.map((worker) => {
+                      {filteredDailyWorkers.map((worker) => {
                         const result = calculateTax(worker.dailyWage, worker.workDays, worker.nonTaxable);
                         return (
                           <tr key={worker.id}>
