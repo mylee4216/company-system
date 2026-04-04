@@ -81,6 +81,21 @@ function maskResidentNumber(rn: string) {
   return rn.slice(0, 8) + "******";
 }
 
+function formatDateInput(value: string) {
+  const numbers = value.replace(/\D/g, "").slice(0, 8);
+
+  if (numbers.length <= 4) return numbers;
+  if (numbers.length <= 6) return `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
+  return `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6, 8)}`;
+}
+
+function formatResidentNumber(value: string) {
+  const numbers = value.replace(/\D/g, "").slice(0, 13);
+
+  if (numbers.length <= 6) return numbers;
+  return `${numbers.slice(0, 6)}-${numbers.slice(6, 13)}`;
+}
+
 function getMonthDates(targetMonth: string): string[] {
   const [yearText, monthText] = targetMonth.split("-");
   const year = Number(yearText);
@@ -864,20 +879,30 @@ export default function Page() {
                         <option value="원도급">원도급</option>
                         <option value="하도급">하도급</option>
                       </select>
-                      <label style={labelStyle}>착공일</label>
-                      <input
-                        style={inputStyle}
-                        type="date"
-                        value={siteForm.construction_start_date}
-                        onChange={(e) => setSiteForm((prev) => ({ ...prev, construction_start_date: e.target.value }))}
-                      />
-                      <label style={labelStyle}>준공일</label>
-                      <input
-                        style={inputStyle}
-                        type="date"
-                        value={siteForm.construction_end_date}
-                        onChange={(e) => setSiteForm((prev) => ({ ...prev, construction_end_date: e.target.value }))}
-                      />
+                      <div>
+                        <div style={labelStyle}>착공일</div>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          placeholder="예: 20260404"
+                          value={siteForm.construction_start_date}
+                          onChange={(e) =>
+                            setSiteForm((prev) => ({ ...prev, construction_start_date: formatDateInput(e.target.value) }))
+                          }
+                        />
+                      </div>
+                      <div>
+                        <div style={labelStyle}>준공일</div>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          placeholder="예: 20260404"
+                          value={siteForm.construction_end_date}
+                          onChange={(e) =>
+                            setSiteForm((prev) => ({ ...prev, construction_end_date: formatDateInput(e.target.value) }))
+                          }
+                        />
+                      </div>
                       <button type="submit" style={primaryButtonStyle}>{editingSiteId ? "현장 수정" : "현장 등록"}</button>
                       {editingSiteId && (
                         <button
@@ -995,17 +1020,32 @@ export default function Page() {
                       <option value="일용직">일용직</option>
                     </select>
                     <input style={inputStyle} placeholder="직책" value={employeeForm.position} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, position: e.target.value }))} />
-                    <input style={inputStyle} type="date" value={employeeForm.join_date} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, join_date: e.target.value }))} />
+                    <div>
+                      <div style={labelStyle}>입사일</div>
+                      <input
+                        style={inputStyle}
+                        type="text"
+                        placeholder="예: 20260404"
+                        value={employeeForm.join_date}
+                        onChange={(e) => setEmployeeForm((prev) => ({ ...prev, join_date: formatDateInput(e.target.value) }))}
+                      />
+                    </div>
                     <select style={inputStyle} value={employeeForm.status} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, status: e.target.value as EmployeeStatus }))}>
                       {EMPLOYEE_STATUSES.map((status) => (<option key={status} value={status}>{status}</option>))}
                     </select>
-                    <input
-                      style={inputStyle}
-                      type="date"
-                      value={employeeForm.resignation_date}
-                      disabled={employeeForm.status !== "퇴사"}
-                      onChange={(e) => setEmployeeForm((prev) => ({ ...prev, resignation_date: e.target.value }))}
-                    />
+                    <div>
+                      <div style={labelStyle}>퇴사일</div>
+                      <input
+                        style={inputStyle}
+                        type="text"
+                        placeholder="예: 20260404"
+                        value={employeeForm.resignation_date}
+                        disabled={employeeForm.status !== "퇴사"}
+                        onChange={(e) =>
+                          setEmployeeForm((prev) => ({ ...prev, resignation_date: formatDateInput(e.target.value) }))
+                        }
+                      />
+                    </div>
                     <select style={inputStyle} value={employeeForm.company_id} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, company_id: e.target.value }))}>
                       <option value="">현재 법인 선택</option>
                       {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
@@ -1019,8 +1059,30 @@ export default function Page() {
                     <select style={inputStyle} value={employeeForm.assignment_type} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, assignment_type: e.target.value as AssignmentType }))}>
                       {ASSIGNMENT_TYPES.map((type) => (<option key={type} value={type}>{type}</option>))}
                     </select>
-                    <input style={inputStyle} type="date" value={employeeForm.assignment_start_date} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, assignment_start_date: e.target.value }))} />
-                    <input style={inputStyle} type="date" value={employeeForm.assignment_end_date} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, assignment_end_date: e.target.value }))} />
+                    <div>
+                      <div style={labelStyle}>소속 시작일</div>
+                      <input
+                        style={inputStyle}
+                        type="text"
+                        placeholder="예: 20260404"
+                        value={employeeForm.assignment_start_date}
+                        onChange={(e) =>
+                          setEmployeeForm((prev) => ({ ...prev, assignment_start_date: formatDateInput(e.target.value) }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <div style={labelStyle}>소속 종료일</div>
+                      <input
+                        style={inputStyle}
+                        type="text"
+                        placeholder="예: 20260404"
+                        value={employeeForm.assignment_end_date}
+                        onChange={(e) =>
+                          setEmployeeForm((prev) => ({ ...prev, assignment_end_date: formatDateInput(e.target.value) }))
+                        }
+                      />
+                    </div>
                     <button type="submit" style={primaryButtonStyle}>{editingEmployeeId ? "수정 저장" : "직원 등록하기"}</button>
                   </form>
                 </div>
@@ -1087,7 +1149,15 @@ export default function Page() {
                     <input style={inputStyle} type="number" min={0} step={1} placeholder="일당" value={dailyWorkerForm.daily_wage} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, daily_wage: e.target.value }))} />
                     <input style={inputStyle} type="number" min={0} placeholder="비과세" value={dailyWorkerForm.non_taxable} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, non_taxable: e.target.value }))} />
                     <input style={inputStyle} placeholder="주소" value={dailyWorkerForm.address} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, address: e.target.value }))} />
-                    <input style={inputStyle} placeholder="주민번호 (######-#######)" value={dailyWorkerForm.resident_number} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, resident_number: e.target.value }))} />
+                    <input
+                      style={inputStyle}
+                      type="text"
+                      placeholder="예: 9001011234567"
+                      value={dailyWorkerForm.resident_number}
+                      onChange={(e) =>
+                        setDailyWorkerForm((prev) => ({ ...prev, resident_number: formatResidentNumber(e.target.value) }))
+                      }
+                    />
                     <input style={inputStyle} placeholder="전화번호" value={dailyWorkerForm.phone} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, phone: e.target.value }))} />
                     <input style={inputStyle} placeholder="은행명" value={dailyWorkerForm.bank_name} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, bank_name: e.target.value }))} />
                     <input style={inputStyle} placeholder="계좌번호" value={dailyWorkerForm.account_number} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, account_number: e.target.value }))} />
