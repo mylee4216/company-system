@@ -16,7 +16,6 @@ type DailyWorker = {
   id: number;
   name: string;
   dailyWage: number;
-  workDays: number;
   nonTaxable: number;
   createdAt: string;
 };
@@ -25,9 +24,13 @@ type DailyWorkerRow = {
   id: number;
   name: string;
   daily_wage: number;
-  work_days: number;
   non_taxable: number;
   created_at: string;
+};
+
+type MonthlyRecordRow = {
+  daily_worker_id: number;
+  work_dates: string[] | null;
 };
 
 function normalizeEmployeeType(value: string | null | undefined) {
@@ -60,7 +63,6 @@ function mapDailyWorkerRowToState(item: DailyWorkerRow): DailyWorker {
     id: item.id,
     name: item.name,
     dailyWage: item.daily_wage,
-    workDays: item.work_days,
     nonTaxable: item.non_taxable,
     createdAt: item.created_at,
   };
@@ -87,12 +89,16 @@ export default function Home() {
   const [dailyForm, setDailyForm] = useState({
     name: "",
     dailyWage: "",
-    workDays: "",
     nonTaxable: "0",
   });
   const [editingDailyWorkerId, setEditingDailyWorkerId] = useState<number | null>(null);
   const [dailyStartDate, setDailyStartDate] = useState("");
   const [dailyEndDate, setDailyEndDate] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedWorkDates, setSelectedWorkDates] = useState<string[]>([]);
+  const [monthlyRecords, setMonthlyRecords] = useState<Record<number, string[]>>({});
+  const [monthColumnName, setMonthColumnName] = useState<"target_month" | "year_month" | null>(null);
+  const [monthlyOnConflict, setMonthlyOnConflict] = useState<string>("");
 
   const [taxForm, setTaxForm] = useState({
     dailyWage: "180000",
@@ -101,6 +107,32 @@ export default function Home() {
   });
 
   useEffect(() => {
+    const detectMonthlyRecordColumns = async () => {
+      const targetMonthProbe = await supabase
+        .from("daily_worker_monthly_records")
+        .select("daily_worker_id, target_month, work_dates")
+        .limit(1);
+
+      if (!targetMonthProbe.error) {
+        setMonthColumnName("target_month");
+        setMonthlyOnConflict("daily_worker_id,target_month");
+        return;
+      }
+
+      const yearMonthProbe = await supabase
+        .from("daily_worker_monthly_records")
+        .select("daily_worker_id, year_month, work_dates")
+        .limit(1);
+
+      if (!yearMonthProbe.error) {
+        setMonthColumnName("year_month");
+        setMonthlyOnConflict("daily_worker_id,year_month");
+        return;
+      }
+
+      alert("월별 기록 테이블 컬럼 확인 실패: target_month/year_month 중 하나가 필요합니다.");
+    };
+
     const fetchEmployees = async () => {
       setLoadingEmployees(true);
 
@@ -131,7 +163,7 @@ export default function Home() {
     const fetchDailyWorkers = async () => {
       const { data, error } = await supabase
         .from("daily_workers")
-        .select("id, name, daily_wage, work_days, non_taxable, created_at")
+        .select("id, name, daily_wage, non_taxable, created_at")
         .order("created_at", { ascending: true });
 
       if (error) {
@@ -145,7 +177,34 @@ export default function Home() {
 
     fetchEmployees();
     fetchDailyWorkers();
+    detectMonthlyRecordColumns();
   }, []);
+
+  useEffect(() => {
+    const fetchMonthlyRecords = async () => {
+      if (!monthColumnName) return;
+
+      const { data, error } = await supabase
+        .from("daily_worker_monthly_records")
+        .select("daily_worker_id, work_dates")
+        .eq(monthColumnName, selectedMonth);
+
+      if (error) {
+        alert("월별 근무일 불러오기 실패: " + error.message);
+        return;
+      }
+
+      const nextRecords: Record<number, string[]> = {};
+      (data as MonthlyRecordRow[] | null)?.forEach((item) => {
+        nextRecords[item.daily_worker_id] = Array.isArray(item.work_dates) ? item.work_dates : [];
+      });
+
+      setMonthlyRecords(nextRecords);
+      setSelectedWorkDates([]);
+    };
+
+    fetchMonthlyRecords();
+  }, [monthColumnName, selectedMonth]);
 
   const activeEmployees = useMemo(
     () => employees.filter((item) => normalizeEmployeeStatus(item.status) === "재직").length,
@@ -174,8 +233,12 @@ export default function Home() {
   );
 
   const estimatedPayout = useMemo(
-    () => dailyWorkers.reduce((sum, item) => sum + item.dailyWage * item.workDays, 0),
-    [dailyWorkers]
+    () =>
+      dailyWorkers.reduce((sum, item) => {
+        const workDays = monthlyRecords[item.id]?.length ?? 0;
+        return sum + item.dailyWage * workDays;
+      }, 0),
+    [dailyWorkers, monthlyRecords]
   );
 
   const filteredDailyWorkers = useMemo(() => {
@@ -188,8 +251,12 @@ export default function Home() {
   }, [dailyWorkers, dailyStartDate, dailyEndDate]);
 
   const filteredDailyTotalPayout = useMemo(
-    () => filteredDailyWorkers.reduce((sum, worker) => sum + worker.dailyWage * worker.workDays, 0),
-    [filteredDailyWorkers]
+    () =>
+      filteredDailyWorkers.reduce((sum, worker) => {
+        const workDays = monthlyRecords[worker.id]?.length ?? 0;
+        return sum + worker.dailyWage * workDays;
+      }, 0),
+    [filteredDailyWorkers, monthlyRecords]
   );
 
   const currentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
@@ -197,9 +264,26 @@ export default function Home() {
     () =>
       dailyWorkers
         .filter((worker) => worker.createdAt.slice(0, 7) === currentMonth)
-        .reduce((sum, worker) => sum + worker.dailyWage * worker.workDays, 0),
-    [dailyWorkers, currentMonth]
+        .reduce((sum, worker) => {
+          const workDays = monthlyRecords[worker.id]?.length ?? 0;
+          return sum + worker.dailyWage * workDays;
+        }, 0),
+    [dailyWorkers, currentMonth, monthlyRecords]
   );
+
+  const monthDateOptions = useMemo(() => {
+    const [yearText, monthText] = selectedMonth.split("-");
+    const year = Number(yearText);
+    const month = Number(monthText);
+
+    if (!year || !month) return [];
+
+    const totalDays = new Date(year, month, 0).getDate();
+    return Array.from({ length: totalDays }, (_, index) => {
+      const day = String(index + 1).padStart(2, "0");
+      return `${selectedMonth}-${day}`;
+    });
+  }, [selectedMonth]);
 
   const taxPreview = calculateTax(
     Number(taxForm.dailyWage || 0),
@@ -338,17 +422,24 @@ export default function Home() {
     setDailyForm({
       name: "",
       dailyWage: "",
-      workDays: "",
       nonTaxable: "0",
     });
     setEditingDailyWorkerId(null);
+    setSelectedWorkDates([]);
   };
 
   const saveDailyWorker = async () => {
-    if (!dailyForm.name || !dailyForm.dailyWage || !dailyForm.workDays) {
-      alert("이름, 일급, 근무일수를 입력해주세요.");
+    if (!dailyForm.name || !dailyForm.dailyWage) {
+      alert("이름, 일급을 입력해주세요.");
       return;
     }
+
+    if (!monthColumnName || !monthlyOnConflict) {
+      alert("월별 기록 컬럼 정보를 찾지 못했습니다.");
+      return;
+    }
+
+    let savedWorkerId: number | null = null;
 
     if (editingDailyWorkerId !== null) {
       const { data, error } = await supabase
@@ -356,11 +447,10 @@ export default function Home() {
         .update({
           name: dailyForm.name,
           daily_wage: Number(dailyForm.dailyWage),
-          work_days: Number(dailyForm.workDays),
           non_taxable: Number(dailyForm.nonTaxable || 0),
         })
         .eq("id", editingDailyWorkerId)
-        .select("id, name, daily_wage, work_days, non_taxable, created_at")
+        .select("id, name, daily_wage, non_taxable, created_at")
         .single();
 
       if (error) {
@@ -371,32 +461,70 @@ export default function Home() {
       setDailyWorkers((prev) =>
         prev.map((item) => (item.id === editingDailyWorkerId ? mapDailyWorkerRowToState(data) : item))
       );
-      resetDailyWorkerForm();
+      savedWorkerId = data.id;
+    } else {
+      const { data, error } = await supabase
+        .from("daily_workers")
+        .insert([
+          {
+            name: dailyForm.name,
+            daily_wage: Number(dailyForm.dailyWage),
+            non_taxable: Number(dailyForm.nonTaxable || 0),
+          },
+        ])
+        .select("id, name, daily_wage, non_taxable, created_at")
+        .single();
+
+      if (error) {
+        alert("일용직 저장 실패: " + error.message);
+        return;
+      }
+
+      setDailyWorkers((prev) => [...prev, mapDailyWorkerRowToState(data)]);
+      savedWorkerId = data.id;
+    }
+
+    if (savedWorkerId === null) return;
+
+    const sortedWorkDates = [...selectedWorkDates].sort();
+
+    const monthlyPayload: Record<string, string | number | string[]> = {
+      daily_worker_id: savedWorkerId,
+      work_dates: sortedWorkDates,
+    };
+    monthlyPayload[monthColumnName] = selectedMonth;
+
+    const { error: monthlyError } = await supabase
+      .from("daily_worker_monthly_records")
+      .upsert([monthlyPayload], { onConflict: monthlyOnConflict });
+
+    if (monthlyError) {
+      alert("월별 근무일 저장 실패: " + monthlyError.message);
+      return;
+    }
+
+    setMonthlyRecords((prev) => ({
+      ...prev,
+      [savedWorkerId]: sortedWorkDates,
+    }));
+
+    resetDailyWorkerForm();
+
+    if (editingDailyWorkerId !== null) {
       alert("일용직 정보가 수정되었습니다.");
       return;
     }
 
-    const { data, error } = await supabase
-      .from("daily_workers")
-      .insert([
-        {
-          name: dailyForm.name,
-          daily_wage: Number(dailyForm.dailyWage),
-          work_days: Number(dailyForm.workDays),
-          non_taxable: Number(dailyForm.nonTaxable || 0),
-        },
-      ])
-      .select("id, name, daily_wage, work_days, non_taxable, created_at")
-      .single();
-
-    if (error) {
-      alert("일용직 저장 실패: " + error.message);
-      return;
-    }
-
-    setDailyWorkers((prev) => [...prev, mapDailyWorkerRowToState(data)]);
-    resetDailyWorkerForm();
     alert("일용직 정보가 등록되었습니다.");
+  };
+
+  const toggleWorkDate = (workDate: string) => {
+    setSelectedWorkDates((prev) => {
+      if (prev.includes(workDate)) {
+        return prev.filter((item) => item !== workDate);
+      }
+      return [...prev, workDate].sort();
+    });
   };
 
   const startEditDailyWorker = (worker: DailyWorker) => {
@@ -404,9 +532,9 @@ export default function Home() {
     setDailyForm({
       name: worker.name,
       dailyWage: String(worker.dailyWage),
-      workDays: String(worker.workDays),
       nonTaxable: String(worker.nonTaxable),
     });
+    setSelectedWorkDates(monthlyRecords[worker.id] || []);
   };
 
   const deleteDailyWorker = async (worker: DailyWorker) => {
@@ -421,6 +549,11 @@ export default function Home() {
     }
 
     setDailyWorkers((prev) => prev.filter((item) => item.id !== worker.id));
+    setMonthlyRecords((prev) => {
+      const next = { ...prev };
+      delete next[worker.id];
+      return next;
+    });
 
     if (editingDailyWorkerId === worker.id) {
       resetDailyWorkerForm();
@@ -667,12 +800,30 @@ export default function Home() {
                       <input type="number" style={inputStyle} value={dailyForm.dailyWage} onChange={(e) => setDailyForm({ ...dailyForm, dailyWage: e.target.value })} placeholder="예: 180000" />
                     </div>
                     <div>
-                      <div style={labelStyle}>근무일수</div>
-                      <input type="number" style={inputStyle} value={dailyForm.workDays} onChange={(e) => setDailyForm({ ...dailyForm, workDays: e.target.value })} placeholder="예: 10" />
+                      <div style={labelStyle}>기준 월</div>
+                      <input type="month" style={inputStyle} value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
                     </div>
                     <div>
                       <div style={labelStyle}>비과세</div>
                       <input type="number" style={inputStyle} value={dailyForm.nonTaxable} onChange={(e) => setDailyForm({ ...dailyForm, nonTaxable: e.target.value })} placeholder="없으면 0" />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: "16px" }}>
+                    <div style={labelStyle}>근무 날짜 체크 ({selectedWorkDates.length}일)</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "8px" }}>
+                      {monthDateOptions.map((workDate) => {
+                        const checked = selectedWorkDates.includes(workDate);
+                        return (
+                          <label key={workDate} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "#334155" }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleWorkDate(workDate)}
+                            />
+                            {workDate.slice(8, 10)}일
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                   <div style={{ marginTop: "16px" }}>
@@ -725,12 +876,13 @@ export default function Home() {
                     </thead>
                     <tbody>
                       {filteredDailyWorkers.map((worker) => {
-                        const result = calculateTax(worker.dailyWage, worker.workDays, worker.nonTaxable);
+                        const workDays = monthlyRecords[worker.id]?.length ?? 0;
+                        const result = calculateTax(worker.dailyWage, workDays, worker.nonTaxable);
                         return (
                           <tr key={worker.id}>
                             <td style={tdStyle}>{worker.name}</td>
                             <td style={tdStyle}>{worker.dailyWage.toLocaleString()}원</td>
-                            <td style={tdStyle}>{worker.workDays}일</td>
+                            <td style={tdStyle}>{workDays}일</td>
                             <td style={tdStyle}>{worker.nonTaxable.toLocaleString()}원</td>
                             <td style={tdStyle}>{result.incomeTax.toLocaleString()}원</td>
                             <td style={tdStyle}>{result.localTax.toLocaleString()}원</td>
