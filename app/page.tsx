@@ -28,8 +28,10 @@ type Site = {
   id: number;
   name: string;
   company_id: number;
-  start_date: string;
-  end_date: string | null;
+  client_name: string;
+  contract_type: "원도급" | "하도급" | null;
+  construction_start_date: string;
+  construction_end_date: string | null;
 };
 
 type EmployeeAssignment = {
@@ -146,9 +148,12 @@ export default function Page() {
   const [siteForm, setSiteForm] = useState({
     name: "",
     company_id: "",
-    start_date: "",
-    end_date: "",
+    client_name: "",
+    contract_type: "",
+    construction_start_date: "",
+    construction_end_date: "",
   });
+  const [editingSiteId, setEditingSiteId] = useState<number | null>(null);
 
   const [dailyWorkerForm, setDailyWorkerForm] = useState({
     name: "",
@@ -306,7 +311,10 @@ export default function Page() {
   }
 
   async function fetchSites() {
-    const { data, error } = await supabase.from("sites").select("id, name, company_id, start_date, end_date").order("id", { ascending: true });
+    const { data, error } = await supabase
+      .from("sites")
+      .select("id, name, company_id, client_name, contract_type, construction_start_date, construction_end_date")
+      .order("id", { ascending: true });
     if (error) {
       alert(`현장 조회 실패: ${error.message}`);
       return;
@@ -601,6 +609,47 @@ export default function Page() {
     fetchCompanies();
   }
 
+  async function createSite() {
+    const { error } = await supabase.from("sites").insert({
+      name: siteForm.name.trim(),
+      company_id: Number(siteForm.company_id),
+      client_name: siteForm.client_name.trim(),
+      contract_type: siteForm.contract_type,
+      construction_start_date: siteForm.construction_start_date,
+      construction_end_date: siteForm.construction_end_date || null,
+    });
+
+    if (error) {
+      alert(`현장 등록 실패: ${error.message}`);
+      return false;
+    }
+
+    return true;
+  }
+
+  async function updateSite() {
+    if (!editingSiteId) return false;
+
+    const { error } = await supabase
+      .from("sites")
+      .update({
+        name: siteForm.name.trim(),
+        company_id: Number(siteForm.company_id),
+        client_name: siteForm.client_name.trim(),
+        contract_type: siteForm.contract_type,
+        construction_start_date: siteForm.construction_start_date,
+        construction_end_date: siteForm.construction_end_date || null,
+      })
+      .eq("id", editingSiteId);
+
+    if (error) {
+      alert(`현장 수정 실패: ${error.message}`);
+      return false;
+    }
+
+    return true;
+  }
+
   async function submitSite(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -612,25 +661,47 @@ export default function Page() {
       alert("회사를 선택하세요.");
       return;
     }
-    if (!siteForm.start_date) {
-      alert("시작일을 입력하세요.");
+    if (!siteForm.client_name.trim()) {
+      alert("발주자를 입력하세요.");
+      return;
+    }
+    if (!siteForm.contract_type) {
+      alert("구분을 선택하세요.");
+      return;
+    }
+    if (!siteForm.construction_start_date) {
+      alert("착공일을 입력하세요.");
       return;
     }
 
-    const { error } = await supabase.from("sites").insert({
-      name: siteForm.name.trim(),
-      company_id: Number(siteForm.company_id),
-      start_date: siteForm.start_date,
-      end_date: siteForm.end_date || null,
+    const isSuccess = editingSiteId ? await updateSite() : await createSite();
+    if (!isSuccess) {
+      return;
+    }
+
+    setSiteForm({
+      name: "",
+      company_id: "",
+      client_name: "",
+      contract_type: "",
+      construction_start_date: "",
+      construction_end_date: "",
     });
-
-    if (error) {
-      alert(`현장 등록 실패: ${error.message}`);
-      return;
-    }
-
-    setSiteForm({ name: "", company_id: "", start_date: "", end_date: "" });
+    setEditingSiteId(null);
     fetchSites();
+  }
+
+  function startEditSite(site: Site) {
+    setCurrentMenu("dashboard");
+    setEditingSiteId(site.id);
+    setSiteForm({
+      name: site.name,
+      company_id: String(site.company_id),
+      client_name: site.client_name ?? "",
+      contract_type: site.contract_type ?? "",
+      construction_start_date: site.construction_start_date ?? "",
+      construction_end_date: site.construction_end_date ?? "",
+    });
   }
 
   function startEditDailyWorker(worker: DailyWorker) {
@@ -781,15 +852,52 @@ export default function Page() {
                     </form>
 
                     <form onSubmit={submitSite} style={{ ...formGridStyle, gridTemplateColumns: "1fr" }}>
-                      <div style={labelStyle}>현장 등록</div>
+                      <div style={labelStyle}>{editingSiteId ? "현장 수정" : "현장 등록"}</div>
                       <input style={inputStyle} placeholder="현장명" value={siteForm.name} onChange={(e) => setSiteForm((prev) => ({ ...prev, name: e.target.value }))} />
                       <select style={inputStyle} value={siteForm.company_id} onChange={(e) => setSiteForm((prev) => ({ ...prev, company_id: e.target.value }))}>
                         <option value="">회사 선택</option>
                         {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
                       </select>
-                      <input style={inputStyle} type="date" value={siteForm.start_date} onChange={(e) => setSiteForm((prev) => ({ ...prev, start_date: e.target.value }))} />
-                      <input style={inputStyle} type="date" value={siteForm.end_date} onChange={(e) => setSiteForm((prev) => ({ ...prev, end_date: e.target.value }))} />
-                      <button type="submit" style={primaryButtonStyle}>현장 등록</button>
+                      <input style={inputStyle} placeholder="발주자" value={siteForm.client_name} onChange={(e) => setSiteForm((prev) => ({ ...prev, client_name: e.target.value }))} />
+                      <select style={inputStyle} value={siteForm.contract_type} onChange={(e) => setSiteForm((prev) => ({ ...prev, contract_type: e.target.value }))}>
+                        <option value="">구분 선택</option>
+                        <option value="원도급">원도급</option>
+                        <option value="하도급">하도급</option>
+                      </select>
+                      <label style={labelStyle}>착공일</label>
+                      <input
+                        style={inputStyle}
+                        type="date"
+                        value={siteForm.construction_start_date}
+                        onChange={(e) => setSiteForm((prev) => ({ ...prev, construction_start_date: e.target.value }))}
+                      />
+                      <label style={labelStyle}>준공일</label>
+                      <input
+                        style={inputStyle}
+                        type="date"
+                        value={siteForm.construction_end_date}
+                        onChange={(e) => setSiteForm((prev) => ({ ...prev, construction_end_date: e.target.value }))}
+                      />
+                      <button type="submit" style={primaryButtonStyle}>{editingSiteId ? "현장 수정" : "현장 등록"}</button>
+                      {editingSiteId && (
+                        <button
+                          type="button"
+                          style={secondaryButtonStyle}
+                          onClick={() => {
+                            setEditingSiteId(null);
+                            setSiteForm({
+                              name: "",
+                              company_id: "",
+                              client_name: "",
+                              contract_type: "",
+                              construction_start_date: "",
+                              construction_end_date: "",
+                            });
+                          }}
+                        >
+                          수정 취소
+                        </button>
+                      )}
                     </form>
                   </div>
 
@@ -817,6 +925,13 @@ export default function Page() {
                   <div style={{ color: "#475569", fontSize: "14px" }}>
                     회사 목록: {companies.map((company) => company.name).join(", ") || "없음"}<br />
                     현장 목록: {sites.map((site) => site.name).join(", ") || "없음"}
+                  </div>
+                  <div style={{ marginTop: "12px", display: "grid", gap: "8px" }}>
+                    {sites.map((site) => (
+                      <button key={site.id} type="button" style={secondaryButtonStyle} onClick={() => startEditSite(site)}>
+                        {site.name} 수정
+                      </button>
+                    ))}
                   </div>
                 </div>
 

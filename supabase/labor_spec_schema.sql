@@ -21,9 +21,42 @@ create table if not exists public.sites (
   id bigint generated always as identity primary key,
   name text not null,
   company_id bigint not null references public.companies(id) on delete cascade,
+  client_name text,
+  contract_type text,
+  construction_start_date date,
+  construction_end_date date,
   start_date date,
   end_date date
 );
+
+alter table if exists public.sites
+  add column if not exists client_name text,
+  add column if not exists contract_type text,
+  add column if not exists construction_start_date date,
+  add column if not exists construction_end_date date;
+
+update public.sites
+set
+  construction_start_date = coalesce(construction_start_date, start_date),
+  construction_end_date = coalesce(construction_end_date, end_date)
+where construction_start_date is null
+   or construction_end_date is null;
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'sites_contract_type_check'
+      and conrelid = 'public.sites'::regclass
+  ) then
+    alter table public.sites drop constraint sites_contract_type_check;
+  end if;
+end $$;
+
+alter table if exists public.sites
+  add constraint sites_contract_type_check
+  check (contract_type is null or contract_type in ('원도급', '하도급'));
 
 -- 4) daily_worker_monthly_records 테이블 수정
 alter table if exists public.daily_worker_monthly_records
