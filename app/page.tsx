@@ -129,7 +129,8 @@ export default function Page() {
     () => dailyWorkers.find((worker) => worker.id === selectedDailyWorkerId) ?? null,
     [dailyWorkers, selectedDailyWorkerId]
   );
-  const safeEntries = useMemo(() => (Array.isArray(selectedWorkEntries) ? selectedWorkEntries : []), [selectedWorkEntries]);
+  const safeEntries = Array.isArray(selectedWorkEntries) ? selectedWorkEntries : [];
+
   const selectedWorkMap = useMemo(() => {
     const map: Record<string, number> = {};
     safeEntries.forEach((entry) => {
