@@ -118,6 +118,17 @@ export default function Page() {
     status: "재직" as EmployeeStatus,
   });
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
+  const [companyForm, setCompanyForm] = useState({
+    name: "",
+    business_number: "",
+    address: "",
+  });
+  const [siteForm, setSiteForm] = useState({
+    name: "",
+    company_id: "",
+    start_date: "",
+    end_date: "",
+  });
 
   const [dailyWorkerForm, setDailyWorkerForm] = useState({
     name: "",
@@ -478,6 +489,61 @@ export default function Page() {
     fetchDailyWorkers();
   }
 
+  async function submitCompany(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!companyForm.name.trim()) {
+      alert("회사명을 입력하세요.");
+      return;
+    }
+
+    const { error } = await supabase.from("companies").insert({
+      name: companyForm.name.trim(),
+      business_number: companyForm.business_number.trim(),
+      address: companyForm.address.trim(),
+    });
+
+    if (error) {
+      alert(`회사 등록 실패: ${error.message}`);
+      return;
+    }
+
+    setCompanyForm({ name: "", business_number: "", address: "" });
+    fetchCompanies();
+  }
+
+  async function submitSite(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!siteForm.name.trim()) {
+      alert("현장명을 입력하세요.");
+      return;
+    }
+    if (!siteForm.company_id) {
+      alert("회사를 선택하세요.");
+      return;
+    }
+    if (!siteForm.start_date) {
+      alert("시작일을 입력하세요.");
+      return;
+    }
+
+    const { error } = await supabase.from("sites").insert({
+      name: siteForm.name.trim(),
+      company_id: Number(siteForm.company_id),
+      start_date: siteForm.start_date,
+      end_date: siteForm.end_date || null,
+    });
+
+    if (error) {
+      alert(`현장 등록 실패: ${error.message}`);
+      return;
+    }
+
+    setSiteForm({ name: "", company_id: "", start_date: "", end_date: "" });
+    fetchSites();
+  }
+
   function startEditDailyWorker(worker: DailyWorker) {
     setCurrentMenu("daily");
     setEditingDailyWorkerId(worker.id);
@@ -615,6 +681,57 @@ export default function Page() {
             {currentMenu === "dashboard" && (
               <>
                 <div style={cardStyle}>
+                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>회사 / 현장 등록</h2>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                    <form onSubmit={submitCompany} style={{ ...formGridStyle, gridTemplateColumns: "1fr" }}>
+                      <div style={labelStyle}>회사 등록</div>
+                      <input style={inputStyle} placeholder="회사명" value={companyForm.name} onChange={(e) => setCompanyForm((prev) => ({ ...prev, name: e.target.value }))} />
+                      <input style={inputStyle} placeholder="사업자번호" value={companyForm.business_number} onChange={(e) => setCompanyForm((prev) => ({ ...prev, business_number: e.target.value }))} />
+                      <input style={inputStyle} placeholder="주소" value={companyForm.address} onChange={(e) => setCompanyForm((prev) => ({ ...prev, address: e.target.value }))} />
+                      <button type="submit" style={primaryButtonStyle}>회사 등록</button>
+                    </form>
+
+                    <form onSubmit={submitSite} style={{ ...formGridStyle, gridTemplateColumns: "1fr" }}>
+                      <div style={labelStyle}>현장 등록</div>
+                      <input style={inputStyle} placeholder="현장명" value={siteForm.name} onChange={(e) => setSiteForm((prev) => ({ ...prev, name: e.target.value }))} />
+                      <select style={inputStyle} value={siteForm.company_id} onChange={(e) => setSiteForm((prev) => ({ ...prev, company_id: e.target.value }))}>
+                        <option value="">회사 선택</option>
+                        {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
+                      </select>
+                      <input style={inputStyle} type="date" value={siteForm.start_date} onChange={(e) => setSiteForm((prev) => ({ ...prev, start_date: e.target.value }))} />
+                      <input style={inputStyle} type="date" value={siteForm.end_date} onChange={(e) => setSiteForm((prev) => ({ ...prev, end_date: e.target.value }))} />
+                      <button type="submit" style={primaryButtonStyle}>현장 등록</button>
+                    </form>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                    <div>
+                      <div style={{ ...labelStyle, marginBottom: "8px" }}>회사 선택</div>
+                      <select style={inputStyle} value={selectedCompanyId ?? ""} onChange={(e) => {
+                        const nextCompanyId = e.target.value ? Number(e.target.value) : null;
+                        setSelectedCompanyId(nextCompanyId);
+                        setSelectedSiteId(null);
+                      }}>
+                        <option value="">전체 회사</option>
+                        {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ ...labelStyle, marginBottom: "8px" }}>현장 선택</div>
+                      <select style={inputStyle} value={selectedSiteId ?? ""} onChange={(e) => setSelectedSiteId(e.target.value ? Number(e.target.value) : null)}>
+                        <option value="">현장 선택</option>
+                        {filteredSites.map((site) => (<option key={site.id} value={site.id}>{site.name}</option>))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ color: "#475569", fontSize: "14px" }}>
+                    회사 목록: {companies.map((company) => company.name).join(", ") || "없음"}<br />
+                    현장 목록: {sites.map((site) => site.name).join(", ") || "없음"}
+                  </div>
+                </div>
+
+                <div style={cardStyle}>
                   <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>요약</h2>
                   <div style={{ color: "#64748b", marginBottom: "12px" }}>
                     등록 직원: {employees.length}명 / 일용직: {dailyWorkers.length}명 / 회사: {companies.length}개 / 현장: {sites.length}개
@@ -626,6 +743,9 @@ export default function Page() {
                   <div style={{ marginBottom: "12px", color: "#334155" }}>
                     회사명: {companies.find((company) => company.id === selectedCompanyId)?.name ?? "전체"} / 현장명: {selectedSite?.name ?? "미선택"}
                   </div>
+                  {!selectedSiteId && (
+                    <p style={{ color: "#64748b", marginBottom: "12px" }}>현장을 선택하면 해당 현장 기준으로 명세표를 확인할 수 있습니다.</p>
+                  )}
                   {payrollSummary.groups.map((group) => (
                     <div key={group.job_type} style={{ marginBottom: "16px" }}>
                       <h3 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "8px" }}>직종: {group.job_type}</h3>
