@@ -387,10 +387,9 @@ export default function Page() {
     fetchMonthlyRecords(targetMonth);
   }
 
-  function updateWorkEntry(date: string, value: string) {
+  function updateWorkEntry(date: string, value: number) {
     if (!selectedDailyWorkerId) return;
-    const parsed = Number(value);
-    const units = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+    const units = Number.isFinite(value) ? Math.max(0, value) : 0;
     setRecords((prev) => {
       const current = prev[selectedDailyWorkerId] ?? {};
       return {
@@ -685,10 +684,10 @@ export default function Page() {
                         <td>
                           <input
                             type="number"
-                            min={0}
+                            min="0"
                             step="0.01"
                             value={selectedWorkerWorkMap[date] ?? 0}
-                            onChange={(e) => updateWorkEntry(date, e.target.value)}
+                            onChange={(e) => updateWorkEntry(date, Number(e.target.value || 0))}
                           />
                         </td>
                       </tr>
