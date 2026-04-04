@@ -129,7 +129,9 @@ export default function Page() {
     () => dailyWorkers.find((worker) => worker.id === selectedDailyWorkerId) ?? null,
     [dailyWorkers, selectedDailyWorkerId]
   );
-  const safeEntries = Array.isArray(selectedWorkEntries) ? selectedWorkEntries : [];
+  const safeEntries = Array.isArray(selectedWorkEntries)
+    ? selectedWorkEntries
+    : [];
 
   const selectedWorkMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -415,17 +417,17 @@ export default function Page() {
     fetchMonthlyRecords(targetMonth);
   }
 
-  function updateWorkUnit(date: string, workDays: number | null) {
+  function updateWorkUnit(date: string, work_days: number | null) {
     setSelectedWorkEntries((prev) =>
       (Array.isArray(prev) ? prev : []).map((entry) =>
         entry.date === date
           ? {
               ...entry,
               work_days:
-                workDays === null
+                work_days === null
                   ? null
-                  : Number.isFinite(workDays)
-                    ? Math.max(0, workDays)
+                  : Number.isFinite(work_days)
+                    ? Math.max(0, work_days)
                     : null,
             }
           : entry
