@@ -51,7 +51,7 @@ type DailyWorker = {
   name: string;
   daily_wage: number;
   non_taxable: number;
-  created_at: string;
+  first_work_date: string | null;
   phone: string;
   resident_number: string;
   address: string;
@@ -182,6 +182,7 @@ export default function Page() {
     name: "",
     daily_wage: "",
     non_taxable: "0",
+    first_work_date: "",
     address: "",
     resident_number: "",
     phone: "",
@@ -352,7 +353,7 @@ export default function Page() {
     setLoadingDailyWorkers(true);
     const { data, error } = await supabase
       .from("daily_workers")
-      .select("id, name, daily_wage, non_taxable, created_at, phone, resident_number, address, bank_name, account_number, job_type, company_id")
+      .select("id, name, daily_wage, non_taxable, first_work_date, phone, resident_number, address, bank_name, account_number, job_type, company_id")
       .order("id", { ascending: true });
 
     if (error) {
@@ -573,6 +574,7 @@ export default function Page() {
       name: dailyWorkerForm.name.trim(),
       daily_wage: dailyWage,
       non_taxable: nonTaxable,
+      first_work_date: dailyWorkerForm.first_work_date || null,
       address: dailyWorkerForm.address.trim(),
       resident_number: dailyWorkerForm.resident_number.trim(),
       phone: dailyWorkerForm.phone.trim(),
@@ -600,6 +602,7 @@ export default function Page() {
       name: "",
       daily_wage: "",
       non_taxable: "0",
+      first_work_date: "",
       address: "",
       resident_number: "",
       phone: "",
@@ -737,6 +740,7 @@ export default function Page() {
       name: worker.name,
       daily_wage: String(worker.daily_wage),
       non_taxable: String(worker.non_taxable),
+      first_work_date: worker.first_work_date ?? "",
       address: worker.address ?? "",
       resident_number: worker.resident_number ?? "",
       phone: worker.phone ?? "",
@@ -1191,6 +1195,13 @@ export default function Page() {
                     <input style={inputStyle} placeholder="이름" value={dailyWorkerForm.name} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, name: e.target.value }))} />
                     <input style={inputStyle} type="number" min={0} step={1} placeholder="일당" value={dailyWorkerForm.daily_wage} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, daily_wage: e.target.value }))} />
                     <input style={inputStyle} type="number" min={0} placeholder="비과세" value={dailyWorkerForm.non_taxable} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, non_taxable: e.target.value }))} />
+                    <input
+                      style={inputStyle}
+                      type="text"
+                      placeholder="최초근무일 (YYYY-MM-DD)"
+                      value={dailyWorkerForm.first_work_date}
+                      onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, first_work_date: formatDateInput(e.target.value) }))}
+                    />
                     <input style={inputStyle} placeholder="주소" value={dailyWorkerForm.address} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, address: e.target.value }))} />
                     <input
                       style={inputStyle}
@@ -1288,7 +1299,7 @@ export default function Page() {
                         <th style={thStyle}>주민번호(마스킹)</th>
                         <th style={thStyle}>직종</th>
                         <th style={thStyle}>일당</th>
-                        <th style={thStyle}>생성일</th>
+                        <th style={thStyle}>최초근무일</th>
                         <th style={thStyle}>작업</th>
                       </tr>
                     </thead>
@@ -1303,7 +1314,7 @@ export default function Page() {
                           <td style={tdStyle}>{maskResidentNumber(worker.resident_number)}</td>
                           <td style={tdStyle}>{worker.job_type}</td>
                           <td style={tdStyle}>{worker.daily_wage.toLocaleString()}원</td>
-                          <td style={tdStyle}>{worker.created_at.slice(0, 10)}</td>
+                          <td style={tdStyle}>{worker.first_work_date ? worker.first_work_date.slice(0, 10) : "-"}</td>
                           <td style={tdStyle}>
                             <div style={{ display: "flex", gap: "8px" }}>
                               <button type="button" style={secondaryButtonStyle} onClick={() => startEditDailyWorker(worker)}>수정</button>
