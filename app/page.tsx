@@ -80,6 +80,16 @@ type LaborRow = {
 
 type EditableField = "name" | "residentId" | "phone" | "trade" | "unitPrice" | "workUnits" | "note";
 
+const EDITABLE_FIELDS: EditableField[] = [
+  "name",
+  "residentId",
+  "phone",
+  "trade",
+  "unitPrice",
+  "workUnits",
+  "note",
+];
+
 const ALL_TRADES_LABEL = "전체";
 const FALLBACK_TRADE = "미분류";
 
@@ -322,6 +332,7 @@ export default function Page() {
   const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
 
   const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const pendingFocusRef = useRef<{ rowId: string; field: EditableField } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -569,19 +580,39 @@ export default function Page() {
     target.select();
   };
 
-  const addRow = (focusField?: EditableField) => {
+  useEffect(() => {
+    const pendingFocus = pendingFocusRef.current;
+
+    if (!pendingFocus) {
+      return;
+    }
+
+    const target = cellRefs.current[`${pendingFocus.rowId}:${pendingFocus.field}`];
+
+    if (!target) {
+      return;
+    }
+
+    target.focus();
+    target.select();
+    pendingFocusRef.current = null;
+  }, [rows, visibleRows]);
+
+  const addRow = (options?: { focusField?: EditableField; trade?: string }) => {
     const trade =
-      selectedTradeFilter !== ALL_TRADES_LABEL ? selectedTradeFilter : tradeOptions[1] ?? FALLBACK_TRADE;
+      options?.trade?.trim() ||
+      (selectedTradeFilter !== ALL_TRADES_LABEL ? selectedTradeFilter : tradeOptions[1] ?? FALLBACK_TRADE);
     const newRowId = `manual-${Date.now()}`;
 
     setRows((currentRows) => [...currentRows, createEmptyRow(newRowId, trade)]);
     setSaveSuccessMessage("");
     setSaveError("");
 
-    if (focusField) {
-      window.setTimeout(() => {
-        focusCell(newRowId, focusField);
-      }, 0);
+    if (options?.focusField) {
+      pendingFocusRef.current = {
+        rowId: newRowId,
+        field: options.focusField,
+      };
     }
 
     return newRowId;
@@ -600,26 +631,80 @@ export default function Page() {
     setSaveError("");
   };
 
+  const moveFocus = (rowId: string, field: EditableField, direction: "down" | "next" | "previous") => {
+    const currentIndex = visibleRows.findIndex((row) => row.id === rowId);
+
+    if (currentIndex < 0) {
+      return;
+    }
+
+    if (direction === "down") {
+      const nextRow = visibleRows[currentIndex + 1];
+
+      if (nextRow) {
+        focusCell(nextRow.id, field);
+        return;
+      }
+
+      const currentRow = visibleRows[currentIndex];
+      addRow({ focusField: field, trade: currentRow?.trade });
+      return;
+    }
+
+    const currentColumnIndex = EDITABLE_FIELDS.indexOf(field);
+
+    if (currentColumnIndex < 0) {
+      return;
+    }
+
+    const offset = direction === "previous" ? -1 : 1;
+    const targetColumnIndex = currentColumnIndex + offset;
+
+    if (targetColumnIndex >= 0 && targetColumnIndex < EDITABLE_FIELDS.length) {
+      focusCell(rowId, EDITABLE_FIELDS[targetColumnIndex]);
+      return;
+    }
+
+    if (direction === "previous") {
+      const previousRow = visibleRows[currentIndex - 1];
+
+      if (previousRow) {
+        focusCell(previousRow.id, EDITABLE_FIELDS.at(-1) ?? "note");
+      }
+
+      return;
+    }
+
+    const nextRow = visibleRows[currentIndex + 1];
+
+    if (nextRow) {
+      focusCell(nextRow.id, EDITABLE_FIELDS[0]);
+      return;
+    }
+
+    const currentRow = visibleRows[currentIndex];
+    addRow({ focusField: EDITABLE_FIELDS[0], trade: currentRow?.trade });
+  };
+
   const handleCellKeyDown = (
     event: KeyboardEvent<HTMLInputElement>,
     rowId: string,
     field: EditableField,
   ) => {
-    if (event.key !== "Enter") {
+    if (event.nativeEvent.isComposing) {
       return;
     }
 
-    event.preventDefault();
-
-    const currentIndex = visibleRows.findIndex((row) => row.id === rowId);
-    const nextRow = currentIndex >= 0 ? visibleRows[currentIndex + 1] : null;
-
-    if (nextRow) {
-      focusCell(nextRow.id, field);
+    if (event.key === "Enter") {
+      event.preventDefault();
+      moveFocus(rowId, field, "down");
       return;
     }
 
-    addRow(field);
+    if (event.key === "Tab") {
+      event.preventDefault();
+      moveFocus(rowId, field, event.shiftKey ? "previous" : "next");
+    }
   };
 
   const resolveWorkerId = (row: LaborRow) => {
