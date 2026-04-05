@@ -1,1590 +1,794 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import { supabase } from "@/lib/supabase";
-import { ASSIGNMENT_TYPES, EMPLOYEE_STATUSES, type AssignmentType, type EmployeeStatus } from "@/lib/employee-status";
 
-type EmployeeType = "상용직" | "일용직";
-type Menu = "dashboard" | "employees" | "daily";
-
-type Employee = {
+type CompanyRow = {
   id: number;
   name: string;
-  type: EmployeeType;
-  position: string;
-  join_date: string;
-  status: EmployeeStatus;
-  resignation_date: string | null;
-  resident_number: string;
-  phone: string;
-  company_id: number | null;
-  site_id: number | null;
+  business_number: string | null;
+  address: string | null;
 };
 
-type Company = {
-  id: number;
-  name: string;
-  business_number: string;
-  address: string;
-};
-
-type Site = {
+type SiteRow = {
   id: number;
   name: string;
   company_id: number;
-  client_name: string;
-  contract_type: "원도급" | "하도급" | null;
-  construction_start_date: string;
+  client_name: string | null;
+  contract_type: string | null;
+  construction_start_date: string | null;
   construction_end_date: string | null;
-};
-
-type EmployeeAssignment = {
-  id: number;
-  employee_id: number;
-  company_id: number;
-  site_id: number | null;
-  assignment_type: AssignmentType;
-  start_date: string;
+  start_date: string | null;
   end_date: string | null;
-  memo: string | null;
-  is_current: boolean;
 };
 
-type DailyWorker = {
+type DailyWorkerRow = {
   id: number;
   name: string;
-  daily_wage: number;
-  non_taxable: number;
-  first_work_date: string | null;
-  phone: string;
-  resident_number: string;
-  address: string;
-  bank_name: string;
-  account_number: string;
-  job_type: string;
+  daily_wage: number | null;
+  phone: string | null;
+  resident_number: string | null;
+  job_type: string | null;
   company_id: number | null;
+  first_work_date: string | null;
 };
 
 type WorkEntry = {
-  date: string;
-  work_days: number | null;
+  date?: string | null;
+  units?: number | null;
+  work_days?: number | null;
 };
 
-type DailyWorkerMonthlyRecord = {
-  daily_worker_id: number;
-  site_id: number;
+type DailyWorkerMonthlyRecordRow = {
+  id: string;
   target_month: string;
-  work_entries: WorkEntry[];
-  total_work_units: number;
-  worked_days_count: number;
-  gross_amount: number;
+  work_entries: WorkEntry[] | null;
+  total_work_units: number | null;
+  worked_days_count: number | null;
+  gross_amount: number | null;
+  daily_worker_id: number;
+  site_id: number | null;
 };
 
-type MonthlyRecordRow = Pick<DailyWorkerMonthlyRecord, "daily_worker_id" | "site_id" | "target_month" | "work_entries">;
+type LaborRow = {
+  id: string;
+  sourceRecordId: string | null;
+  sourceWorkerId: number | null;
+  name: string;
+  residentId: string;
+  phone: string;
+  trade: string;
+  unitPrice: string;
+  workUnits: string;
+  note: string;
+};
 
-type JobCategoryFilter = "전체" | "직영" | "용역";
+const ALL_TRADES_LABEL = "전체";
+const FALLBACK_TRADE = "미분류";
 
-function maskResidentNumber(rn: string) {
-  if (!rn) return "";
-  return rn.slice(0, 8) + "******";
+function createEmptyRow(id: string, trade = FALLBACK_TRADE): LaborRow {
+  return {
+    id,
+    sourceRecordId: null,
+    sourceWorkerId: null,
+    name: "",
+    residentId: "",
+    phone: "",
+    trade,
+    unitPrice: "",
+    workUnits: "",
+    note: "",
+  };
+}
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
 }
 
 function formatDateInput(value: string) {
-  const numbers = value.replace(/\D/g, "").slice(0, 8);
+  const digits = onlyDigits(value).slice(0, 8);
 
-  if (numbers.length <= 4) return numbers;
-  if (numbers.length <= 6) return `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
-  return `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6, 8)}`;
+  if (digits.length <= 4) {
+    return digits;
+  }
+
+  if (digits.length <= 6) {
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  }
+
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
 }
 
-function formatResidentNumber(value: string) {
-  const numbers = value.replace(/\D/g, "").slice(0, 13);
+function formatDateDisplay(value: string | null | undefined) {
+  if (!value) {
+    return "-";
+  }
 
-  if (numbers.length <= 6) return numbers;
-  return `${numbers.slice(0, 6)}-${numbers.slice(6, 13)}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  return formatDateInput(value);
+}
+
+function formatResidentId(value: string) {
+  const digits = onlyDigits(value).slice(0, 13);
+
+  if (digits.length <= 6) {
+    return digits;
+  }
+
+  return `${digits.slice(0, 6)}-${digits.slice(6)}`;
 }
 
 function formatPhoneNumber(value: string) {
-  const onlyNums = value.replace(/\D/g, "").slice(0, 11);
+  const digits = onlyDigits(value).slice(0, 11);
 
-  if (onlyNums.length <= 3) return onlyNums;
-  if (onlyNums.length <= 7) return `${onlyNums.slice(0, 3)}-${onlyNums.slice(3)}`;
-  return `${onlyNums.slice(0, 3)}-${onlyNums.slice(3, 7)}-${onlyNums.slice(7)}`;
+  if (digits.length < 4) {
+    return digits;
+  }
+
+  if (digits.length < 8) {
+    return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  }
+
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
-function getMonthDates(targetMonth: string): string[] {
-  const [yearText, monthText] = targetMonth.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  if (!year || !month) return [];
+function sanitizeDecimal(value: string) {
+  const sanitized = value.replace(/[^\d.]/g, "");
+  const [integerPart = "", ...decimalParts] = sanitized.split(".");
+  const decimalPart = decimalParts.join("");
 
-  const lastDay = new Date(year, month, 0).getDate();
-  return Array.from({ length: lastDay }, (_, i) => {
-    const day = String(i + 1).padStart(2, "0");
-    return `${targetMonth}-${day}`;
-  });
+  if (!sanitized.includes(".")) {
+    return integerPart;
+  }
+
+  return `${integerPart}.${decimalPart}`;
 }
 
-function normalizeEmployeeType(value: string | null): EmployeeType {
-  return value === "일용직" ? "일용직" : "상용직";
+function parseNumber(value: string | number | null | undefined) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function normalizeEmployeeStatus(value: string | null): EmployeeStatus {
-  if (value === "퇴사" || value === "휴직" || value === "전출" || value === "파견") return value;
-  return "재직";
+function formatCurrency(value: number) {
+  return `${Math.round(value).toLocaleString("ko-KR")}원`;
 }
 
-function normalizeJobCategory(jobType: string): Exclude<JobCategoryFilter, "전체"> | null {
-  if (jobType.includes("직영")) return "직영";
-  if (jobType.includes("용역")) return "용역";
-  return null;
+function getPaymentAmount(row: LaborRow) {
+  return parseNumber(row.unitPrice) * parseNumber(row.workUnits);
 }
 
-function buildSelectedWorkEntries(monthDates: string[], workMap: Record<string, number> = {}): WorkEntry[] {
-  return monthDates.map((date) => ({
-    date,
-    work_days: workMap[date] ?? null,
-  }));
+function getDefaultMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function getWorkUnitsFromEntries(entries: WorkEntry[] | null) {
+  if (!entries) {
+    return 0;
+  }
+
+  return entries.reduce((sum, entry) => {
+    const units = entry.units ?? entry.work_days ?? 0;
+    return sum + parseNumber(units);
+  }, 0);
+}
+
+function getLastWorkedDate(entries: WorkEntry[] | null) {
+  if (!entries) {
+    return "";
+  }
+
+  const workedDates = entries
+    .filter((entry) => parseNumber(entry.units ?? entry.work_days) > 0 && entry.date)
+    .map((entry) => entry.date as string);
+
+  return workedDates.at(-1) ?? "";
+}
+
+function getTradeLabel(jobType: string | null) {
+  const normalized = jobType?.trim();
+  return normalized ? normalized : FALLBACK_TRADE;
+}
+
+async function fetchCompanies() {
+  const { data, error } = await supabase
+    .from("companies")
+    .select("id, name, business_number, address")
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(`회사 데이터를 불러오지 못했습니다: ${error.message}`);
+  }
+
+  return (data ?? []) as CompanyRow[];
+}
+
+async function fetchSites() {
+  const { data, error } = await supabase
+    .from("sites")
+    .select(
+      "id, name, company_id, client_name, contract_type, construction_start_date, construction_end_date, start_date, end_date",
+    )
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(`현장 데이터를 불러오지 못했습니다: ${error.message}`);
+  }
+
+  return (data ?? []) as SiteRow[];
+}
+
+async function fetchDailyWorkers() {
+  const { data, error } = await supabase
+    .from("daily_workers")
+    .select("id, name, daily_wage, phone, resident_number, job_type, company_id, first_work_date")
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(`일용직 데이터를 불러오지 못했습니다: ${error.message}`);
+  }
+
+  return (data ?? []) as DailyWorkerRow[];
+}
+
+async function fetchDailyWorkerMonthlyRecords() {
+  const { data, error } = await supabase
+    .from("daily_worker_monthly_records")
+    .select(
+      "id, target_month, work_entries, total_work_units, worked_days_count, gross_amount, daily_worker_id, site_id",
+    )
+    .order("target_month", { ascending: false });
+
+  if (error) {
+    throw new Error(`월별 일용직 기록을 불러오지 못했습니다: ${error.message}`);
+  }
+
+  return (data ?? []) as DailyWorkerMonthlyRecordRow[];
 }
 
 export default function Page() {
-  const [currentMenu, setCurrentMenu] = useState<Menu>("dashboard");
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
-  const [dailyWorkers, setDailyWorkers] = useState<DailyWorker[]>([]);
-  const [records, setRecords] = useState<Record<string, Record<string, number>>>({});
+  const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const [sites, setSites] = useState<SiteRow[]>([]);
+  const [dailyWorkers, setDailyWorkers] = useState<DailyWorkerRow[]>([]);
+  const [monthlyRecords, setMonthlyRecords] = useState<DailyWorkerMonthlyRecordRow[]>([]);
 
-  const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [loadingDailyWorkers, setLoadingDailyWorkers] = useState(false);
-  const [savingMonthlyRecord, setSavingMonthlyRecord] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [selectedSiteId, setSelectedSiteId] = useState("");
+  const [selectedTradeFilter, setSelectedTradeFilter] = useState(ALL_TRADES_LABEL);
+  const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth);
+  const [rows, setRows] = useState<LaborRow[]>([createEmptyRow("manual-1")]);
 
-  const [employeeNameQuery, setEmployeeNameQuery] = useState("");
-  const [employeeTypeFilter, setEmployeeTypeFilter] = useState<"전체" | EmployeeType>("전체");
-  const [employeeStatusFilter, setEmployeeStatusFilter] = useState<"전체" | EmployeeStatus>("전체");
-
-  const [employeeForm, setEmployeeForm] = useState({
-    name: "",
-    type: "상용직" as EmployeeType,
-    position: "",
-    join_date: "",
-    resident_number: "",
-    phone: "",
-    status: "재직" as EmployeeStatus,
-    resignation_date: "",
-    company_id: "",
-    site_id: "",
-    assignment_type: "정규소속" as AssignmentType,
-    assignment_start_date: "",
-    assignment_end_date: "",
-  });
-  const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
-  const [selectedCompanyManageId, setSelectedCompanyManageId] = useState<number | null>(null);
-  const [selectedSiteManageId, setSelectedSiteManageId] = useState<number | null>(null);
-  const [companyForm, setCompanyForm] = useState({
-    name: "",
-    business_number: "",
-    address: "",
-  });
-  const [siteForm, setSiteForm] = useState({
-    name: "",
-    company_id: "",
-    client_name: "",
-    contract_type: "",
-    construction_start_date: "",
-    construction_end_date: "",
-  });
-
-  const [dailyWorkerForm, setDailyWorkerForm] = useState({
-    name: "",
-    daily_wage: "",
-    non_taxable: "0",
-    first_work_date: "",
-    address: "",
-    resident_number: "",
-    phone: "",
-    bank_name: "",
-    account_number: "",
-    job_type: "",
-    company_id: "",
-  });
-  const [editingDailyWorkerId, setEditingDailyWorkerId] = useState<number | null>(null);
-
-  const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
-  const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
-  const [selectedJobCategory, setSelectedJobCategory] = useState<JobCategoryFilter>("전체");
-  const [selectedTargetMonth, setSelectedTargetMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedDailyWorkerId, setSelectedDailyWorkerId] = useState<number | null>(null);
-  const [selectedWorkEntries, setSelectedWorkEntries] = useState<WorkEntry[]>([]);
-  const [monthlyRecordRows, setMonthlyRecordRows] = useState<MonthlyRecordRow[]>([]);
-
-  const monthDates = useMemo(() => getMonthDates(targetMonth), [targetMonth]);
-
-  const filteredSites = useMemo(() => {
-    if (!selectedCompanyId) return sites;
-    return sites.filter((site) => site.company_id === selectedCompanyId);
-  }, [sites, selectedCompanyId]);
-
-  const selectedSite = useMemo(() => sites.find((site) => site.id === selectedSiteId) ?? null, [sites, selectedSiteId]);
-
-  const selectedDailyWorker = useMemo(
-    () => dailyWorkers.find((worker) => worker.id === selectedDailyWorkerId) ?? null,
-    [dailyWorkers, selectedDailyWorkerId]
-  );
-
-  const safeEntries = useMemo(() => (Array.isArray(selectedWorkEntries) ? selectedWorkEntries : []), [selectedWorkEntries]);
-
-  const totalWorkUnits = useMemo(
-    () => safeEntries.reduce((sum, entry) => sum + (entry.work_days ?? 0), 0),
-    [safeEntries]
-  );
-
-  const workedDaysCount = useMemo(
-    () => safeEntries.filter((entry) => (entry.work_days ?? 0) > 0).length,
-    [safeEntries]
-  );
-
-  const expectedAmount = useMemo(
-    () => totalWorkUnits * (selectedDailyWorker?.daily_wage ?? 0),
-    [totalWorkUnits, selectedDailyWorker]
-  );
-
-  const selectedWorkMap = useMemo(() => {
-    const map: Record<string, number | null> = {};
-    safeEntries.forEach((entry) => {
-      map[entry.date] = entry.work_days ?? null;
-    });
-    return map;
-  }, [safeEntries]);
-
-  const filteredEmployees = useMemo(() => {
-    return employees.filter((employee) => {
-      const byName = employeeNameQuery.trim() === "" || employee.name.toLowerCase().includes(employeeNameQuery.trim().toLowerCase());
-      const byType = employeeTypeFilter === "전체" || employee.type === employeeTypeFilter;
-      const byStatus = employeeStatusFilter === "전체" || employee.status === employeeStatusFilter;
-      return byName && byType && byStatus;
-    });
-  }, [employees, employeeNameQuery, employeeTypeFilter, employeeStatusFilter]);
-
-  const payrollSummary = useMemo(() => {
-    const grouped = new Map<string, { workers: Array<{ worker: DailyWorker; work_units: number; amount: number }>; total_work_units: number; total_amount: number }>();
-
-    monthlyRecordRows.forEach((record) => {
-      const worker = dailyWorkers.find((item) => item.id === record.daily_worker_id);
-      if (!worker) return;
-      if (selectedCompanyId && worker.company_id !== selectedCompanyId) return;
-      const normalizedCategory = normalizeJobCategory(worker.job_type ?? "");
-      if (selectedJobCategory !== "전체" && normalizedCategory !== selectedJobCategory) return;
-
-      const workUnits = (record.work_entries ?? []).reduce((sum, entry) => sum + Math.max(0, Number(entry.work_days ?? 0)), 0);
-      const amount = workUnits * worker.daily_wage;
-      const jobType = worker.job_type || "미분류";
-      const existing = grouped.get(jobType) ?? { workers: [], total_work_units: 0, total_amount: 0 };
-      existing.workers.push({ worker, work_units: workUnits, amount });
-      existing.total_work_units += workUnits;
-      existing.total_amount += amount;
-      grouped.set(jobType, existing);
-    });
-
-    const groups = Array.from(grouped.entries()).map(([job_type, data]) => ({ job_type, ...data }));
-    const total_work_units = groups.reduce((sum, group) => sum + group.total_work_units, 0);
-    const total_amount = groups.reduce((sum, group) => sum + group.total_amount, 0);
-    return { groups, total_work_units, total_amount };
-  }, [monthlyRecordRows, dailyWorkers, selectedCompanyId, selectedJobCategory]);
-
-  const activeEmployeeCount = useMemo(() => employees.filter((employee) => employee.status === "재직").length, [employees]);
-
-  function selectDailyWorker(workerId: number | null) {
-    setCurrentMenu("daily");
-    setSelectedDailyWorkerId(workerId);
-    if (!workerId) {
-      setSelectedWorkEntries([]);
-      return;
-    }
-
-    const key = `${workerId}:${selectedSiteId ?? 0}`;
-    setSelectedWorkEntries(buildSelectedWorkEntries(monthDates, records[key] ?? {}));
-  }
-
-  async function fetchEmployees() {
-    setLoadingEmployees(true);
-    const { data, error } = await supabase
-      .from("employees")
-      .select("id, name, type, position, join_date, status, resignation_date, resident_number, phone, company_id, site_id")
-      .order("id", { ascending: true });
-
-    if (error) {
-      alert(`직원 조회 실패: ${error.message}`);
-      setLoadingEmployees(false);
-      return;
-    }
-
-    const rows = (data ?? []) as {
-      id: number;
-      name: string;
-      type: string | null;
-      position: string;
-      join_date: string;
-      status: string | null;
-      resignation_date: string | null;
-      resident_number: string | null;
-      phone: string | null;
-      company_id: number | null;
-      site_id: number | null;
-    }[];
-
-    setEmployees(
-      rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        type: normalizeEmployeeType(row.type),
-        position: row.position,
-        join_date: row.join_date,
-        status: normalizeEmployeeStatus(row.status),
-        resignation_date: row.resignation_date,
-        resident_number: row.resident_number ?? "",
-        phone: row.phone ?? "",
-        company_id: row.company_id ?? null,
-        site_id: row.site_id ?? null,
-      }))
-    );
-    setLoadingEmployees(false);
-  }
-
-  async function fetchCompanies() {
-    const { data, error } = await supabase.from("companies").select("id, name, business_number, address").order("id", { ascending: true });
-    if (error) {
-      alert(`회사 조회 실패: ${error.message}`);
-      return;
-    }
-    setCompanies((data ?? []) as Company[]);
-  }
-
-  async function fetchSites() {
-    const { data, error } = await supabase
-      .from("sites")
-      .select("id, name, company_id, client_name, contract_type, construction_start_date, construction_end_date")
-      .order("id", { ascending: true });
-    if (error) {
-      alert(`현장 조회 실패: ${error.message}`);
-      return;
-    }
-    setSites((data ?? []) as Site[]);
-  }
-
-  async function fetchDailyWorkers() {
-    setLoadingDailyWorkers(true);
-    const { data, error } = await supabase
-      .from("daily_workers")
-      .select("id, name, daily_wage, non_taxable, first_work_date, phone, resident_number, address, bank_name, account_number, job_type, company_id")
-      .order("id", { ascending: true });
-
-    if (error) {
-      alert(`일용직 조회 실패: ${error.message}`);
-      setLoadingDailyWorkers(false);
-      return;
-    }
-
-    setDailyWorkers((data ?? []) as DailyWorker[]);
-    setLoadingDailyWorkers(false);
-  }
-
-  async function fetchMonthlyRecords(month: string, siteId: number | null) {
-    if (!siteId) {
-      setRecords({});
-      setMonthlyRecordRows([]);
-      setSelectedWorkEntries([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("daily_worker_monthly_records")
-      .select("daily_worker_id, site_id, target_month, work_entries")
-      .eq("target_month", month)
-      .eq("site_id", siteId);
-
-    if (error) {
-      alert(`월별 기록 조회 실패: ${error.message}`);
-      return;
-    }
-
-    const rows = (data ?? []) as MonthlyRecordRow[];
-    setMonthlyRecordRows(rows);
-
-    const next: Record<string, Record<string, number>> = {};
-    rows.forEach((row) => {
-      const key = `${row.daily_worker_id}:${row.site_id}`;
-      const map: Record<string, number> = {};
-      (row.work_entries ?? []).forEach((entry) => {
-        if (entry?.date && entry.work_days !== null && entry.work_days !== undefined) {
-          map[entry.date] = Math.max(0, Number(entry.work_days) || 0);
-        }
-      });
-      next[key] = map;
-    });
-
-    setRecords(next);
-
-    if (selectedDailyWorkerId) {
-      const key = `${selectedDailyWorkerId}:${siteId}`;
-      setSelectedWorkEntries(buildSelectedWorkEntries(monthDates, next[key] ?? {}));
-    }
-  }
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    void Promise.resolve().then(() => {
-      fetchEmployees();
-      fetchCompanies();
-      fetchSites();
-      fetchDailyWorkers();
-    });
+    let active = true;
+
+    async function loadStatementData() {
+      setIsLoading(true);
+      setLoadError("");
+
+      try {
+        const [nextCompanies, nextSites, nextDailyWorkers, nextMonthlyRecords] = await Promise.all([
+          fetchCompanies(),
+          fetchSites(),
+          fetchDailyWorkers(),
+          fetchDailyWorkerMonthlyRecords(),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        setCompanies(nextCompanies);
+        setSites(nextSites);
+        setDailyWorkers(nextDailyWorkers);
+        setMonthlyRecords(nextMonthlyRecords);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+
+        const message =
+          error instanceof Error ? error.message : "데이터를 불러오는 중 문제가 발생했습니다.";
+        setLoadError(message);
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadStatementData();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    void Promise.resolve().then(() => {
-      fetchMonthlyRecords(selectedTargetMonth, selectedSiteId);
-    });
-  }, [selectedTargetMonth, selectedSiteId]);
-  /* eslint-enable react-hooks/exhaustive-deps */
-
-  async function submitEmployee(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!employeeForm.name.trim()) {
-      alert("이름을 입력하세요.");
+    if (!companies.length) {
       return;
     }
 
-    const normalizedResignationDate = employeeForm.status === "퇴사" ? (employeeForm.resignation_date || null) : null;
+    const hasSelectedCompany = companies.some((company) => String(company.id) === selectedCompanyId);
 
-    let targetEmployeeId = editingEmployeeId;
-    if (editingEmployeeId) {
-      const { error } = await supabase
-        .from("employees")
-        .update({
-          name: employeeForm.name.trim(),
-          type: employeeForm.type,
-          position: employeeForm.position.trim(),
-          join_date: employeeForm.join_date,
-          resident_number: employeeForm.resident_number.trim(),
-          phone: employeeForm.phone.trim(),
-          status: employeeForm.status,
-          resignation_date: normalizedResignationDate,
-          company_id: employeeForm.company_id ? Number(employeeForm.company_id) : null,
-          site_id: employeeForm.site_id ? Number(employeeForm.site_id) : null,
-        })
-        .eq("id", editingEmployeeId);
+    if (!selectedCompanyId || !hasSelectedCompany) {
+      setSelectedCompanyId(String(companies[0].id));
+    }
+  }, [companies, selectedCompanyId]);
 
-      if (error) {
-        alert(`직원 수정 실패: ${error.message}`);
-        return;
+  const selectedCompany = useMemo(
+    () => companies.find((company) => String(company.id) === selectedCompanyId) ?? null,
+    [companies, selectedCompanyId],
+  );
+
+  const availableSites = useMemo(
+    () => sites.filter((site) => String(site.company_id) === selectedCompanyId),
+    [selectedCompanyId, sites],
+  );
+
+  useEffect(() => {
+    if (!availableSites.length) {
+      if (selectedSiteId) {
+        setSelectedSiteId("");
       }
-    } else {
-      const { data, error } = await supabase
-        .from("employees")
-        .insert({
-          name: employeeForm.name.trim(),
-          type: employeeForm.type,
-          position: employeeForm.position.trim(),
-          join_date: employeeForm.join_date,
-          resident_number: employeeForm.resident_number.trim(),
-          phone: employeeForm.phone.trim(),
-          status: employeeForm.status,
-          resignation_date: normalizedResignationDate,
-          company_id: employeeForm.company_id ? Number(employeeForm.company_id) : null,
-          site_id: employeeForm.site_id ? Number(employeeForm.site_id) : null,
-        })
-        .select("id")
-        .single();
-
-      if (error) {
-        alert(`직원 등록 실패: ${error.message}`);
-        return;
-      }
-      targetEmployeeId = data.id;
-    }
-
-    if (targetEmployeeId && employeeForm.company_id && employeeForm.assignment_start_date) {
-      const payload = {
-        employee_id: targetEmployeeId,
-        company_id: Number(employeeForm.company_id),
-        site_id: employeeForm.site_id ? Number(employeeForm.site_id) : null,
-        assignment_type: employeeForm.assignment_type,
-        start_date: employeeForm.assignment_start_date,
-        end_date: employeeForm.assignment_end_date || null,
-        is_current: !employeeForm.assignment_end_date,
-      };
-
-      const { error: closeError } = await supabase
-        .from("employee_assignments")
-        .update({ is_current: false })
-        .eq("employee_id", targetEmployeeId)
-        .eq("is_current", true);
-
-      if (closeError) {
-        alert(`기존 소속 이력 종료 실패: ${closeError.message}`);
-        return;
-      }
-
-      const { error: assignmentError } = await supabase.from("employee_assignments").insert(payload);
-      if (assignmentError) {
-        alert(`소속 이력 저장 실패: ${assignmentError.message}`);
-        return;
-      }
-    }
-
-    setEmployeeForm({
-      name: "",
-      type: "상용직",
-      position: "",
-      join_date: "",
-      resident_number: "",
-      phone: "",
-      status: "재직",
-      resignation_date: "",
-      company_id: "",
-      site_id: "",
-      assignment_type: "정규소속",
-      assignment_start_date: "",
-      assignment_end_date: "",
-    });
-    setEditingEmployeeId(null);
-    fetchEmployees();
-    alert(editingEmployeeId ? "직원 정보가 수정되었습니다." : "직원이 등록되었습니다.");
-  }
-
-  async function startEditEmployee(employee: Employee) {
-    setCurrentMenu("employees");
-    setEditingEmployeeId(employee.id);
-    const { data } = await supabase
-      .from("employee_assignments")
-      .select("id, employee_id, company_id, site_id, assignment_type, start_date, end_date, memo, is_current")
-      .eq("employee_id", employee.id)
-      .eq("is_current", true)
-      .order("start_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const currentAssignment = (data as EmployeeAssignment | null) ?? null;
-    setEmployeeForm({
-      name: employee.name,
-      type: employee.type,
-      position: employee.position,
-      join_date: employee.join_date,
-      resident_number: employee.resident_number ?? "",
-      phone: employee.phone ?? "",
-      status: employee.status,
-      resignation_date: employee.resignation_date ?? "",
-      company_id: employee.company_id ? String(employee.company_id) : currentAssignment ? String(currentAssignment.company_id) : "",
-      site_id: employee.site_id ? String(employee.site_id) : currentAssignment?.site_id ? String(currentAssignment.site_id) : "",
-      assignment_type: currentAssignment?.assignment_type ?? "정규소속",
-      assignment_start_date: currentAssignment?.start_date ?? "",
-      assignment_end_date: currentAssignment?.end_date ?? "",
-    });
-  }
-
-  async function deleteEmployee(id: number) {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
-    const { error } = await supabase.from("employees").delete().eq("id", id);
-    if (error) {
-      alert(`직원 삭제 실패: ${error.message}`);
-      return;
-    }
-    fetchEmployees();
-    alert("직원 삭제 성공");
-  }
-
-  async function saveDailyWorker(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    const dailyWage = Number(dailyWorkerForm.daily_wage || 0);
-    const nonTaxable = Number(dailyWorkerForm.non_taxable || 0);
-
-    if (!dailyWorkerForm.name.trim()) {
-      alert("이름을 입력하세요.");
-      return;
-    }
-    if (dailyWage <= 0) {
-      alert("일당은 0보다 커야 합니다.");
       return;
     }
 
-    const payload = {
-      name: dailyWorkerForm.name.trim(),
-      daily_wage: dailyWage,
-      non_taxable: nonTaxable,
-      first_work_date: dailyWorkerForm.first_work_date || null,
-      address: dailyWorkerForm.address.trim(),
-      resident_number: dailyWorkerForm.resident_number.trim(),
-      phone: dailyWorkerForm.phone.trim(),
-      bank_name: dailyWorkerForm.bank_name.trim(),
-      account_number: dailyWorkerForm.account_number.trim(),
-      job_type: dailyWorkerForm.job_type.trim(),
-      company_id: dailyWorkerForm.company_id ? Number(dailyWorkerForm.company_id) : null,
-    };
+    const hasSelectedSite = availableSites.some((site) => String(site.id) === selectedSiteId);
 
-    if (editingDailyWorkerId) {
-      const { error } = await supabase.from("daily_workers").update(payload).eq("id", editingDailyWorkerId);
-      if (error) {
-        alert(`일용직 수정 실패: ${error.message}`);
-        return;
-      }
-    } else {
-      const { error } = await supabase.from("daily_workers").insert(payload);
-      if (error) {
-        alert(`일용직 등록 실패: ${error.message}`);
-        return;
-      }
+    if (!selectedSiteId || !hasSelectedSite) {
+      setSelectedSiteId(String(availableSites[0].id));
     }
+  }, [availableSites, selectedSiteId]);
 
-    setDailyWorkerForm({
-      name: "",
-      daily_wage: "",
-      non_taxable: "0",
-      first_work_date: "",
-      address: "",
-      resident_number: "",
-      phone: "",
-      bank_name: "",
-      account_number: "",
-      job_type: "",
-      company_id: "",
-    });
-    setEditingDailyWorkerId(null);
-    fetchDailyWorkers();
-    alert(editingDailyWorkerId ? "일용직 정보가 수정되었습니다." : "일용직이 등록되었습니다.");
-  }
+  const selectedSite = useMemo(
+    () => availableSites.find((site) => String(site.id) === selectedSiteId) ?? null,
+    [availableSites, selectedSiteId],
+  );
 
-  async function submitCompany(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const baseStatementRows = useMemo(() => {
+    const workerMap = new Map(dailyWorkers.map((worker) => [worker.id, worker]));
+    const siteMap = new Map(sites.map((site) => [site.id, site]));
 
-    if (!companyForm.name.trim()) {
-      alert("회사명을 입력하세요.");
-      return;
-    }
+    return monthlyRecords
+      .filter((record) => record.target_month === selectedMonth)
+      .filter((record) => {
+        if (selectedSiteId) {
+          return String(record.site_id ?? "") === selectedSiteId;
+        }
 
-    const payload = {
-      name: companyForm.name.trim(),
-      business_number: companyForm.business_number.trim(),
-      address: companyForm.address.trim(),
-    };
+        if (!selectedCompanyId) {
+          return true;
+        }
 
-    const { error } = selectedCompanyManageId
-      ? await supabase.from("companies").update(payload).eq("id", selectedCompanyManageId)
-      : await supabase.from("companies").insert(payload);
+        const relatedSite = record.site_id ? siteMap.get(record.site_id) : null;
+        const relatedWorker = workerMap.get(record.daily_worker_id);
 
-    if (error) {
-      alert(`회사 ${selectedCompanyManageId ? "수정" : "등록"} 실패: ${error.message}`);
-      return;
-    }
-
-    setCompanyForm({ name: "", business_number: "", address: "" });
-    setSelectedCompanyManageId(null);
-    fetchCompanies();
-    alert(`회사 ${selectedCompanyManageId ? "수정" : "등록"} 성공`);
-  }
-
-  function selectCompanyForEdit(nextId: number | null) {
-    setSelectedCompanyManageId(nextId);
-    if (!nextId) {
-      setCompanyForm({ name: "", business_number: "", address: "" });
-      return;
-    }
-
-    const target = companies.find((company) => company.id === nextId);
-    if (!target) return;
-    setCompanyForm({
-      name: target.name ?? "",
-      business_number: target.business_number ?? "",
-      address: target.address ?? "",
-    });
-  }
-
-  async function deleteCompany() {
-    if (!selectedCompanyManageId) return;
-    const hasLinkedSite = sites.some((site) => site.company_id === selectedCompanyManageId);
-    if (hasLinkedSite) {
-      alert("연결된 현장이 있어 회사를 삭제할 수 없습니다.");
-      return;
-    }
-    if (!confirm("선택한 회사를 삭제하시겠습니까?")) return;
-
-    const { error } = await supabase.from("companies").delete().eq("id", selectedCompanyManageId);
-    if (error) {
-      alert(`회사 삭제 실패: ${error.message}`);
-      return;
-    }
-
-    setSelectedCompanyManageId(null);
-    setCompanyForm({ name: "", business_number: "", address: "" });
-    fetchCompanies();
-    alert("회사 삭제 성공");
-  }
-
-  async function createSite() {
-    const { error } = await supabase.from("sites").insert({
-      name: siteForm.name.trim(),
-      company_id: Number(siteForm.company_id),
-      client_name: siteForm.client_name.trim(),
-      contract_type: siteForm.contract_type,
-      construction_start_date: siteForm.construction_start_date,
-      construction_end_date: siteForm.construction_end_date || null,
-    });
-
-    if (error) {
-      alert(`현장 등록 실패: ${error.message}`);
-      return false;
-    }
-
-    alert("현장 등록 성공");
-    return true;
-  }
-
-  async function updateSite() {
-    if (!selectedSiteManageId) return false;
-
-    const { error } = await supabase
-      .from("sites")
-      .update({
-        name: siteForm.name.trim(),
-        company_id: Number(siteForm.company_id),
-        client_name: siteForm.client_name.trim(),
-        contract_type: siteForm.contract_type,
-        construction_start_date: siteForm.construction_start_date,
-        construction_end_date: siteForm.construction_end_date || null,
+        return (
+          String(relatedSite?.company_id ?? "") === selectedCompanyId ||
+          String(relatedWorker?.company_id ?? "") === selectedCompanyId
+        );
       })
-      .eq("id", selectedSiteManageId);
+      .map((record) => {
+        const worker = workerMap.get(record.daily_worker_id);
+        const totalWorkUnits =
+          parseNumber(record.total_work_units) || getWorkUnitsFromEntries(record.work_entries);
+        const grossAmount = parseNumber(record.gross_amount);
+        const unitPrice =
+          parseNumber(worker?.daily_wage) || (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
+        const lastWorkedDate = getLastWorkedDate(record.work_entries);
 
-    if (error) {
-      alert(`현장 수정 실패: ${error.message}`);
-      return false;
-    }
-
-    alert("현장 수정 성공");
-    return true;
-  }
-
-  async function submitSite(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    if (!siteForm.name.trim()) {
-      alert("현장명을 입력하세요.");
-      return;
-    }
-    if (!siteForm.company_id) {
-      alert("회사를 선택하세요.");
-      return;
-    }
-    if (!siteForm.client_name.trim()) {
-      alert("발주자를 입력하세요.");
-      return;
-    }
-    if (!siteForm.contract_type) {
-      alert("구분을 선택하세요.");
-      return;
-    }
-    if (!siteForm.construction_start_date) {
-      alert("착공일을 입력하세요.");
-      return;
-    }
-
-    const isSuccess = selectedSiteManageId ? await updateSite() : await createSite();
-    if (!isSuccess) {
-      return;
-    }
-
-    setSiteForm({
-      name: "",
-      company_id: "",
-      client_name: "",
-      contract_type: "",
-      construction_start_date: "",
-      construction_end_date: "",
-    });
-    setSelectedSiteManageId(null);
-    fetchSites();
-  }
-
-  function selectSiteForEdit(nextId: number | null) {
-    setSelectedSiteManageId(nextId);
-    if (!nextId) {
-      setSiteForm({
-        name: "",
-        company_id: "",
-        client_name: "",
-        contract_type: "",
-        construction_start_date: "",
-        construction_end_date: "",
+        return {
+          id: `record-${record.id}`,
+          sourceRecordId: record.id,
+          sourceWorkerId: record.daily_worker_id,
+          name: worker?.name ?? `근로자 #${record.daily_worker_id}`,
+          residentId: formatResidentId(worker?.resident_number ?? ""),
+          phone: formatPhoneNumber(worker?.phone ?? ""),
+          trade: getTradeLabel(worker?.job_type ?? null),
+          unitPrice: unitPrice ? String(unitPrice) : "",
+          workUnits: totalWorkUnits ? String(totalWorkUnits) : "",
+          note: lastWorkedDate ? `최종 작업일 ${formatDateDisplay(lastWorkedDate)}` : "",
+        } satisfies LaborRow;
       });
+  }, [dailyWorkers, monthlyRecords, selectedCompanyId, selectedMonth, selectedSiteId, sites]);
+
+  useEffect(() => {
+    if (baseStatementRows.length) {
+      setRows(baseStatementRows);
       return;
     }
-    const site = sites.find((item) => item.id === nextId);
-    if (!site) return;
-    setSiteForm({
-      name: site.name,
-      company_id: String(site.company_id),
-      client_name: site.client_name ?? "",
-      contract_type: site.contract_type ?? "",
-      construction_start_date: site.construction_start_date ?? "",
-      construction_end_date: site.construction_end_date ?? "",
+
+    const defaultTrade =
+      selectedTradeFilter !== ALL_TRADES_LABEL ? selectedTradeFilter : getTradeLabel(null);
+    setRows([createEmptyRow(`manual-${Date.now()}`, defaultTrade)]);
+  }, [baseStatementRows, selectedTradeFilter]);
+
+  const tradeOptions = useMemo(() => {
+    const uniqueTrades = new Set<string>();
+
+    rows.forEach((row) => {
+      if (row.trade.trim()) {
+        uniqueTrades.add(row.trade);
+      }
     });
-  }
 
-  async function deleteSite() {
-    if (!selectedSiteManageId) return;
+    return [ALL_TRADES_LABEL, ...Array.from(uniqueTrades).sort((left, right) => left.localeCompare(right))];
+  }, [rows]);
 
-    const { count, error: countError } = await supabase
-      .from("daily_worker_monthly_records")
-      .select("id", { count: "exact", head: true })
-      .eq("site_id", selectedSiteManageId);
-    if (countError) {
-      alert(`현장 삭제 가능 여부 확인 실패: ${countError.message}`);
-      return;
+  useEffect(() => {
+    if (
+      selectedTradeFilter !== ALL_TRADES_LABEL &&
+      !tradeOptions.includes(selectedTradeFilter)
+    ) {
+      setSelectedTradeFilter(ALL_TRADES_LABEL);
     }
-    if ((count ?? 0) > 0) {
-      alert("공수 기록이 있어 현장을 삭제할 수 없습니다.");
-      return;
-    }
-    if (!confirm("선택한 현장을 삭제하시겠습니까?")) return;
+  }, [selectedTradeFilter, tradeOptions]);
 
-    const { error } = await supabase.from("sites").delete().eq("id", selectedSiteManageId);
-    if (error) {
-      alert(`현장 삭제 실패: ${error.message}`);
-      return;
+  const visibleRows = useMemo(() => {
+    if (selectedTradeFilter === ALL_TRADES_LABEL) {
+      return rows;
     }
 
-    setSelectedSiteManageId(null);
-    setSiteForm({
-      name: "",
-      company_id: "",
-      client_name: "",
-      contract_type: "",
-      construction_start_date: "",
-      construction_end_date: "",
-    });
-    fetchSites();
-    alert("현장 삭제 성공");
-  }
+    return rows.filter((row) => row.trade === selectedTradeFilter);
+  }, [rows, selectedTradeFilter]);
 
-  function startEditDailyWorker(worker: DailyWorker) {
-    setCurrentMenu("daily");
-    setEditingDailyWorkerId(worker.id);
-    setDailyWorkerForm({
-      name: worker.name,
-      daily_wage: String(worker.daily_wage),
-      non_taxable: String(worker.non_taxable),
-      first_work_date: worker.first_work_date ?? "",
-      address: worker.address ?? "",
-      resident_number: worker.resident_number ?? "",
-      phone: worker.phone ?? "",
-      bank_name: worker.bank_name ?? "",
-      account_number: worker.account_number ?? "",
-      job_type: worker.job_type ?? "",
-      company_id: worker.company_id ? String(worker.company_id) : "",
-    });
-    selectDailyWorker(worker.id);
-  }
+  const totalWorkUnits = useMemo(
+    () => visibleRows.reduce((sum, row) => sum + parseNumber(row.workUnits), 0),
+    [visibleRows],
+  );
 
-  async function deleteDailyWorker(id: number) {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
-    const { error } = await supabase.from("daily_workers").delete().eq("id", id);
-    if (error) {
-      alert(`일용직 삭제 실패: ${error.message}`);
-      return;
-    }
-    if (selectedDailyWorkerId === id) {
-      selectDailyWorker(null);
-    }
-    fetchDailyWorkers();
-    fetchMonthlyRecords(targetMonth, selectedSiteId);
-    alert("일용직 삭제 성공");
-  }
+  const totalPaymentAmount = useMemo(
+    () => visibleRows.reduce((sum, row) => sum + getPaymentAmount(row), 0),
+    [visibleRows],
+  );
 
-  function updateWorkUnit(date: string, workDays: number | null) {
-    setSelectedWorkEntries((prev) => {
-      const safePrev = Array.isArray(prev) ? prev : [];
-      const exists = safePrev.some((entry) => entry.date === date);
+  const updateRow = (rowId: string, field: keyof LaborRow, value: string) => {
+    setRows((currentRows) =>
+      currentRows.map((row) => {
+        if (row.id !== rowId) {
+          return row;
+        }
 
-      if (exists) {
-        return safePrev.map((entry) => (entry.date === date ? { ...entry, work_days: workDays } : entry));
+        if (field === "residentId") {
+          return { ...row, residentId: formatResidentId(value) };
+        }
+
+        if (field === "phone") {
+          return { ...row, phone: formatPhoneNumber(value) };
+        }
+
+        if (field === "unitPrice" || field === "workUnits") {
+          return { ...row, [field]: sanitizeDecimal(value) };
+        }
+
+        return { ...row, [field]: value };
+      }),
+    );
+  };
+
+  const addRow = () => {
+    const trade =
+      selectedTradeFilter !== ALL_TRADES_LABEL ? selectedTradeFilter : tradeOptions[1] ?? FALLBACK_TRADE;
+
+    setRows((currentRows) => [...currentRows, createEmptyRow(`manual-${Date.now()}`, trade)]);
+  };
+
+  const removeRow = (rowId: string) => {
+    setRows((currentRows) => {
+      if (currentRows.length === 1) {
+        return currentRows;
       }
 
-      return [...safePrev, { date, work_days: workDays }];
+      return currentRows.filter((row) => row.id !== rowId);
     });
-  }
+  };
 
-  async function saveMonthlyRecord() {
-    if (!selectedDailyWorker) {
-      alert("일용직을 선택하세요.");
-      return;
-    }
-    if (!selectedSiteId) {
-      alert("현장을 선택하세요.");
-      return;
-    }
-
-    setSavingMonthlyRecord(true);
-    const normalizedEntries = safeEntries
-      .map((entry) => {
-        if (entry.work_days === null || entry.work_days === undefined) {
-          return { ...entry, work_days: null };
-        }
-
-        const workDays = Number(entry.work_days);
-        if (Number.isNaN(workDays)) {
-          return { ...entry, work_days: null };
-        }
-
-        return { ...entry, work_days: Math.max(0, workDays) };
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    const paidEntries = normalizedEntries.filter((entry) => entry.work_days !== null && entry.work_days > 0);
-    const totalWorkUnits = paidEntries.reduce((sum, entry) => sum + (entry.work_days ?? 0), 0);
-    const workedDaysCount = paidEntries.length;
-    const grossAmount = Number(selectedDailyWorker.daily_wage) * totalWorkUnits;
-
-    const payload: DailyWorkerMonthlyRecord = {
-      daily_worker_id: selectedDailyWorker.id,
-      site_id: selectedSiteId,
-      target_month: targetMonth,
-      work_entries: normalizedEntries,
-      total_work_units: totalWorkUnits,
-      worked_days_count: workedDaysCount,
-      gross_amount: grossAmount,
-    };
-
-    const { error } = await supabase
-      .from("daily_worker_monthly_records")
-      .upsert(payload, { onConflict: "daily_worker_id,site_id,target_month" });
-
-    if (error) {
-      alert(`월별 기록 저장 실패: ${error.message}`);
-      setSavingMonthlyRecord(false);
-      return;
-    }
-
-    setSavingMonthlyRecord(false);
-    fetchMonthlyRecords(targetMonth, selectedSiteId);
-    alert("저장되었습니다.");
-  }
+  const siteInfoItems = [
+    { label: "발주자", value: selectedSite?.client_name || "-" },
+    { label: "공사구분", value: selectedSite?.contract_type || "-" },
+    {
+      label: "착공일",
+      value: formatDateDisplay(selectedSite?.construction_start_date ?? selectedSite?.start_date),
+    },
+    {
+      label: "준공일",
+      value: formatDateDisplay(selectedSite?.construction_end_date ?? selectedSite?.end_date),
+    },
+  ];
 
   return (
-    <main style={{ minHeight: "100vh", background: "#f8fafc", padding: "24px", fontFamily: "Arial, sans-serif" }}>
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        <h1 style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "8px" }}>회사 관리시스템</h1>
-        <p style={{ color: "#475569", marginBottom: "24px" }}>회사/현장/직종/근로자 공수/노무비 명세표까지 확장된 통합 화면입니다.</p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "24px" }}>
-          <aside style={{ ...cardStyle, height: "fit-content" }}>
-            <div style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "20px" }}>메뉴</div>
-            <div style={{ display: "grid", gap: "10px" }}>
-              <button style={currentMenu === "dashboard" ? activeMenuButtonStyle : menuButtonStyle} onClick={() => setCurrentMenu("dashboard")}>대시보드</button>
-              <button style={currentMenu === "employees" ? activeMenuButtonStyle : menuButtonStyle} onClick={() => setCurrentMenu("employees")}>직원관리</button>
-              <button style={currentMenu === "daily" ? activeMenuButtonStyle : menuButtonStyle} onClick={() => setCurrentMenu("daily")}>일용직관리</button>
-            </div>
-          </aside>
-
-          <section style={{ display: "grid", gap: "20px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
-              <div style={cardStyle}>
-                <div style={cardTitleStyle}>재직 직원 수</div>
-                <div style={cardNumberStyle}>{activeEmployeeCount}명</div>
+    <main className="min-h-screen bg-stone-100 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+          <div className="border-b border-stone-200 bg-[linear-gradient(135deg,#f8fafc_0%,#f5f5f4_45%,#ede9e1_100%)] px-6 py-8 sm:px-8">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
+                  Labor Cost Statement
+                </p>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                  노무비 명세표
+                </h1>
+                <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+                  기존 회사 관리 시스템의 회사, 현장, 일용직 데이터를 다시 연결한 조회 화면입니다.
+                  명세표 레이아웃은 유지하고, 공수 입력과 지급액 계산은 바로 이어서 확인할 수
+                  있게 구성했습니다.
+                </p>
               </div>
-              <div style={cardStyle}>
-                <div style={cardTitleStyle}>총 공수</div>
-                <div style={cardNumberStyle}>{totalWorkUnits}</div>
-              </div>
-              <div style={cardStyle}>
-                <div style={cardTitleStyle}>예상 지급액</div>
-                <div style={cardNumberStyle}>{expectedAmount.toLocaleString()}원</div>
-                <div style={cardDescStyle}>{targetMonth} / {selectedSite?.name ?? "현장 미선택"}</div>
+              <div className="rounded-2xl border border-white/70 bg-white/70 px-4 py-3 text-sm text-slate-600 backdrop-blur">
+                <div>기준 월: {selectedMonth || "-"}</div>
+                <div>표시 인원: {visibleRows.length}명</div>
               </div>
             </div>
+          </div>
 
-            {currentMenu === "dashboard" && (
-              <>
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>회사 / 현장 관리</h2>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
-                    <form onSubmit={submitCompany} style={{ ...formGridStyle, gridTemplateColumns: "1fr" }}>
-                      <div style={labelStyle}>회사 관리</div>
-                      <select style={inputStyle} value={selectedCompanyManageId ?? ""} onChange={(e) => selectCompanyForEdit(e.target.value ? Number(e.target.value) : null)}>
-                        <option value="">회사 선택 (신규 등록은 선택 안 함)</option>
-                        {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
-                      </select>
-                      <input style={inputStyle} placeholder="회사명" value={companyForm.name} onChange={(e) => setCompanyForm((prev) => ({ ...prev, name: e.target.value }))} />
-                      <input style={inputStyle} placeholder="사업자번호" value={companyForm.business_number} onChange={(e) => setCompanyForm((prev) => ({ ...prev, business_number: e.target.value }))} />
-                      <input style={inputStyle} placeholder="주소" value={companyForm.address} onChange={(e) => setCompanyForm((prev) => ({ ...prev, address: e.target.value }))} />
-                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                        <button type="submit" style={primaryButtonStyle}>{selectedCompanyManageId ? "회사 수정" : "회사 등록"}</button>
-                        <button type="button" style={dangerButtonStyle} disabled={!selectedCompanyManageId} onClick={deleteCompany}>회사 삭제</button>
-                        <button type="button" style={secondaryButtonStyle} onClick={() => selectCompanyForEdit(null)}>수정 취소</button>
-                      </div>
-                    </form>
+          <div className="space-y-6 px-6 py-6 sm:px-8">
+            <section className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-900">상단 필터</h2>
+                <p className="text-sm text-slate-500">회사, 현장, 직종, 기준 월 선택</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-slate-700">회사 선택</span>
+                  <select
+                    className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    value={selectedCompanyId}
+                    onChange={(event) => setSelectedCompanyId(event.target.value)}
+                    disabled={isLoading || !companies.length}
+                  >
+                    {companies.length ? null : <option value="">회사 없음</option>}
+                    {companies.map((company) => (
+                      <option key={company.id} value={String(company.id)}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                    <form onSubmit={submitSite} style={{ ...formGridStyle, gridTemplateColumns: "1fr" }}>
-                      <div style={labelStyle}>현장 관리</div>
-                      <select style={inputStyle} value={selectedSiteManageId ?? ""} onChange={(e) => selectSiteForEdit(e.target.value ? Number(e.target.value) : null)}>
-                        <option value="">현장 선택 (신규 등록은 선택 안 함)</option>
-                        {sites.map((site) => (<option key={site.id} value={site.id}>{site.name}</option>))}
-                      </select>
-                      <input style={inputStyle} placeholder="현장명" value={siteForm.name} onChange={(e) => setSiteForm((prev) => ({ ...prev, name: e.target.value }))} />
-                      <select style={inputStyle} value={siteForm.company_id} onChange={(e) => setSiteForm((prev) => ({ ...prev, company_id: e.target.value }))}>
-                        <option value="">회사 선택</option>
-                        {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
-                      </select>
-                      <input style={inputStyle} placeholder="발주자" value={siteForm.client_name} onChange={(e) => setSiteForm((prev) => ({ ...prev, client_name: e.target.value }))} />
-                      <select style={inputStyle} value={siteForm.contract_type} onChange={(e) => setSiteForm((prev) => ({ ...prev, contract_type: e.target.value }))}>
-                        <option value="">구분 선택</option>
-                        <option value="원도급">원도급</option>
-                        <option value="하도급">하도급</option>
-                      </select>
-                      <div>
-                        <div style={labelStyle}>착공일</div>
-                        <input
-                          style={inputStyle}
-                          type="text"
-                          placeholder="예: 20260404"
-                          value={siteForm.construction_start_date}
-                          onChange={(e) =>
-                            setSiteForm((prev) => ({ ...prev, construction_start_date: formatDateInput(e.target.value) }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <div style={labelStyle}>준공일</div>
-                        <input
-                          style={inputStyle}
-                          type="text"
-                          placeholder="예: 20260404"
-                          value={siteForm.construction_end_date}
-                          onChange={(e) =>
-                            setSiteForm((prev) => ({ ...prev, construction_end_date: formatDateInput(e.target.value) }))
-                          }
-                        />
-                      </div>
-                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                        <button type="submit" style={primaryButtonStyle}>{selectedSiteManageId ? "현장 수정" : "현장 등록"}</button>
-                        <button type="button" style={dangerButtonStyle} disabled={!selectedSiteManageId} onClick={deleteSite}>현장 삭제</button>
-                        <button type="button" style={secondaryButtonStyle} onClick={() => selectSiteForEdit(null)}>수정 취소</button>
-                      </div>
-                    </form>
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-slate-700">현장 선택</span>
+                  <select
+                    className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    value={selectedSiteId}
+                    onChange={(event) => setSelectedSiteId(event.target.value)}
+                    disabled={isLoading || !availableSites.length}
+                  >
+                    {availableSites.length ? null : <option value="">현장 없음</option>}
+                    {availableSites.map((site) => (
+                      <option key={site.id} value={String(site.id)}>
+                        {site.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-slate-700">직종 필터</span>
+                  <select
+                    className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    value={selectedTradeFilter}
+                    onChange={(event) => setSelectedTradeFilter(event.target.value)}
+                  >
+                    {tradeOptions.map((trade) => (
+                      <option key={trade} value={trade}>
+                        {trade}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-slate-700">기준 월</span>
+                  <input
+                    type="month"
+                    className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    value={selectedMonth}
+                    onChange={(event) => setSelectedMonth(event.target.value)}
+                  />
+                </label>
+              </div>
+              {selectedCompany ? (
+                <p className="mt-4 text-sm text-slate-500">
+                  사업자번호 {selectedCompany.business_number || "-"} / 주소{" "}
+                  {selectedCompany.address || "-"}
+                </p>
+              ) : null}
+              {loadError ? (
+                <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {loadError}
+                </p>
+              ) : null}
+            </section>
+
+            <section className="rounded-2xl border border-stone-200 bg-white p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-900">현장 정보</h2>
+                <p className="text-sm text-slate-500">{selectedSite?.name || "선택된 현장 없음"}</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {siteInfoItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4"
+                  >
+                    <div className="text-sm text-slate-500">{item.label}</div>
+                    <div className="mt-2 text-base font-semibold text-slate-900">{item.value}</div>
                   </div>
+                ))}
+              </div>
+            </section>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                    <div>
-                      <div style={{ ...labelStyle, marginBottom: "8px" }}>회사 선택</div>
-                      <select style={inputStyle} value={selectedCompanyId ?? ""} onChange={(e) => {
-                        const nextCompanyId = e.target.value ? Number(e.target.value) : null;
-                        setSelectedCompanyId(nextCompanyId);
-                        setSelectedSiteId(null);
-                      }}>
-                        <option value="">전체 회사</option>
-                        {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
-                      </select>
-                    </div>
-                    <div>
-                      <div style={{ ...labelStyle, marginBottom: "8px" }}>현장 선택</div>
-                      <select style={inputStyle} value={selectedSiteId ?? ""} onChange={(e) => setSelectedSiteId(e.target.value ? Number(e.target.value) : null)}>
-                        <option value="">현장 선택</option>
-                        {filteredSites.map((site) => (<option key={site.id} value={site.id}>{site.name}</option>))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style={{ color: "#475569", fontSize: "14px" }}>
-                    회사 목록: {companies.map((company) => company.name).join(", ") || "없음"}<br />
-                    현장 목록: {sites.map((site) => site.name).join(", ") || "없음"}
-                  </div>
+            <section className="rounded-2xl border border-stone-200 bg-white">
+              <div className="flex flex-col gap-3 border-b border-stone-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">노무비 입력표</h2>
+                  <p className="text-sm text-slate-500">
+                    조회된 월별 데이터로 행을 채우고, 공수 수정 시 지급액을 자동 계산합니다.
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={addRow}
+                  className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+                >
+                  행 추가
+                </button>
+              </div>
 
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>요약</h2>
-                  <div style={{ color: "#64748b", marginBottom: "12px" }}>
-                    등록 직원: {employees.length}명 / 일용직: {dailyWorkers.length}명 / 회사: {companies.length}개 / 현장: {sites.length}개
-                  </div>
-                </div>
-
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>노무비 명세표</h2>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px", marginBottom: "12px" }}>
-                    <select
-                      style={inputStyle}
-                      value={selectedCompanyId ?? ""}
-                      onChange={(e) => {
-                        const nextCompanyId = e.target.value ? Number(e.target.value) : null;
-                        setSelectedCompanyId(nextCompanyId);
-                        setSelectedSiteId(null);
-                      }}
-                    >
-                      <option value="">회사 선택</option>
-                      {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
-                    </select>
-                    <select style={inputStyle} value={selectedSiteId ?? ""} onChange={(e) => setSelectedSiteId(e.target.value ? Number(e.target.value) : null)}>
-                      <option value="">현장 선택</option>
-                      {filteredSites.map((site) => (<option key={site.id} value={site.id}>{site.name}</option>))}
-                    </select>
-                    <select style={inputStyle} value={selectedJobCategory} onChange={(e) => setSelectedJobCategory(e.target.value as JobCategoryFilter)}>
-                      <option value="전체">전체</option>
-                      <option value="직영">직영</option>
-                      <option value="용역">용역</option>
-                    </select>
-                    <input
-                      style={inputStyle}
-                      type="month"
-                      value={selectedTargetMonth}
-                      onChange={(e) => {
-                        setSelectedTargetMonth(e.target.value);
-                        setTargetMonth(e.target.value);
-                      }}
-                    />
-                  </div>
-                  <div style={{ marginBottom: "12px", color: "#334155" }}>
-                    회사명: {companies.find((company) => company.id === selectedCompanyId)?.name ?? "전체"} / 현장명: {selectedSite?.name ?? "미선택"} / 직종 구분: {selectedJobCategory}
-                  </div>
-                  {!selectedSiteId && (
-                    <p style={{ color: "#64748b", marginBottom: "12px" }}>회사, 현장, 직종 구분을 선택하면 해당 조건 기준으로 명세표를 확인할 수 있습니다.</p>
-                  )}
-                  {payrollSummary.groups.map((group) => (
-                    <div key={group.job_type} style={{ marginBottom: "16px" }}>
-                      <h3 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "8px" }}>직종: {group.job_type}</h3>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ background: "#f1f5f9" }}>
-                            <th style={thStyle}>근로자명</th>
-                            <th style={thStyle}>주민번호</th>
-                            <th style={thStyle}>공수</th>
-                            <th style={thStyle}>일당</th>
-                            <th style={thStyle}>금액</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {group.workers.map((item) => (
-                            <tr key={item.worker.id}>
-                              <td style={tdStyle}>{item.worker.name}</td>
-                              <td style={tdStyle}>{item.worker.resident_number}</td>
-                              <td style={tdStyle}>{item.work_units}</td>
-                              <td style={tdStyle}>{item.worker.daily_wage.toLocaleString()}원</td>
-                              <td style={tdStyle}>{item.amount.toLocaleString()}원</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ))}
-                  <div style={{ fontWeight: "bold", color: "#0f172a" }}>
-                    합계 - 총 공수: {payrollSummary.total_work_units} / 총 지급액: {payrollSummary.total_amount.toLocaleString()}원
-                  </div>
-                </div>
-              </>
-            )}
-
-            {currentMenu === "employees" && (
-              <>
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>{editingEmployeeId ? "직원 수정" : "직원 등록"}</h2>
-                  <form onSubmit={submitEmployee} style={formGridStyle}>
-                    <input style={inputStyle} placeholder="이름" value={employeeForm.name} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, name: e.target.value }))} />
-                    <select style={inputStyle} value={employeeForm.type} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, type: e.target.value as EmployeeType }))}>
-                      <option value="상용직">상용직</option>
-                      <option value="일용직">일용직</option>
-                    </select>
-                    <input style={inputStyle} placeholder="직책" value={employeeForm.position} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, position: e.target.value }))} />
-                    <input
-                      style={inputStyle}
-                      type="text"
-                      placeholder="주민번호 (예: 8312151234567)"
-                      value={employeeForm.resident_number}
-                      onChange={(e) => setEmployeeForm((prev) => ({ ...prev, resident_number: formatResidentNumber(e.target.value) }))}
-                    />
-                    <input
-                      style={inputStyle}
-                      type="text"
-                      placeholder="전화번호 (예: 01012345678)"
-                      value={employeeForm.phone}
-                      onChange={(e) => setEmployeeForm((prev) => ({ ...prev, phone: formatPhoneNumber(e.target.value) }))}
-                    />
-                    <div>
-                      <div style={labelStyle}>입사일</div>
-                      <input
-                        style={inputStyle}
-                        type="text"
-                        placeholder="예: 20260404"
-                        value={employeeForm.join_date}
-                        onChange={(e) => setEmployeeForm((prev) => ({ ...prev, join_date: formatDateInput(e.target.value) }))}
-                      />
-                    </div>
-                    <select style={inputStyle} value={employeeForm.status} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, status: e.target.value as EmployeeStatus }))}>
-                      {EMPLOYEE_STATUSES.map((status) => (<option key={status} value={status}>{status}</option>))}
-                    </select>
-                    <div>
-                      <div style={labelStyle}>퇴사일</div>
-                      <input
-                        style={inputStyle}
-                        type="text"
-                        placeholder="예: 20260404"
-                        value={employeeForm.resignation_date}
-                        disabled={employeeForm.status !== "퇴사"}
-                        onChange={(e) =>
-                          setEmployeeForm((prev) => ({ ...prev, resignation_date: formatDateInput(e.target.value) }))
-                        }
-                      />
-                    </div>
-                    <select style={inputStyle} value={employeeForm.company_id} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, company_id: e.target.value }))}>
-                      <option value="">현재 법인 선택</option>
-                      {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
-                    </select>
-                    <select style={inputStyle} value={employeeForm.site_id} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, site_id: e.target.value }))}>
-                      <option value="">현재 현장 선택</option>
-                      {sites
-                        .filter((site) => !employeeForm.company_id || site.company_id === Number(employeeForm.company_id))
-                        .map((site) => (<option key={site.id} value={site.id}>{site.name}</option>))}
-                    </select>
-                    <select style={inputStyle} value={employeeForm.assignment_type} onChange={(e) => setEmployeeForm((prev) => ({ ...prev, assignment_type: e.target.value as AssignmentType }))}>
-                      {ASSIGNMENT_TYPES.map((type) => (<option key={type} value={type}>{type}</option>))}
-                    </select>
-                    <div>
-                      <div style={labelStyle}>소속 시작일</div>
-                      <input
-                        style={inputStyle}
-                        type="text"
-                        placeholder="예: 20260404"
-                        value={employeeForm.assignment_start_date}
-                        onChange={(e) =>
-                          setEmployeeForm((prev) => ({ ...prev, assignment_start_date: formatDateInput(e.target.value) }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <div style={labelStyle}>소속 종료일</div>
-                      <input
-                        style={inputStyle}
-                        type="text"
-                        placeholder="예: 20260404"
-                        value={employeeForm.assignment_end_date}
-                        onChange={(e) =>
-                          setEmployeeForm((prev) => ({ ...prev, assignment_end_date: formatDateInput(e.target.value) }))
-                        }
-                      />
-                    </div>
-                    <button type="submit" style={primaryButtonStyle}>{editingEmployeeId ? "수정 저장" : "직원 등록하기"}</button>
-                  </form>
-                </div>
-
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>직원 목록</h2>
-                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-                    <input style={inputStyle} placeholder="이름 검색" value={employeeNameQuery} onChange={(e) => setEmployeeNameQuery(e.target.value)} />
-                    <select style={inputStyle} value={employeeTypeFilter} onChange={(e) => setEmployeeTypeFilter(e.target.value as "전체" | EmployeeType)}>
-                      <option value="전체">전체</option>
-                      <option value="상용직">상용직</option>
-                      <option value="일용직">일용직</option>
-                    </select>
-                    <select style={inputStyle} value={employeeStatusFilter} onChange={(e) => setEmployeeStatusFilter(e.target.value as "전체" | EmployeeStatus)}>
-                      <option value="전체">전체</option>
-                      {EMPLOYEE_STATUSES.map((status) => (<option key={status} value={status}>{status}</option>))}
-                    </select>
-                  </div>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#f1f5f9" }}>
-                        <th style={thStyle}>이름</th>
-                        <th style={thStyle}>구분</th>
-                        <th style={thStyle}>직책</th>
-                        <th style={thStyle}>주민번호</th>
-                        <th style={thStyle}>전화번호</th>
-                        <th style={thStyle}>입사일</th>
-                        <th style={thStyle}>퇴사일</th>
-                        <th style={thStyle}>상태</th>
-                        <th style={thStyle}>작업</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingEmployees ? (
-                        <tr><td style={tdStyle} colSpan={9}>불러오는 중...</td></tr>
-                      ) : filteredEmployees.length === 0 ? (
-                        <tr><td style={tdStyle} colSpan={9}>데이터가 없습니다.</td></tr>
-                      ) : filteredEmployees.map((employee) => (
-                        <tr key={employee.id}>
-                          <td style={tdStyle}>{employee.name}</td>
-                          <td style={tdStyle}>{employee.type}</td>
-                          <td style={tdStyle}>{employee.position}</td>
-                          <td style={tdStyle}>{maskResidentNumber(employee.resident_number)}</td>
-                          <td style={tdStyle}>{employee.phone || "-"}</td>
-                          <td style={tdStyle}>{employee.join_date}</td>
-                          <td style={tdStyle}>{employee.status === "퇴사" ? (employee.resignation_date ?? "-") : ""}</td>
-                          <td style={tdStyle}>{employee.status}</td>
-                          <td style={tdStyle}>
-                            <div style={{ display: "flex", gap: "8px" }}>
-                              <button type="button" style={secondaryButtonStyle} onClick={() => startEditEmployee(employee)}>수정</button>
-                              <button type="button" style={dangerButtonStyle} onClick={() => deleteEmployee(employee.id)}>삭제</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-
-            {currentMenu === "daily" && (
-              <>
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>일용직 공수 입력</h2>
-                  <form onSubmit={saveDailyWorker} style={{ ...formGridStyle, gridTemplateColumns: "repeat(3, 1fr)" }}>
-                    <input style={inputStyle} placeholder="이름" value={dailyWorkerForm.name} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, name: e.target.value }))} />
-                    <input style={inputStyle} type="number" min={0} step={1} placeholder="일당" value={dailyWorkerForm.daily_wage} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, daily_wage: e.target.value }))} />
-                    <input style={inputStyle} type="number" min={0} placeholder="비과세" value={dailyWorkerForm.non_taxable} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, non_taxable: e.target.value }))} />
-                    <input
-                      style={inputStyle}
-                      type="text"
-                      placeholder="최초근무일 (예: 20260404)"
-                      value={dailyWorkerForm.first_work_date}
-                      onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, first_work_date: formatDateInput(e.target.value) }))}
-                    />
-                    <input style={inputStyle} placeholder="주소" value={dailyWorkerForm.address} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, address: e.target.value }))} />
-                    <input
-                      style={inputStyle}
-                      type="text"
-                      placeholder="예: 9001011234567"
-                      value={dailyWorkerForm.resident_number}
-                      onChange={(e) =>
-                        setDailyWorkerForm((prev) => ({ ...prev, resident_number: formatResidentNumber(e.target.value) }))
-                      }
-                    />
-                    <input
-                      style={inputStyle}
-                      placeholder="전화번호 (예: 01012345678)"
-                      value={dailyWorkerForm.phone}
-                      onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, phone: formatPhoneNumber(e.target.value) }))}
-                    />
-                    <input style={inputStyle} placeholder="은행명" value={dailyWorkerForm.bank_name} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, bank_name: e.target.value }))} />
-                    <input style={inputStyle} placeholder="계좌번호" value={dailyWorkerForm.account_number} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, account_number: e.target.value }))} />
-                    <input style={inputStyle} placeholder="직종" value={dailyWorkerForm.job_type} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, job_type: e.target.value }))} />
-                    <select style={inputStyle} value={dailyWorkerForm.company_id} onChange={(e) => setDailyWorkerForm((prev) => ({ ...prev, company_id: e.target.value }))}>
-                      <option value="">소속 회사 선택</option>
-                      {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
-                    </select>
-                    <input
-                      style={inputStyle}
-                      type="month"
-                      value={targetMonth}
-                      onChange={(e) => {
-                        setTargetMonth(e.target.value);
-                        setSelectedTargetMonth(e.target.value);
-                      }}
-                    />
-                    <select style={inputStyle} value={selectedCompanyId ?? ""} onChange={(e) => {
-                      const nextCompanyId = e.target.value ? Number(e.target.value) : null;
-                      setSelectedCompanyId(nextCompanyId);
-                      setSelectedSiteId(null);
-                    }}>
-                      <option value="">공수 대상 회사 선택</option>
-                      {companies.map((company) => (<option key={company.id} value={company.id}>{company.name}</option>))}
-                    </select>
-                    <select style={inputStyle} value={selectedSiteId ?? ""} onChange={(e) => setSelectedSiteId(e.target.value ? Number(e.target.value) : null)}>
-                      <option value="">현장 선택</option>
-                      {filteredSites.map((site) => (<option key={site.id} value={site.id}>{site.name}</option>))}
-                    </select>
-                    <select style={inputStyle} value={selectedDailyWorkerId ?? ""} onChange={(e) => selectDailyWorker(e.target.value ? Number(e.target.value) : null)}>
-                      <option value="">일용직 선택</option>
-                      {dailyWorkers.map((worker) => (<option key={worker.id} value={worker.id}>{worker.name}</option>))}
-                    </select>
-                    <button type="submit" style={primaryButtonStyle}>{editingDailyWorkerId ? "수정 저장" : "일용직 등록하기"}</button>
-                  </form>
-
-                  <div style={{ marginTop: "16px" }}>
-                    <div style={{ ...labelStyle, marginBottom: "8px" }}>일용직 공수 입력 달력</div>
-                    {!selectedDailyWorker ? (
-                      <p style={{ color: "#64748b" }}>일용직을 선택하면 날짜별 공수 입력이 표시됩니다.</p>
-                    ) : !selectedSiteId ? (
-                      <p style={{ color: "#64748b" }}>공수 입력 전에 현장을 선택하세요.</p>
-                    ) : (
-                      <>
-                        <p style={{ color: "#334155", marginBottom: "8px" }}>
-                          {selectedDailyWorker.name} / 주민번호 {selectedDailyWorker.resident_number} / 일당 {selectedDailyWorker.daily_wage.toLocaleString()}원
-                        </p>
-                        <p style={{ color: "#334155", marginBottom: "12px", fontWeight: "bold" }}>
-                          총 공수: {totalWorkUnits} / 일한 날짜 수: {workedDaysCount} / 예상 지급액: {expectedAmount.toLocaleString()}원
-                        </p>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "8px" }}>
-                          {monthDates.map((date) => (
-                            <div key={date} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "8px" }}>
-                              <div style={{ fontSize: "12px", color: "#475569", marginBottom: "6px" }}>{date.slice(8, 10)}일</div>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={selectedWorkMap[date] ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  updateWorkUnit(date, raw === "" ? null : Number(raw));
-                                }}
-                                style={{ ...inputStyle, padding: "8px", fontSize: "13px" }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ marginTop: "12px" }}>
-                          <button type="button" style={primaryButtonStyle} onClick={saveMonthlyRecord} disabled={savingMonthlyRecord}>
-                            {savingMonthlyRecord ? "저장 중..." : "월 기록 저장"}
+              <div className="overflow-x-auto">
+                <table className="min-w-[1220px] w-full border-collapse text-sm">
+                  <thead className="bg-stone-100 text-slate-600">
+                    <tr>
+                      <th className="px-3 py-3 text-left font-semibold">번호</th>
+                      <th className="px-3 py-3 text-left font-semibold">성명</th>
+                      <th className="px-3 py-3 text-left font-semibold">주민번호</th>
+                      <th className="px-3 py-3 text-left font-semibold">전화번호</th>
+                      <th className="px-3 py-3 text-left font-semibold">직종</th>
+                      <th className="px-3 py-3 text-left font-semibold">단가</th>
+                      <th className="px-3 py-3 text-left font-semibold">공수</th>
+                      <th className="px-3 py-3 text-left font-semibold">지급액</th>
+                      <th className="px-3 py-3 text-left font-semibold">비고</th>
+                      <th className="px-3 py-3 text-left font-semibold">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRows.map((row, index) => (
+                      <tr key={row.id} className="border-t border-stone-200 align-top">
+                        <td className="px-3 py-3 text-slate-700">{index + 1}</td>
+                        <td className="px-3 py-3">
+                          <input
+                            value={row.name}
+                            onChange={(event) => updateRow(row.id, "name", event.target.value)}
+                            placeholder="성명"
+                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <input
+                            value={row.residentId}
+                            onChange={(event) =>
+                              updateRow(row.id, "residentId", event.target.value)
+                            }
+                            inputMode="numeric"
+                            placeholder="000000-0000000"
+                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <input
+                            value={row.phone}
+                            onChange={(event) => updateRow(row.id, "phone", event.target.value)}
+                            inputMode="numeric"
+                            placeholder="010-0000-0000"
+                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <input
+                            value={row.trade}
+                            onChange={(event) => updateRow(row.id, "trade", event.target.value)}
+                            placeholder="직종"
+                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <input
+                            value={row.unitPrice}
+                            onChange={(event) => updateRow(row.id, "unitPrice", event.target.value)}
+                            inputMode="decimal"
+                            placeholder="0"
+                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-right outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <input
+                            value={row.workUnits}
+                            onChange={(event) => updateRow(row.id, "workUnits", event.target.value)}
+                            inputMode="decimal"
+                            placeholder="0"
+                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-right outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex min-h-[42px] items-center rounded-lg bg-stone-100 px-3 font-medium text-slate-800">
+                            {formatCurrency(getPaymentAmount(row))}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">
+                          <input
+                            value={row.note}
+                            onChange={(event) => updateRow(row.id, "note", event.target.value)}
+                            placeholder="비고"
+                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <button
+                            type="button"
+                            onClick={() => removeRow(row.id)}
+                            className="inline-flex items-center justify-center rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-red-300 hover:text-red-600"
+                          >
+                            삭제
                           </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div style={cardStyle}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "12px" }}>일용직 목록</h2>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#f1f5f9" }}>
-                        <th style={thStyle}>이름</th>
-                        <th style={thStyle}>주민번호(마스킹)</th>
-                        <th style={thStyle}>직종</th>
-                        <th style={thStyle}>일당</th>
-                        <th style={thStyle}>최초근무일</th>
-                        <th style={thStyle}>작업</th>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {loadingDailyWorkers ? (
-                        <tr><td style={tdStyle} colSpan={6}>불러오는 중...</td></tr>
-                      ) : dailyWorkers.length === 0 ? (
-                        <tr><td style={tdStyle} colSpan={6}>데이터가 없습니다.</td></tr>
-                      ) : dailyWorkers.map((worker) => (
-                        <tr key={worker.id}>
-                          <td style={tdStyle}>{worker.name}</td>
-                          <td style={tdStyle}>{maskResidentNumber(worker.resident_number)}</td>
-                          <td style={tdStyle}>{worker.job_type}</td>
-                          <td style={tdStyle}>{worker.daily_wage.toLocaleString()}원</td>
-                          <td style={tdStyle}>{worker.first_work_date ? worker.first_work_date.slice(0, 10) : "-"}</td>
-                          <td style={tdStyle}>
-                            <div style={{ display: "flex", gap: "8px" }}>
-                              <button type="button" style={secondaryButtonStyle} onClick={() => startEditDailyWorker(worker)}>수정</button>
-                              <button type="button" style={dangerButtonStyle} onClick={() => deleteDailyWorker(worker.id)}>삭제</button>
-                              <button type="button" style={secondaryButtonStyle} onClick={() => selectDailyWorker(worker.id)}>공수입력</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t border-stone-300 bg-stone-50">
+                    <tr>
+                      <td colSpan={6} className="px-3 py-4 text-right font-semibold text-slate-700">
+                        합계
+                      </td>
+                      <td className="px-3 py-4 font-semibold text-slate-900">
+                        {totalWorkUnits.toLocaleString("ko-KR")}
+                      </td>
+                      <td className="px-3 py-4 font-semibold text-slate-900">
+                        {formatCurrency(totalPaymentAmount)}
+                      </td>
+                      <td colSpan={2} className="px-3 py-4 text-sm text-slate-500">
+                        총 공수 / 총 지급액
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </section>
+
+            <section className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
+                <div className="text-sm text-slate-500">총 공수</div>
+                <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                  {totalWorkUnits.toLocaleString("ko-KR")}
                 </div>
-              </>
-            )}
-          </section>
-        </div>
+              </div>
+              <div className="rounded-2xl border border-stone-200 bg-slate-900 p-5 text-white">
+                <div className="text-sm text-slate-300">총 지급액</div>
+                <div className="mt-2 text-3xl font-semibold tracking-tight">
+                  {formatCurrency(totalPaymentAmount)}
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-dashed border-stone-300 bg-stone-50 px-5 py-4 text-sm leading-6 text-slate-600">
+              <p>입력 UX 보정:</p>
+              <p>날짜 `20260404` → `2026-04-04`</p>
+              <p>주민번호 13자리 → `######-#######`</p>
+              <p>전화번호 `01012345678` → `010-1234-5678`</p>
+              {isLoading ? <p>데이터를 불러오는 중입니다.</p> : null}
+              {!isLoading && !baseStatementRows.length ? (
+                <p>선택한 조건에 맞는 월별 기록이 없어 빈 행으로 시작합니다.</p>
+              ) : null}
+            </section>
+          </div>
+        </section>
       </div>
     </main>
   );
 }
-
-const menuButtonStyle = {
-  width: "100%",
-  padding: "12px 14px",
-  borderRadius: "12px",
-  border: "1px solid #cbd5e1",
-  background: "#f8fafc",
-  cursor: "pointer",
-  fontSize: "15px",
-  textAlign: "left" as const,
-};
-
-const activeMenuButtonStyle = {
-  ...menuButtonStyle,
-  background: "#dbeafe",
-  border: "1px solid #93c5fd",
-  fontWeight: "bold",
-};
-
-const cardStyle = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
-  borderRadius: "16px",
-  padding: "20px",
-};
-
-const cardTitleStyle = {
-  fontSize: "14px",
-  color: "#64748b",
-  marginBottom: "10px",
-};
-
-const cardNumberStyle = {
-  fontSize: "28px",
-  fontWeight: "bold",
-  marginBottom: "6px",
-};
-
-const cardDescStyle = {
-  fontSize: "13px",
-  color: "#64748b",
-};
-
-const thStyle = {
-  padding: "12px",
-  borderBottom: "1px solid #cbd5e1",
-  textAlign: "left" as const,
-};
-
-const tdStyle = {
-  padding: "12px",
-  borderBottom: "1px solid #e2e8f0",
-};
-
-const formGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, 1fr)",
-  gap: "16px",
-};
-
-const labelStyle = {
-  marginBottom: "6px",
-  fontSize: "14px",
-  color: "#334155",
-  fontWeight: "bold",
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "12px",
-  borderRadius: "10px",
-  border: "1px solid #cbd5e1",
-  fontSize: "15px",
-  boxSizing: "border-box" as const,
-};
-
-const primaryButtonStyle = {
-  padding: "12px 18px",
-  borderRadius: "10px",
-  border: "none",
-  background: "#2563eb",
-  color: "white",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const dangerButtonStyle = {
-  padding: "8px 12px",
-  borderRadius: "8px",
-  border: "none",
-  background: "#dc2626",
-  color: "white",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const secondaryButtonStyle = {
-  padding: "8px 12px",
-  borderRadius: "8px",
-  border: "1px solid #94a3b8",
-  background: "#ffffff",
-  color: "#0f172a",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
