@@ -320,9 +320,7 @@ function getMonthDateList(targetMonth: string) {
     return [] as string[];
   }
 
-  const daysInMonth = new Date(year, month, 0).getDate();
-
-  return Array.from({ length: daysInMonth }, (_, index) => {
+  return Array.from({ length: MAX_DAY_COLUMNS }, (_, index) => {
     const day = String(index + 1).padStart(2, "0");
     return `${targetMonth}-${day}`;
   });
@@ -697,10 +695,6 @@ export default function Page() {
   );
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
-  const monthDateSlots = useMemo(
-    () => Array.from({ length: MAX_DAY_COLUMNS }, (_, index) => monthDates[index] ?? null),
-    [monthDates],
-  );
 
   useEffect(() => {
     let active = true;
@@ -1590,12 +1584,12 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-9 w-full min-w-0 border-0 bg-transparent px-1.5 text-sm outline-none transition focus:bg-amber-50/70";
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1.5 text-[15px] outline-none transition focus:bg-amber-50/70";
   const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right tabular-nums`;
   const dailyEntryInputClass =
-    "h-8 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[13px] font-medium tabular-nums outline-none transition focus:bg-amber-50/70";
+    "h-9 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-sm font-medium tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
-    "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-xs font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100";
+    "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-[13px] font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
   return (
     <>
@@ -1783,14 +1777,14 @@ export default function Page() {
           }
         }
       `}</style>
-      <main className="min-h-screen bg-[#e7e0d2] px-2 py-3 text-slate-900 sm:px-3 sm:py-4 lg:px-4">
-        <div className="print-root mx-auto w-full max-w-[1980px]">
-          <section className="print-hidden print-interactive mb-2 border border-stone-400 bg-[#f7f2e7] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
+      <main className="min-h-screen bg-[#e7e0d2] px-1.5 py-2 text-slate-900 sm:px-2 sm:py-3 lg:px-3">
+        <div className="print-root mx-auto w-full max-w-[2160px]">
+          <section className="print-hidden print-interactive mb-1.5 border border-stone-400 bg-[#f7f2e7] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
             <div className="grid gap-0 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
-              <label className="border-b border-r border-stone-300 px-3 py-2 text-sm">
+              <label className="border-b border-r border-stone-300 px-3 py-2 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">상호</span>
                 <select
-                  className="h-9 w-full border border-stone-300 bg-white px-2 text-sm outline-none transition focus:border-stone-700"
+                  className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
                   value={selectedCompanyId}
                   onChange={(event) => setSelectedCompanyId(event.target.value)}
                   disabled={isLoading || !companies.length}
@@ -1803,10 +1797,10 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="border-b border-r border-stone-300 px-3 py-2 text-sm">
+              <label className="border-b border-r border-stone-300 px-3 py-2 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">공사명 / 현장명</span>
                 <select
-                  className="h-9 w-full border border-stone-300 bg-white px-2 text-sm outline-none transition focus:border-stone-700"
+                  className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
                   value={selectedSiteId}
                   onChange={(event) => setSelectedSiteId(event.target.value)}
                   disabled={isLoading || !availableSites.length}
@@ -1819,10 +1813,10 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="border-b border-r border-stone-300 px-3 py-2 text-sm">
+              <label className="border-b border-r border-stone-300 px-3 py-2 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">직종 필터</span>
                 <select
-                  className="h-9 w-full border border-stone-300 bg-white px-2 text-sm outline-none transition focus:border-stone-700"
+                  className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
                   value={selectedTradeFilter}
                   onChange={(event) => setSelectedTradeFilter(event.target.value)}
                 >
@@ -1833,11 +1827,11 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="border-b border-stone-300 px-3 py-2 text-sm md:border-r xl:border-r-0">
+              <label className="border-b border-stone-300 px-3 py-2 text-[15px] md:border-r xl:border-r-0">
                 <span className="mb-1 block font-medium text-stone-700">기준월</span>
                 <input
                   type="month"
-                  className="h-9 w-full border border-stone-300 bg-white px-2 text-sm outline-none transition focus:border-stone-700"
+                  className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
                   value={selectedMonth}
                   onChange={(event) => setSelectedMonth(event.target.value)}
                 />
@@ -1855,28 +1849,28 @@ export default function Page() {
               <button
                 type="button"
                 onClick={() => addRow()}
-                className="inline-flex h-9 items-center justify-center border border-stone-700 bg-white px-3 text-sm font-medium text-stone-800 transition hover:bg-stone-100"
+                className="inline-flex h-10 items-center justify-center border border-stone-700 bg-white px-3 text-[15px] font-medium text-stone-800 transition hover:bg-stone-100"
               >
                 행 추가
               </button>
               <button
                 type="button"
                 onClick={handleDownloadExcel}
-                className="inline-flex h-9 items-center justify-center border border-sky-700 bg-white px-3 text-sm font-medium text-sky-800 transition hover:bg-sky-50"
+                className="inline-flex h-10 items-center justify-center border border-sky-700 bg-white px-3 text-[15px] font-medium text-sky-800 transition hover:bg-sky-50"
               >
                 엑셀 다운로드
               </button>
               <button
                 type="button"
                 onClick={handleUploadButtonClick}
-                className="inline-flex h-9 items-center justify-center border border-violet-700 bg-white px-3 text-sm font-medium text-violet-800 transition hover:bg-violet-50"
+                className="inline-flex h-10 items-center justify-center border border-violet-700 bg-white px-3 text-[15px] font-medium text-violet-800 transition hover:bg-violet-50"
               >
                 엑셀 업로드
               </button>
               <button
                 type="button"
                 onClick={handlePrint}
-                className="inline-flex h-9 items-center justify-center border border-slate-700 bg-white px-3 text-sm font-medium text-slate-800 transition hover:bg-slate-100"
+                className="inline-flex h-10 items-center justify-center border border-slate-700 bg-white px-3 text-[15px] font-medium text-slate-800 transition hover:bg-slate-100"
               >
                 PDF 출력
               </button>
@@ -1884,24 +1878,24 @@ export default function Page() {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving || isLoading || isRecordsLoading}
-                className="inline-flex h-9 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-sm font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
+                className="inline-flex h-10 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-[15px] font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
               >
                 {isSaving ? "저장 중..." : "저장"}
               </button>
             </div>
 
             {selectedCompany ? (
-              <div className="border-b border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-600">
+              <div className="border-b border-stone-300 bg-stone-50 px-3 py-2 text-[15px] text-stone-600">
                 사업자번호 {selectedCompany.business_number || "-"} / 주소 {selectedCompany.address || "-"}
               </div>
             ) : null}
-            {loadError ? <p className="border-b border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{loadError}</p> : null}
-            {saveError ? <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{saveError}</p> : null}
+            {loadError ? <p className="border-b border-red-200 bg-red-50 px-3 py-2 text-[15px] text-red-700">{loadError}</p> : null}
+            {saveError ? <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-[15px] text-amber-700">{saveError}</p> : null}
             {saveWarningMessage ? (
-              <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{saveWarningMessage}</p>
+              <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-[15px] text-amber-700">{saveWarningMessage}</p>
             ) : null}
             {saveSuccessMessage ? (
-              <p className="bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{saveSuccessMessage}</p>
+              <p className="bg-emerald-50 px-3 py-2 text-[15px] text-emerald-700">{saveSuccessMessage}</p>
             ) : null}
           </section>
 
@@ -1909,10 +1903,10 @@ export default function Page() {
             <header className="border-b-2 border-stone-700 px-3 py-3 sm:px-4">
               <div className="mb-3 flex items-end justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[11px] tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
-                  <h1 className="mt-1 text-2xl font-bold tracking-[0.18em] text-slate-900 sm:text-3xl">노무비 명세서</h1>
+                  <p className="text-xs tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
+                  <h1 className="mt-1 text-[30px] font-bold tracking-[0.15em] text-slate-900 sm:text-[34px]">노무비 명세서</h1>
                 </div>
-                <div className="hidden min-w-[200px] border border-stone-400 text-xs sm:block">
+                <div className="hidden min-w-[220px] border border-stone-400 text-[13px] sm:block">
                   <div className="grid grid-cols-[68px_1fr]">
                     <div className="border-b border-r border-stone-300 bg-stone-100 px-2 py-1.5 font-medium">기준월</div>
                     <div className="border-b border-stone-300 px-2 py-1.5 text-right tabular-nums">{selectedMonth || "-"}</div>
@@ -1925,20 +1919,20 @@ export default function Page() {
               <div className="overflow-hidden border border-stone-400">
                 <div className="grid grid-cols-1 border-stone-300 md:grid-cols-2">
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-r">
-                    <div className="bg-stone-100 px-3 py-2 text-sm font-medium">상호</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-sm break-keep">{selectedCompany?.name || "-"}</div>
+                    <div className="bg-stone-100 px-3 py-2 text-[15px] font-medium">상호</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedCompany?.name || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300">
-                    <div className="bg-stone-100 px-3 py-2 text-sm font-medium">공사명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-sm break-keep">{selectedSite?.name || "-"}</div>
+                    <div className="bg-stone-100 px-3 py-2 text-[15px] font-medium">공사명</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedSite?.name || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-b-0 md:border-r">
-                    <div className="bg-stone-100 px-3 py-2 text-sm font-medium">현장명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-sm break-keep">{selectedSite?.client_name || selectedSite?.name || "-"}</div>
+                    <div className="bg-stone-100 px-3 py-2 text-[15px] font-medium">현장명</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedSite?.client_name || selectedSite?.name || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)]">
-                    <div className="bg-stone-100 px-3 py-2 text-sm font-medium">기간</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-sm break-keep">
+                    <div className="bg-stone-100 px-3 py-2 text-[15px] font-medium">기간</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">
                       {selectedMonth || "-"}
                       {selectedSite?.construction_start_date || selectedSite?.construction_end_date || selectedSite?.start_date || selectedSite?.end_date
                         ? ` / ${formatDateDisplay(selectedSite?.construction_start_date ?? selectedSite?.start_date)} ~ ${formatDateDisplay(selectedSite?.construction_end_date ?? selectedSite?.end_date)}`
@@ -1951,7 +1945,7 @@ export default function Page() {
 
             <div className="print-sheet-scroll overflow-x-auto">
               <table
-                className="print-sheet-table w-full border-collapse text-[13px]"
+                className="print-sheet-table w-full border-collapse text-[14px]"
                 style={{ minWidth: `${1116 + MAX_DAY_COLUMNS * 42}px` }}
               >
                 <colgroup>
@@ -1960,7 +1954,7 @@ export default function Page() {
                   <col style={{ width: "132px" }} />
                   <col style={{ width: "172px" }} />
                   <col style={{ width: "184px" }} />
-                  {monthDateSlots.map((date, index) => (
+                  {monthDates.map((date, index) => (
                     <col key={`col-${date ?? `slot-${index + 1}`}`} style={{ width: "42px" }} />
                   ))}
                   <col style={{ width: "92px" }} />
@@ -1984,10 +1978,10 @@ export default function Page() {
                     <th rowSpan={2} className="print-col-actions px-2 py-2 text-center font-semibold">관리</th>
                   </tr>
                   <tr className="border-b border-stone-400">
-                    {monthDateSlots.map((date, index) => (
+                    {monthDates.map((date, index) => (
                       <th
-                        key={date ?? `day-slot-${index + 1}`}
-                        className="print-day-header border-r border-stone-300 px-0.5 py-1 text-center text-[13px] font-semibold text-stone-800"
+                        key={date}
+                        className="print-day-header border-r border-stone-300 px-0.5 py-1.5 text-center text-sm font-semibold text-stone-800"
                       >
                         {index + 1}
                       </th>
@@ -2001,7 +1995,7 @@ export default function Page() {
 
                     return (
                       <tr key={row.id} className="border-b border-stone-300 align-middle odd:bg-white even:bg-stone-50/30">
-                        <td className="border-r border-stone-300 px-2 py-1 text-center text-xs">{index + 1}</td>
+                        <td className="border-r border-stone-300 px-2 py-1.5 text-center text-sm">{index + 1}</td>
                         <td className="print-cell-trade border-r border-stone-300 px-1 py-1">
                           <input
                             ref={(element) => {
@@ -2052,36 +2046,24 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        {monthDateSlots.map((date, index) =>
-                          date ? (
-                            <td key={`${row.id}:${date}`} className="print-cell-date border-r border-stone-300 px-0.5 py-1">
-                              <input
-                                ref={(element) => {
-                                  dailyCellRefs.current[`${row.id}:${date}`] = element;
-                                }}
-                                type="text"
-                                value={row.dailyWorkEntries[date] ?? ""}
-                                onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
-                                onBlur={() => handleDailyWorkEntryBlur(row.id, date)}
-                                onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, date)}
-                                inputMode="decimal"
-                                autoComplete="off"
-                                aria-label={`${getMonthDayLabel(date)} 공수`}
-                                className={dailyEntryInputClass}
-                              />
-                            </td>
-                          ) : (
-                            <td
-                              key={`${row.id}:empty-day-${index + 1}`}
-                              className="print-cell-date border-r border-stone-300 bg-stone-50/70 px-0.5 py-1"
-                            >
-                              <div
-                                aria-hidden="true"
-                                className="h-8 w-full rounded-sm bg-stone-100/80"
-                              />
-                            </td>
-                          ),
-                        )}
+                        {monthDates.map((date) => (
+                          <td key={`${row.id}:${date}`} className="print-cell-date border-r border-stone-300 px-0.5 py-1">
+                            <input
+                              ref={(element) => {
+                                dailyCellRefs.current[`${row.id}:${date}`] = element;
+                              }}
+                              type="text"
+                              value={row.dailyWorkEntries[date] ?? ""}
+                              onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
+                              onBlur={() => handleDailyWorkEntryBlur(row.id, date)}
+                              onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, date)}
+                              inputMode="decimal"
+                              autoComplete="off"
+                              aria-label={`${getMonthDayLabel(date)} 공수`}
+                              className={dailyEntryInputClass}
+                            />
+                          </td>
+                        ))}
                         <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
                           <div className="space-y-0.5">
                             <input
@@ -2100,7 +2082,7 @@ export default function Page() {
                               readOnly={rowHasDailyEntries}
                               className={`${sheetNumericClass} ${rowHasDailyEntries ? "text-stone-500" : ""}`}
                             />
-                            {rowHasDailyEntries ? <p className="text-[10px] text-stone-400">일자합계</p> : null}
+                            {rowHasDailyEntries ? <p className="text-[11px] text-stone-400">일자합계</p> : null}
                           </div>
                         </td>
                         <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
@@ -2146,7 +2128,7 @@ export default function Page() {
                 </tbody>
                 <tfoot className="bg-[#f3ede1]">
                   <tr className="border-t-2 border-stone-500">
-                    <td colSpan={5 + MAX_DAY_COLUMNS} className="border-r border-stone-300 px-2 py-2 text-right text-sm font-semibold text-stone-700">
+                    <td colSpan={5 + MAX_DAY_COLUMNS} className="border-r border-stone-300 px-2 py-2 text-right text-[15px] font-semibold text-stone-700">
                       합계
                     </td>
                     <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
@@ -2156,7 +2138,7 @@ export default function Page() {
                     <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
-                    <td className="border-r border-stone-300 px-2 py-2 text-sm text-stone-600">{visibleRows.length}명</td>
+                    <td className="border-r border-stone-300 px-2 py-2 text-[15px] text-stone-600">{visibleRows.length}명</td>
                     <td className="print-col-actions px-2 py-2"></td>
                   </tr>
                 </tfoot>
@@ -2165,19 +2147,19 @@ export default function Page() {
 
             <footer className="border-t border-stone-400 px-3 py-3">
               <div className="grid gap-0 border border-stone-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
-                <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 md:border-b-0">하단 요약</div>
-                <div className="border-b border-r border-stone-300 px-3 py-2 text-sm md:border-b-0">
+                <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-[15px] font-medium text-stone-700 md:border-b-0">하단 요약</div>
+                <div className="border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
                   총 공수 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
                 </div>
-                <div className="border-b border-r border-stone-300 px-3 py-2 text-sm md:border-b-0">
+                <div className="border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
                   총 지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
                 </div>
-                <div className="print-summary-note px-3 py-2 text-sm text-stone-600">
+                <div className="print-summary-note px-3 py-2 text-[15px] text-stone-600">
                   <span className="mb-1 block font-medium text-stone-700">입력 안내</span>
                   <span className="block leading-5">Enter는 아래 행, Tab은 다음 칸으로 이동합니다. 날짜 칸도 동일하게 이동합니다.</span>
                 </div>
               </div>
-              <div className="print-hidden mt-2 text-xs leading-6 text-stone-500">
+              <div className="print-hidden mt-2 text-[13px] leading-6 text-stone-500">
                 <p>주민번호는 숫자만 입력하면 자동 포맷됩니다.</p>
                 <p>전화번호는 숫자만 입력하면 자동 포맷됩니다.</p>
                 <p>날짜 칸에 공수를 입력하면 총 공수와 지급액이 즉시 연동됩니다.</p>
