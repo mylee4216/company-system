@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/lib/supabase";
@@ -86,6 +86,18 @@ type FocusedNumericCell = {
   field: NumericField;
 };
 
+type UploadedSheetRow = {
+  번호?: string | number;
+  성명?: string;
+  주민번호?: string | number;
+  전화번호?: string | number;
+  직종?: string;
+  단가?: string | number;
+  공수?: string | number;
+  지급액?: string | number;
+  비고?: string;
+};
+
 const EDITABLE_FIELDS: EditableField[] = [
   "name",
   "residentId",
@@ -95,6 +107,8 @@ const EDITABLE_FIELDS: EditableField[] = [
   "workUnits",
   "note",
 ];
+
+const EXCEL_UPLOAD_HEADERS = ["번호", "성명", "주민번호", "전화번호", "직종", "단가", "공수", "지급액", "비고"] as const;
 
 const ALL_TRADES_LABEL = "전체";
 const FALLBACK_TRADE = "미분류";
@@ -183,6 +197,30 @@ function sanitizeDecimal(value: string) {
 function parseNumber(value: string | number | null | undefined) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseExcelNumber(value: string | number | null | undefined) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value !== "string") {
+    return 0;
+  }
+
+  const normalized = value.replace(/,/g, "").trim();
+
+  if (!normalized) {
+    return 0;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeUploadedNumericText(value: string | number | null | undefined) {
+  const parsed = parseExcelNumber(value);
+  return parsed ? String(parsed) : "";
 }
 
 function formatIntegerWithCommas(value: string) {
@@ -373,6 +411,7 @@ export default function Page() {
 
   const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingFocusRef = useRef<{ rowId: string; field: EditableField } | null>(null);
+  const excelFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -1015,6 +1054,120 @@ export default function Page() {
     XLSX.writeFile(workbook, `노무비명세서_${selectedMonth || getDefaultMonth()}.xlsx`);
   };
 
+  const resetExcelInput = () => {
+    if (excelFileInputRef.current) {
+      excelFileInputRef.current.value = "";
+    }
+  };
+
+  const handleUploadButtonClick = () => {
+    resetExcelInput();
+    excelFileInputRef.current?.click();
+  };
+
+  const handleExcelUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const isXlsxFile =
+      file.name.toLowerCase().endsWith(".xlsx") ||
+      file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    if (!isXlsxFile) {
+      setSaveError("엑셀(.xlsx) 파일만 업로드할 수 있습니다.");
+      setSaveSuccessMessage("");
+      resetExcelInput();
+      return;
+    }
+
+    try {
+      const fileBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(fileBuffer, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+
+      if (!firstSheetName) {
+        throw new Error("INVALID_EXCEL_FORMAT");
+      }
+
+      const worksheet = workbook.Sheets[firstSheetName];
+      const uploadedRows = XLSX.utils.sheet_to_json<UploadedSheetRow>(worksheet, {
+        defval: "",
+        raw: false,
+      });
+      const headerRows = XLSX.utils.sheet_to_json<string[]>(worksheet, {
+        header: 1,
+        range: 0,
+        blankrows: false,
+      });
+      const normalizedHeaders = (headerRows[0] ?? []).map((header) => String(header).trim());
+      const hasRequiredHeaders = EXCEL_UPLOAD_HEADERS.every((header) => normalizedHeaders.includes(header));
+
+      if (!hasRequiredHeaders) {
+        throw new Error("INVALID_EXCEL_FORMAT");
+      }
+
+      const uploadTimestamp = Date.now();
+      const nextRows = uploadedRows
+        .map<LaborRow | null>((uploadedRow, index) => {
+          const name = String(uploadedRow["성명"] ?? "").trim();
+          const residentId = formatResidentId(String(uploadedRow["주민번호"] ?? "").trim());
+          const phone = formatPhoneNumber(String(uploadedRow["전화번호"] ?? "").trim());
+          const trade = String(uploadedRow["직종"] ?? "").trim();
+          const unitPrice = normalizeUploadedNumericText(uploadedRow["단가"]);
+          const workUnits = normalizeUploadedNumericText(uploadedRow["공수"]);
+          const note = String(uploadedRow["비고"] ?? "").trim();
+          const amount = parseExcelNumber(uploadedRow["지급액"]);
+
+          const hasContent =
+            Boolean(name) ||
+            Boolean(residentId) ||
+            Boolean(phone) ||
+            Boolean(trade) ||
+            Boolean(unitPrice) ||
+            Boolean(workUnits) ||
+            Boolean(note) ||
+            amount > 0;
+
+          if (!hasContent) {
+            return null;
+          }
+
+          return {
+            id: `upload-${uploadTimestamp}-${index}`,
+            sourceRecordId: null,
+            sourceWorkerId: null,
+            name,
+            residentId,
+            phone,
+            trade: trade || FALLBACK_TRADE,
+            unitPrice,
+            workUnits,
+            note,
+          } satisfies LaborRow;
+        })
+        .filter((row): row is LaborRow => row !== null);
+
+      setRows(nextRows.length ? nextRows : [createEmptyRow(`manual-${uploadTimestamp}`)]);
+      setSelectedTradeFilter(ALL_TRADES_LABEL);
+      setFocusedNumericCell(null);
+      pendingFocusRef.current = null;
+      setSaveError("");
+      setSaveSuccessMessage("엑셀 업로드 내용을 화면에 반영했습니다. 검토 후 저장해 주세요.");
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message === "INVALID_EXCEL_FORMAT"
+          ? "엑셀 양식을 확인하세요."
+          : "엑셀 파일을 읽는 중 오류가 발생했습니다.";
+      setSaveError(message);
+      setSaveSuccessMessage("");
+    } finally {
+      resetExcelInput();
+    }
+  };
+
   const sheetInputClass =
     "h-9 w-full border border-stone-200 bg-white px-2 text-sm outline-none transition focus:border-stone-700";
   const sheetNumericClass = `${sheetInputClass} text-right tabular-nums`;
@@ -1180,6 +1333,13 @@ export default function Page() {
                   <p className="text-sm text-stone-600">Enter 키로 다음 셀로 이동하며 내용을 연속 입력할 수 있습니다.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={excelFileInputRef}
+                    type="file"
+                    accept=".xlsx"
+                    onChange={handleExcelUpload}
+                    className="hidden"
+                  />
                   <button
                     type="button"
                     onClick={() => addRow()}
@@ -1193,6 +1353,13 @@ export default function Page() {
                     className="inline-flex h-9 items-center justify-center border border-sky-700 bg-white px-3 text-sm font-medium text-sky-800 transition hover:bg-sky-50"
                   >
                     엑셀 다운로드
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUploadButtonClick}
+                    className="inline-flex h-9 items-center justify-center border border-violet-700 bg-white px-3 text-sm font-medium text-violet-800 transition hover:bg-violet-50"
+                  >
+                    엑셀 업로드
                   </button>
                   <button
                     type="button"
