@@ -2311,12 +2311,12 @@ export default function Page() {
                   <p className="print-kicker text-xs tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
                   <h1 className="print-title mt-1 text-[30px] font-bold tracking-[0.15em] text-slate-900 sm:text-[34px]">노무비 명세서</h1>
                 </div>
-                <div className="print-top-summary hidden min-w-[220px] border border-stone-400 text-[13px] sm:block">
+                <div className="print-top-summary hidden min-w-[220px] border border-stone-400 text-[16px] leading-[1.35] sm:block">
                   <div className="grid grid-cols-[68px_1fr]">
-                    <div className="border-b border-r border-stone-300 bg-stone-100 px-2 py-1.5 font-medium">기준월</div>
-                    <div className="border-b border-stone-300 px-2 py-1.5 text-right tabular-nums">{selectedMonth || "-"}</div>
-                    <div className="border-r border-stone-300 bg-stone-100 px-2 py-1.5 font-medium">인원수</div>
-                    <div className="px-2 py-1.5 text-right tabular-nums">{visibleRows.length}명</div>
+                    <div className="border-b border-r border-stone-300 bg-stone-100 px-2.5 py-2 font-semibold">기준월</div>
+                    <div className="border-b border-stone-300 px-2.5 py-2 text-right font-medium tabular-nums">{selectedMonth || "-"}</div>
+                    <div className="border-r border-stone-300 bg-stone-100 px-2.5 py-2 font-semibold">인원수</div>
+                    <div className="px-2.5 py-2 text-right font-medium tabular-nums">{visibleRows.length}명</div>
                   </div>
                 </div>
               </div>
@@ -2324,20 +2324,20 @@ export default function Page() {
               <div className="overflow-hidden border border-stone-400">
                 <div className="grid grid-cols-1 border-stone-300 md:grid-cols-2">
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-r">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">회사명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{resolvedCompanyName}</div>
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">회사명</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{resolvedCompanyName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">현장명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{resolvedSiteName}</div>
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">현장명</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{resolvedSiteName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] md:border-r">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">기준월</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedMonth || "-"}</div>
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">기준월</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{selectedMonth || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)]">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">기간</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{monthPeriod.label}</div>
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">기간</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{monthPeriod.label}</div>
                   </div>
                 </div>
               </div>
