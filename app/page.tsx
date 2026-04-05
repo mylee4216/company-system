@@ -1883,6 +1883,21 @@ export default function Page() {
     "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[12.5px] leading-[1.3] outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
     "screen-daily-entry-input block w-full min-w-[32px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center font-semibold tabular-nums outline-none transition focus:bg-amber-50/70";
+  const workUnitsCellStyle = {
+    verticalAlign: "middle",
+    padding: "0.08rem 0.12rem",
+  } as const;
+  const workUnitsInputStyle = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    height: "100%",
+    lineHeight: 1,
+    textAlign: "center",
+    padding: 0,
+    fontSize: "12px",
+  } as const;
   const deleteButtonClass =
     "inline-flex h-8 min-w-[48px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
@@ -2856,7 +2871,10 @@ export default function Page() {
                             />
                           </td>
                         ))}
-                        <td className="print-cell-number border-r border-stone-300 px-1 py-2 align-middle text-center">
+                        <td
+                          className="print-cell-number border-r border-stone-300 px-1 py-2 align-middle text-center"
+                          style={workUnitsCellStyle}
+                        >
                           <div className="flex flex-col items-center justify-center gap-0.5">
                             <input
                               ref={(element) => {
@@ -2873,6 +2891,7 @@ export default function Page() {
                               placeholder="0"
                               readOnly={rowHasDailyEntries}
                               className={`${sheetNumericClass} ${rowHasDailyEntries ? "text-stone-500" : ""}`}
+                              style={workUnitsInputStyle}
                             />
                             {rowHasDailyEntries ? <p className="text-center text-[13.5px] leading-[1.25] text-stone-400">일자합계</p> : null}
                           </div>
