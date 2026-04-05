@@ -1342,8 +1342,8 @@ export default function Page() {
     <>
       <style jsx global>{`
         @page {
-          size: A4;
-          margin: 12mm;
+          size: A4 landscape;
+          margin: 8mm 10mm;
         }
 
         @media screen {
@@ -1367,6 +1367,7 @@ export default function Page() {
           body {
             background: #ffffff;
             font-size: 11px;
+            width: 297mm;
           }
 
           body * {
@@ -1398,6 +1399,25 @@ export default function Page() {
             width: 100% !important;
           }
 
+          main {
+            min-height: auto !important;
+            background: #ffffff !important;
+            padding: 0 !important;
+          }
+
+          .print-root,
+          .print-shell,
+          .print-sheet-section,
+          .print-sheet-meta,
+          .print-sheet-table-section {
+            max-width: none !important;
+          }
+
+          .print-root,
+          .print-shell {
+            min-width: 0 !important;
+          }
+
           .print-hidden {
             display: none !important;
           }
@@ -1427,7 +1447,7 @@ export default function Page() {
           .print-sheet-table {
             width: 100% !important;
             min-width: 0 !important;
-            table-layout: auto;
+            table-layout: fixed;
             font-size: 10px;
             line-height: 1.3;
           }
@@ -1437,19 +1457,19 @@ export default function Page() {
           }
 
           .print-sheet-table col.print-col-name {
-            width: 9% !important;
+            width: 8% !important;
           }
 
           .print-sheet-table col.print-col-resident {
-            width: 12% !important;
+            width: 15% !important;
           }
 
           .print-sheet-table col.print-col-phone {
-            width: 13.5% !important;
+            width: 14% !important;
           }
 
           .print-sheet-table col.print-col-trade {
-            width: 8% !important;
+            width: 10% !important;
           }
 
           .print-sheet-table col.print-col-unit-price {
@@ -1465,7 +1485,7 @@ export default function Page() {
           }
 
           .print-sheet-table col.print-col-note {
-            width: 29.5% !important;
+            width: 25% !important;
           }
 
           .print-sheet-table col.print-col-actions {
@@ -1505,22 +1525,22 @@ export default function Page() {
 
           .print-sheet-table th:nth-child(2),
           .print-sheet-table td:nth-child(2) {
-            width: 9%;
+            width: 8%;
           }
 
           .print-sheet-table th:nth-child(3),
           .print-sheet-table td:nth-child(3) {
-            width: 12%;
+            width: 15%;
           }
 
           .print-sheet-table th:nth-child(4),
           .print-sheet-table td:nth-child(4) {
-            width: 13.5%;
+            width: 14%;
           }
 
           .print-sheet-table th:nth-child(5),
           .print-sheet-table td:nth-child(5) {
-            width: 8%;
+            width: 10%;
           }
 
           .print-sheet-table th:nth-child(6),
@@ -1540,7 +1560,7 @@ export default function Page() {
 
           .print-sheet-table th:nth-child(9),
           .print-sheet-table td:nth-child(9) {
-            width: 29.5%;
+            width: 25%;
           }
 
           .print-cell-name,
@@ -1551,13 +1571,21 @@ export default function Page() {
             overflow-wrap: anywhere;
           }
 
+          .print-cell-name {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+          }
+
           .print-cell-resident,
           .print-cell-phone {
             white-space: nowrap !important;
             word-break: normal !important;
             overflow-wrap: normal !important;
-            font-size: 9.4px;
-            letter-spacing: -0.01em;
+            overflow: hidden !important;
+            text-overflow: clip !important;
+            font-size: 9.6px;
+            letter-spacing: -0.015em;
           }
 
           .print-cell-number {
@@ -1585,6 +1613,9 @@ export default function Page() {
             box-shadow: none !important;
             overflow: visible !important;
             text-overflow: clip !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
           }
 
           .print-sheet-table .print-cell-name input,
@@ -1595,6 +1626,11 @@ export default function Page() {
             word-break: keep-all;
           }
 
+          .print-sheet-table .print-cell-name input {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+          }
+
           .print-sheet-table .print-cell-resident input,
           .print-sheet-table .print-cell-phone input,
           .print-sheet-table .print-cell-number input {
@@ -1602,6 +1638,8 @@ export default function Page() {
             word-break: normal !important;
             overflow-wrap: normal !important;
             min-width: 0 !important;
+            overflow: hidden !important;
+            text-overflow: clip !important;
           }
 
           .print-sheet-table-section tbody::before {
