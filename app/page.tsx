@@ -139,6 +139,7 @@ const SNAPSHOT_META_PREFIX = "__ROW_META__";
 const MAX_DAY_COLUMNS = 31;
 const APP_PASSWORD = "leejuu1996!";
 const AUTH_STORAGE_KEY = "company-system-authenticated";
+const SCREEN_UI_SCALE = 0.68;
 const isBrowser = () => typeof window !== "undefined";
 
 function getStoredAuthStatus(): boolean {
@@ -170,7 +171,7 @@ function runOnNextFrame(callback: () => void): void {
 
   window.requestAnimationFrame(callback);
 }
-const TABLE_COLUMN_WIDTHS = {
+const TABLE_COLUMN_BASE_WIDTHS = {
   index: 52,
   trade: 96,
   name: 108,
@@ -184,6 +185,9 @@ const TABLE_COLUMN_WIDTHS = {
   category: 120,
   actions: 64,
 } as const;
+const TABLE_COLUMN_WIDTHS = Object.fromEntries(
+  Object.entries(TABLE_COLUMN_BASE_WIDTHS).map(([key, value]) => [key, Math.max(20, Math.round(value * SCREEN_UI_SCALE))]),
+) as typeof TABLE_COLUMN_BASE_WIDTHS;
 
 function createEmptyRow(id: string, trade = ""): LaborRow {
   return {
@@ -1869,18 +1873,18 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-12 w-full min-w-0 border-0 bg-transparent px-1.5 text-center text-[16.5px] leading-[1.35] outline-none transition focus:bg-amber-50/70";
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[13px] leading-[1.3] outline-none transition focus:bg-amber-50/70";
   const sheetNumericClass = `${sheetInputClass} whitespace-nowrap tabular-nums`;
   const sheetResidentInputClass =
-    "block h-12 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-[11px] text-center text-[16px] leading-[1.2] tracking-[-0.02em] whitespace-normal [overflow-wrap:break-word] [word-break:normal] [hyphens:manual] outline-none transition focus:bg-amber-50/70";
+    "block h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.15] tracking-[-0.02em] whitespace-normal [overflow-wrap:break-word] [word-break:normal] [hyphens:manual] outline-none transition focus:bg-amber-50/70";
   const sheetNoteTextareaClass =
-    "block h-12 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-[11px] text-center text-[16px] leading-[1.25] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+    "block h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.2] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
   const sheetCategoryInputClass =
-    "h-12 w-full min-w-0 border-0 bg-transparent px-1.5 text-center text-[16px] leading-[1.35] outline-none transition focus:bg-amber-50/70";
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[12.5px] leading-[1.3] outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
-    "screen-daily-entry-input block h-12 w-full min-w-[36px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center text-[15.5px] font-semibold leading-[3rem] tabular-nums outline-none transition focus:bg-amber-50/70";
+    "screen-daily-entry-input block h-10 w-full min-w-[32px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center text-[13.5px] font-semibold leading-10 tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
-    "inline-flex h-10 min-w-[60px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[14px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
+    "inline-flex h-8 min-w-[48px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
   const handlePasswordSubmit = () => {
     if (passwordInput === APP_PASSWORD) {
@@ -1905,16 +1909,16 @@ export default function Page() {
 
   if (authStatus !== "authenticated") {
     return (
-      <main className="min-h-screen bg-stone-100 px-4 py-10 text-stone-900">
-        <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-md items-center justify-center">
-          <section className="w-full rounded-2xl border border-stone-200 bg-white p-7 shadow-sm">
+      <main className="min-h-screen bg-stone-100 px-3 py-7 text-stone-900">
+        <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-sm items-center justify-center">
+          <section className="w-full rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
             <div className="space-y-2">
-              <h1 className="text-xl font-semibold tracking-[-0.02em] text-stone-900">접근 비밀번호</h1>
-              <p className="text-sm leading-6 text-stone-500">
+              <h1 className="text-lg font-semibold tracking-[-0.02em] text-stone-900">접근 비밀번호</h1>
+              <p className="text-[13px] leading-5 text-stone-500">
                 내부 사용 화면입니다. 비밀번호를 입력해야 계속 진행할 수 있습니다.
               </p>
             </div>
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-2.5">
               <input
                 type="password"
                 value={passwordInput}
@@ -1927,19 +1931,19 @@ export default function Page() {
                 onKeyDown={handlePasswordKeyDown}
                 placeholder="비밀번호 입력"
                 autoComplete="current-password"
-                className="h-12 w-full rounded-lg border border-stone-300 bg-white px-4 text-base outline-none transition focus:border-stone-500"
+                className="h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-[14px] outline-none transition focus:border-stone-500"
               />
               <button
                 type="button"
                 onClick={handlePasswordSubmit}
-                className="h-12 w-full rounded-lg bg-stone-900 text-sm font-medium text-white transition hover:bg-stone-800"
+                className="h-10 w-full rounded-lg bg-stone-900 text-[13px] font-medium text-white transition hover:bg-stone-800"
               >
                 확인
               </button>
               {authStatus === "checking" ? (
-                <p className="text-sm text-stone-400">접근 상태를 확인하는 중입니다.</p>
+                <p className="text-[12px] text-stone-400">접근 상태를 확인하는 중입니다.</p>
               ) : null}
-              {authError ? <p className="text-sm text-red-600">{authError}</p> : null}
+              {authError ? <p className="text-[12px] text-red-600">{authError}</p> : null}
             </div>
           </section>
         </div>
@@ -1951,8 +1955,174 @@ export default function Page() {
     <>
       <style jsx global>{`
         @media screen {
+          .screen-app {
+            font-size: 11px;
+          }
+
+          .screen-control-panel {
+            font-size: 11px !important;
+          }
+
+          .screen-control-field {
+            padding: 0.4rem 0.55rem !important;
+            font-size: 11.5px !important;
+            line-height: 1.25 !important;
+          }
+
+          .screen-control-input {
+            height: 2.1rem !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+            font-size: 11.5px !important;
+            line-height: 1.25 !important;
+          }
+
+          .screen-status-message,
+          .screen-feedback-message {
+            padding: 0.4rem 0.55rem !important;
+            font-size: 11px !important;
+            line-height: 1.35 !important;
+          }
+
+          .screen-control-actions {
+            gap: 0.4rem !important;
+            padding: 0.4rem 0.55rem !important;
+          }
+
+          .screen-control-button {
+            height: 2.1rem !important;
+            padding-left: 0.7rem !important;
+            padding-right: 0.7rem !important;
+            font-size: 11.5px !important;
+          }
+
+          .print-shell {
+            box-shadow: 0 10px 24px -24px rgba(15, 23, 42, 0.45) !important;
+          }
+
+          .print-shell > header {
+            padding: 0.55rem 0.7rem !important;
+          }
+
+          .print-shell > footer {
+            padding: 0.55rem 0.7rem !important;
+          }
+
+          .print-kicker {
+            font-size: 9px !important;
+            letter-spacing: 0.2em !important;
+          }
+
+          .print-title {
+            margin-top: 0.1rem !important;
+            font-size: 22px !important;
+            line-height: 1.02 !important;
+          }
+
+          .print-top-summary {
+            min-width: 148px !important;
+            font-size: 11px !important;
+            line-height: 1.25 !important;
+          }
+
+          .print-meta-label,
+          .print-meta-value,
+          .print-summary-label,
+          .print-summary-value {
+            padding: 0.35rem 0.55rem !important;
+            font-size: 11.5px !important;
+            line-height: 1.25 !important;
+          }
+
+          .print-sheet-table {
+            font-size: 11.5px !important;
+            line-height: 1.2 !important;
+          }
+
+          .print-sheet-table thead th {
+            padding: 0.42rem 0.28rem !important;
+            font-size: 12.25px !important;
+            line-height: 1.15 !important;
+          }
+
+          .print-day-header {
+            padding-top: 0.3rem !important;
+            padding-bottom: 0.3rem !important;
+            font-size: 10.5px !important;
+          }
+
+          .print-sheet-table tbody td,
+          .print-sheet-table tfoot td {
+            padding: 0.22rem 0.24rem !important;
+            font-size: 11.25px !important;
+            line-height: 1.15 !important;
+          }
+
+          .print-cell-phone,
+          .print-cell-phone input {
+            min-width: 106px;
+          }
+
+          .print-cell-resident,
+          .print-cell-resident textarea {
+            min-width: 98px;
+          }
+
+          .print-cell-unit-price,
+          .print-cell-unit-price input {
+            min-width: 72px;
+          }
+
+          .print-cell-trade input,
+          .print-cell-name input,
+          .print-cell-phone input,
+          .print-cell-number input,
+          .print-cell-category input {
+            height: 2rem !important;
+            padding-left: 0.2rem !important;
+            padding-right: 0.2rem !important;
+            font-size: 11.25px !important;
+            line-height: 1.15 !important;
+          }
+
+          .print-cell-phone input,
+          .print-cell-unit-price input,
+          .print-cell-number input {
+            font-size: 11.5px !important;
+          }
+
+          .print-cell-resident textarea,
+          .print-cell-note textarea {
+            height: 2rem !important;
+            padding-top: 0.28rem !important;
+            padding-bottom: 0.28rem !important;
+            padding-left: 0.2rem !important;
+            padding-right: 0.2rem !important;
+            font-size: 10.75px !important;
+            line-height: 1.1 !important;
+          }
+
+          .print-cell-number .flex {
+            gap: 0.1rem !important;
+          }
+
+          .print-cell-number p {
+            font-size: 10px !important;
+            line-height: 1.1 !important;
+          }
+
+          .print-cell-actions button {
+            height: 1.6rem !important;
+            min-width: 40px !important;
+            padding-left: 0.4rem !important;
+            padding-right: 0.4rem !important;
+            font-size: 10.5px !important;
+          }
+
           .screen-daily-entry-cell {
             text-align: center;
+            padding-top: 0.15rem !important;
+            padding-bottom: 0.15rem !important;
           }
 
           .screen-daily-entry-input {
@@ -1962,7 +2132,25 @@ export default function Page() {
             vertical-align: middle;
             padding-top: 0 !important;
             padding-bottom: 0 !important;
-            line-height: 3rem !important;
+            min-width: 28px !important;
+            min-height: 2rem;
+            font-size: 11.5px !important;
+            line-height: 2rem !important;
+          }
+
+          .print-footer-guide {
+            font-size: 10.75px !important;
+            line-height: 1.35 !important;
+          }
+
+          .print-footer-guide .block:last-child {
+            line-height: 1.4 !important;
+          }
+
+          .print-hidden {
+            margin-top: 0.4rem !important;
+            font-size: 10.75px !important;
+            line-height: 1.45 !important;
           }
 
           .screen-daily-entry-input::placeholder {
@@ -2035,19 +2223,16 @@ export default function Page() {
 
           .print-cell-phone,
           .print-cell-phone input {
-            min-width: 162px;
             white-space: nowrap;
           }
 
           .print-cell-resident,
           .print-cell-resident textarea {
-            min-width: 150px;
             white-space: nowrap;
           }
 
           .print-cell-unit-price,
           .print-cell-unit-price input {
-            min-width: 108px;
             white-space: nowrap;
           }
 
@@ -2374,34 +2559,34 @@ export default function Page() {
           }
         }
       `}</style>
-      <main className="min-h-screen bg-[#e7e0d2] px-0 py-0.5 text-slate-900 sm:px-0.5 sm:py-1">
+      <main className="screen-app min-h-screen bg-[#e7e0d2] px-0 py-0.5 text-slate-900 sm:px-0.5 sm:py-1">
         <div className="print-root mx-auto w-full max-w-none">
-          <section className="print-hidden print-interactive mb-1 border border-stone-400 bg-[#f7f2e7] text-[16px] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
+          <section className="screen-control-panel print-hidden print-interactive mb-1 border border-stone-400 bg-[#f7f2e7] text-[16px] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
             <div className="grid gap-0 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
-              <label className="border-b border-r border-stone-300 px-2 py-2 text-[17px] leading-[1.35]">
+              <label className="screen-control-field border-b border-r border-stone-300 px-2 py-2 text-[17px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-stone-700">회사명</span>
                 <input
                   type="text"
-                  className="h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
+                  className="screen-control-input h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
                   value={companyNameInput}
                   onChange={(event) => setCompanyNameInput(event.target.value)}
                   placeholder="회사명 입력"
                 />
               </label>
-              <label className="border-b border-r border-stone-300 px-2 py-2 text-[17px] leading-[1.35]">
+              <label className="screen-control-field border-b border-r border-stone-300 px-2 py-2 text-[17px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-stone-700">현장명</span>
                 <input
                   type="text"
-                  className="h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
+                  className="screen-control-input h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
                   value={siteNameInput}
                   onChange={(event) => setSiteNameInput(event.target.value)}
                   placeholder="현장명 입력"
                 />
               </label>
-              <label className="border-b border-r border-stone-300 px-2 py-2 text-[17px] leading-[1.35]">
+              <label className="screen-control-field border-b border-r border-stone-300 px-2 py-2 text-[17px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-stone-700">구분</span>
                 <select
-                  className="h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
+                  className="screen-control-input h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
                   value={selectedCategoryFilter}
                   onChange={(event) => setSelectedCategoryFilter(event.target.value)}
                 >
@@ -2412,28 +2597,28 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="border-b border-stone-300 px-2 py-2 text-[17px] leading-[1.35] md:border-r xl:border-r-0">
+              <label className="screen-control-field border-b border-stone-300 px-2 py-2 text-[17px] leading-[1.35] md:border-r xl:border-r-0">
                 <span className="mb-1 block font-medium text-stone-700">기준월</span>
                 <input
                   type="month"
-                  className="h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
+                  className="screen-control-input h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
                   value={selectedMonth}
                   onChange={(event) => setSelectedMonth(event.target.value)}
                 />
               </label>
             </div>
 
-            <div className="border-b border-stone-300 px-2 py-2 text-[15px] leading-[1.45] text-stone-600">
+            <div className="screen-status-message border-b border-stone-300 px-2 py-2 text-[15px] leading-[1.45] text-stone-600">
               기간: {monthPeriod.label}
             </div>
 
-            <div className="border-b border-stone-300 px-2 py-2 text-[15px] leading-[1.45] text-stone-600">
+            <div className="screen-status-message border-b border-stone-300 px-2 py-2 text-[15px] leading-[1.45] text-stone-600">
               {selectedSite
                 ? `등록된 현장과 연결됨: ${selectedCompany?.name ?? "-"} / ${selectedSite.name}`
                 : "저장 및 기존 내역 조회를 위해 회사명과 현장명을 등록된 이름과 동일하게 입력해 주세요."}
             </div>
 
-            <div className="flex flex-wrap gap-2 border-b border-stone-300 px-2 py-2">
+            <div className="screen-control-actions flex flex-wrap gap-2 border-b border-stone-300 px-2 py-2">
               <input
                 ref={excelFileInputRef}
                 type="file"
@@ -2444,28 +2629,28 @@ export default function Page() {
               <button
                 type="button"
                 onClick={() => addRow()}
-                className="inline-flex h-12 items-center justify-center border border-stone-700 bg-white px-3.5 text-[17px] leading-none font-medium text-stone-800 transition hover:bg-stone-100"
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-stone-700 bg-white px-3.5 text-[17px] leading-none font-medium text-stone-800 transition hover:bg-stone-100"
               >
                 행 추가
               </button>
               <button
                 type="button"
                 onClick={handleDownloadExcel}
-                className="inline-flex h-12 items-center justify-center border border-sky-700 bg-white px-3.5 text-[17px] leading-none font-medium text-sky-800 transition hover:bg-sky-50"
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-sky-700 bg-white px-3.5 text-[17px] leading-none font-medium text-sky-800 transition hover:bg-sky-50"
               >
                 엑셀 다운로드
               </button>
               <button
                 type="button"
                 onClick={handleUploadButtonClick}
-                className="inline-flex h-12 items-center justify-center border border-violet-700 bg-white px-3.5 text-[17px] leading-none font-medium text-violet-800 transition hover:bg-violet-50"
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-violet-700 bg-white px-3.5 text-[17px] leading-none font-medium text-violet-800 transition hover:bg-violet-50"
               >
                 엑셀 업로드
               </button>
               <button
                 type="button"
                 onClick={handlePrint}
-                className="inline-flex h-12 items-center justify-center border border-slate-700 bg-white px-3.5 text-[17px] leading-none font-medium text-slate-800 transition hover:bg-slate-100"
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-slate-700 bg-white px-3.5 text-[17px] leading-none font-medium text-slate-800 transition hover:bg-slate-100"
               >
                 PDF 출력
               </button>
@@ -2473,19 +2658,19 @@ export default function Page() {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving || isLoading || isRecordsLoading}
-                className="inline-flex h-12 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-[17px] leading-none font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-[17px] leading-none font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
               >
                 {isSaving ? "저장 중..." : "저장"}
                 </button>
               </div>
 
-            {loadError ? <p className="border-b border-red-200 bg-red-50 px-2 py-2 text-[16px] leading-[1.45] text-red-700">{loadError}</p> : null}
-            {saveError ? <p className="border-b border-amber-200 bg-amber-50 px-2 py-2 text-[16px] leading-[1.45] text-amber-700">{saveError}</p> : null}
+            {loadError ? <p className="screen-feedback-message border-b border-red-200 bg-red-50 px-2 py-2 text-[16px] leading-[1.45] text-red-700">{loadError}</p> : null}
+            {saveError ? <p className="screen-feedback-message border-b border-amber-200 bg-amber-50 px-2 py-2 text-[16px] leading-[1.45] text-amber-700">{saveError}</p> : null}
             {saveWarningMessage ? (
-              <p className="border-b border-amber-200 bg-amber-50 px-2 py-2 text-[16px] leading-[1.45] text-amber-700">{saveWarningMessage}</p>
+              <p className="screen-feedback-message border-b border-amber-200 bg-amber-50 px-2 py-2 text-[16px] leading-[1.45] text-amber-700">{saveWarningMessage}</p>
             ) : null}
             {saveSuccessMessage ? (
-              <p className="bg-emerald-50 px-2 py-2 text-[16px] leading-[1.45] text-emerald-700">{saveSuccessMessage}</p>
+              <p className="screen-feedback-message bg-emerald-50 px-2 py-2 text-[16px] leading-[1.45] text-emerald-700">{saveSuccessMessage}</p>
             ) : null}
           </section>
 
