@@ -587,14 +587,13 @@ export default function Page() {
     return newRowId;
   };
 
-  const removeRow = (rowId: string) => {
+  const removeRowAtIndex = (rowIndex: number) => {
     setRows((currentRows) => {
-      if (currentRows.length === 1) {
-        const currentRow = currentRows[0];
-        return [createEmptyRow(`manual-${Date.now()}`, currentRow.trade || FALLBACK_TRADE)];
+      if (rowIndex < 0 || rowIndex >= currentRows.length) {
+        return currentRows;
       }
 
-      return currentRows.filter((row) => row.id !== rowId);
+      return currentRows.filter((_, index) => index !== rowIndex);
     });
 
     setSaveSuccessMessage("");
@@ -802,6 +801,8 @@ export default function Page() {
   const sheetInputClass =
     "h-9 w-full border border-stone-200 bg-white px-2 text-sm outline-none transition focus:border-stone-700";
   const sheetNumericClass = `${sheetInputClass} text-right tabular-nums`;
+  const deleteButtonClass =
+    "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-xs font-medium text-transparent transition hover:border-red-300 hover:bg-red-100 before:text-red-700 before:content-['삭제']";
 
   return (
     <main className="min-h-screen bg-[#f3f0e8] px-3 py-4 text-slate-900 sm:px-4 lg:px-6">
@@ -997,8 +998,11 @@ export default function Page() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleRows.map((row, index) => (
-                      <tr key={row.id} className="border-b border-stone-300 align-middle odd:bg-white even:bg-stone-50/40">
+                    {visibleRows.map((row, index) => {
+                      const rowIndex = rows.findIndex((currentRow) => currentRow.id === row.id);
+
+                      return (
+                        <tr key={row.id} className="border-b border-stone-300 align-middle odd:bg-white even:bg-stone-50/40">
                         <td className="border-r border-stone-300 px-2 py-1.5 text-center text-xs text-stone-700">
                           {index + 1}
                         </td>
@@ -1096,14 +1100,16 @@ export default function Page() {
                         <td className="px-1.5 py-1 text-center">
                           <button
                             type="button"
-                            onClick={() => removeRow(row.id)}
-                            className="inline-flex h-9 items-center justify-center border border-stone-300 bg-white px-3 text-sm text-stone-700 transition hover:border-red-400 hover:text-red-600"
+                            aria-label="삭제"
+                            onClick={() => removeRowAtIndex(rowIndex)}
+                            className={deleteButtonClass}
                           >
                             삭제
                           </button>
                         </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot className="bg-[#f5f2ea]">
                     <tr className="border-t-2 border-stone-500">
