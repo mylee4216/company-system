@@ -1336,7 +1336,7 @@ export default function Page() {
     "h-9 w-full border border-stone-200 bg-white px-2 text-sm outline-none transition focus:border-stone-700";
   const sheetNumericClass = `${sheetInputClass} text-right tabular-nums`;
   const deleteButtonClass =
-    "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-xs font-medium text-transparent transition hover:border-red-300 hover:bg-red-100 before:text-red-700 before:content-['삭제']";
+    "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-xs font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
   return (
     <>
@@ -1344,6 +1344,22 @@ export default function Page() {
         @page {
           size: A4;
           margin: 12mm;
+        }
+
+        @media screen {
+          .print-root,
+          .print-shell,
+          .print-sheet-section,
+          .print-sheet-scroll {
+            position: static !important;
+            inset: auto !important;
+            pointer-events: auto !important;
+          }
+
+          .print-interactive,
+          .print-interactive * {
+            pointer-events: auto !important;
+          }
         }
 
         @media print {
@@ -1356,12 +1372,12 @@ export default function Page() {
             visibility: hidden;
           }
 
-          .print-area,
-          .print-area * {
+          .print-root,
+          .print-root * {
             visibility: visible;
           }
 
-          .print-area {
+          .print-root {
             position: absolute;
             inset: 0;
             width: 100%;
@@ -1421,8 +1437,8 @@ export default function Page() {
           }
         }
       `}</style>
-      <main className="print-area min-h-screen bg-[#f3f0e8] px-3 py-4 text-slate-900 sm:px-4 lg:px-6">
-      <div className="mx-auto w-full max-w-[1500px]">
+      <main className="min-h-screen bg-[#f3f0e8] px-3 py-4 text-slate-900 sm:px-4 lg:px-6">
+      <div className="print-root mx-auto w-full max-w-[1500px]">
         <section className="print-shell border border-stone-400 bg-white shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
           <header className="border-b-2 border-stone-700 px-4 py-4 sm:px-6">
   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1454,7 +1470,7 @@ export default function Page() {
 </header>
 
           <div className="space-y-4 px-4 py-4 sm:px-6">
-            <section className="print-hidden border border-stone-300">
+            <section className="print-hidden print-interactive relative z-10 border border-stone-300">
               <div className="border-b border-stone-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700">
                 조회 조건
               </div>
@@ -1583,7 +1599,7 @@ export default function Page() {
                   <h2 className="text-base font-semibold text-slate-900">노무비 입력표</h2>
                   <p className="text-sm text-stone-600">Enter 키로 다음 셀로 이동하며 내용을 연속 입력할 수 있습니다.</p>
                 </div>
-                <div className="print-hidden flex flex-wrap items-center gap-2">
+                <div className="print-hidden print-interactive relative z-10 flex flex-wrap items-center gap-2">
                   <input
                     ref={excelFileInputRef}
                     type="file"
@@ -1784,7 +1800,7 @@ export default function Page() {
               </div>
             </section>
 
-            <section className="print-hidden border border-stone-300">
+            <section className="print-hidden print-interactive relative z-10 border border-stone-300">
               <div className="grid gap-0 md:grid-cols-[1.2fr_1fr_1fr_auto]">
                 <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 md:border-b-0">
                   입력 안내
@@ -1820,7 +1836,7 @@ export default function Page() {
               </div>
             </section>
 
-            <section className="print-hidden border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm leading-6 text-stone-600">
+            <section className="print-hidden print-interactive relative z-10 border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm leading-6 text-stone-600">
               <p>입력 UX 안내</p>
               <p>날짜 `20260404` -&gt; `2026-04-04`</p>
               <p>주민번호 13자리 -&gt; `######-#######`</p>
@@ -1838,5 +1854,3 @@ export default function Page() {
     </>
   );
 }
-
-
