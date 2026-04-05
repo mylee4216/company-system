@@ -93,9 +93,10 @@ type LaborRow = {
   workUnits: string;
   dailyWorkEntries: DailyWorkEntryMap;
   note: string;
+  category: string;
 };
 
-type EditableField = "name" | "residentId" | "phone" | "trade" | "unitPrice" | "workUnits" | "note";
+type EditableField = "name" | "residentId" | "phone" | "trade" | "unitPrice" | "workUnits" | "note" | "category";
 type NumericField = "unitPrice" | "workUnits";
 type FocusedNumericCell = {
   rowId: string;
@@ -112,6 +113,7 @@ type UploadedSheetRow = {
   "공수"?: string | number;
   "지급액"?: string | number;
   "비고"?: string;
+  "구분"?: string;
 };
 
 const EDITABLE_FIELDS: EditableField[] = [
@@ -122,11 +124,14 @@ const EDITABLE_FIELDS: EditableField[] = [
   "unitPrice",
   "workUnits",
   "note",
+  "category",
 ];
 
 const EXCEL_UPLOAD_HEADERS = ["번호", "성명", "주민번호", "전화번호", "직종", "단가", "공수", "지급액", "비고"] as const;
 
-const ALL_TRADES_LABEL = "전체";
+const ALL_CATEGORIES_LABEL = "전체";
+const CATEGORY_FILTER_OPTIONS = [ALL_CATEGORIES_LABEL, "직영", "용역", "기타"] as const;
+const SNAPSHOT_META_PREFIX = "__ROW_META__";
 const MAX_DAY_COLUMNS = 31;
 const TABLE_COLUMN_WIDTHS = {
   index: 52,
@@ -139,20 +144,9 @@ const TABLE_COLUMN_WIDTHS = {
   unitPrice: 92,
   payment: 98,
   note: 144,
+  category: 120,
   actions: 64,
 } as const;
-const TABLE_MIN_WIDTH =
-  TABLE_COLUMN_WIDTHS.index +
-  TABLE_COLUMN_WIDTHS.trade +
-  TABLE_COLUMN_WIDTHS.name +
-  TABLE_COLUMN_WIDTHS.phone +
-  TABLE_COLUMN_WIDTHS.resident +
-  TABLE_COLUMN_WIDTHS.day * MAX_DAY_COLUMNS +
-  TABLE_COLUMN_WIDTHS.total +
-  TABLE_COLUMN_WIDTHS.unitPrice +
-  TABLE_COLUMN_WIDTHS.payment +
-  TABLE_COLUMN_WIDTHS.note +
-  TABLE_COLUMN_WIDTHS.actions;
 
 function createEmptyRow(id: string, trade = ""): LaborRow {
   return {
@@ -167,6 +161,7 @@ function createEmptyRow(id: string, trade = ""): LaborRow {
     workUnits: "",
     dailyWorkEntries: {},
     note: "",
+    category: "",
   };
 }
 
@@ -326,6 +321,41 @@ function getDefaultMonth() {
   return new Date().toISOString().slice(0, 7);
 }
 
+function getMonthLastDay(targetMonth: string) {
+  if (!/^\d{4}-\d{2}$/.test(targetMonth)) {
+    return 0;
+  }
+
+  const [year, month] = targetMonth.split("-").map(Number);
+
+  if (!year || !month) {
+    return 0;
+  }
+
+  return new Date(year, month, 0).getDate();
+}
+
+function getMonthPeriod(targetMonth: string) {
+  const lastDay = getMonthLastDay(targetMonth);
+
+  if (!lastDay) {
+    return {
+      startDate: "",
+      endDate: "",
+      label: "-",
+    };
+  }
+
+  const startDate = `${targetMonth}-01`;
+  const endDate = `${targetMonth}-${String(lastDay).padStart(2, "0")}`;
+
+  return {
+    startDate,
+    endDate,
+    label: `${startDate} ~ ${endDate}`,
+  };
+}
+
 function getWorkUnitsFromEntries(entries: WorkEntry[] | null) {
   if (!entries) {
     return 0;
@@ -338,17 +368,13 @@ function getWorkUnitsFromEntries(entries: WorkEntry[] | null) {
 }
 
 function getMonthDateList(targetMonth: string) {
-  if (!/^\d{4}-\d{2}$/.test(targetMonth)) {
+  const lastDay = getMonthLastDay(targetMonth);
+
+  if (!lastDay) {
     return [] as string[];
   }
 
-  const [year, month] = targetMonth.split("-").map(Number);
-
-  if (!year || !month) {
-    return [] as string[];
-  }
-
-  return Array.from({ length: MAX_DAY_COLUMNS }, (_, index) => {
+  return Array.from({ length: Math.min(lastDay, MAX_DAY_COLUMNS) }, (_, index) => {
     const day = String(index + 1).padStart(2, "0");
     return `${targetMonth}-${day}`;
   });
@@ -429,6 +455,71 @@ function getRowAutoNote(row: LaborRow) {
   return firstWorkedDate ? `최초 작업일 ${formatDateDisplay(firstWorkedDate)}` : "";
 }
 
+function getRowAutoNoteMultiline(row: LaborRow) {
+  const firstWorkedDate = getFirstWorkedDateFromDailyEntries(row.dailyWorkEntries);
+
+  if (!firstWorkedDate) {
+    return "";
+  }
+
+  return `최초 작업일\n${formatDateDisplay(firstWorkedDate)}`;
+}
+
+function getCategoryFilterValue(category: string | null | undefined) {
+  const normalized = category?.trim() ?? "";
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized === "직영" || normalized === "용역") {
+    return normalized;
+  }
+
+  return "기타";
+}
+
+function parseSnapshotNote(value: string | null | undefined) {
+  const normalized = value?.trim() ?? "";
+
+  if (!normalized) {
+    return { note: "", category: "" };
+  }
+
+  const markerIndex = normalized.indexOf(SNAPSHOT_META_PREFIX);
+
+  if (markerIndex < 0) {
+    return { note: normalized, category: "" };
+  }
+
+  const note = normalized.slice(0, markerIndex).trim();
+  const serializedMeta = normalized.slice(markerIndex + SNAPSHOT_META_PREFIX.length).trim();
+
+  try {
+    const parsed = JSON.parse(serializedMeta) as { category?: unknown };
+    return {
+      note,
+      category: typeof parsed.category === "string" ? parsed.category.trim() : "",
+    };
+  } catch {
+    return { note: normalized, category: "" };
+  }
+}
+
+function buildSnapshotNote(row: LaborRow) {
+  const autoNote = getRowAutoNote(row);
+  const normalizedCategory = row.category.trim();
+
+  if (!normalizedCategory) {
+    return autoNote || null;
+  }
+
+  const serializedMeta = JSON.stringify({ category: normalizedCategory });
+  return autoNote
+    ? `${autoNote}\n${SNAPSHOT_META_PREFIX}${serializedMeta}`
+    : `${SNAPSHOT_META_PREFIX}${serializedMeta}`;
+}
+
 function getMonthlyRecordSnapshot(entries: WorkEntry[] | null) {
   if (!entries) {
     return null;
@@ -452,7 +543,7 @@ function buildMonthlyRecordWorkEntries(row: LaborRow, workUnits: number, grossAm
     unit_price: parseNumber(row.unitPrice) || null,
     total_work_units: workUnits,
     gross_amount: grossAmount,
-    note: getRowAutoNote(row) || null,
+    note: buildSnapshotNote(row),
   } satisfies MonthlyRecordRowSnapshot;
 
   const datedEntries = Object.entries(row.dailyWorkEntries)
@@ -633,7 +724,7 @@ export default function Page() {
   const [siteNameInput, setSiteNameInput] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [selectedSiteId, setSelectedSiteId] = useState("");
-  const [selectedTradeFilter, setSelectedTradeFilter] = useState(ALL_TRADES_LABEL);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState(ALL_CATEGORIES_LABEL);
   const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth);
   const [rows, setRows] = useState<LaborRow[]>([createEmptyRow("manual-1")]);
 
@@ -646,7 +737,7 @@ export default function Page() {
   const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
   const [focusedNumericCell, setFocusedNumericCell] = useState<FocusedNumericCell | null>(null);
 
-  const cellRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
+  const cellRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null>>({});
   const dailyCellRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingFocusRef = useRef<{ rowId: string; field: EditableField } | null>(null);
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -773,6 +864,23 @@ export default function Page() {
   const resolvedSiteName = siteNameInput.trim() || selectedSite?.name || "-";
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
+  const monthPeriod = useMemo(() => getMonthPeriod(selectedMonth), [selectedMonth]);
+  const tableMinWidth = useMemo(
+    () =>
+      TABLE_COLUMN_WIDTHS.index +
+      TABLE_COLUMN_WIDTHS.trade +
+      TABLE_COLUMN_WIDTHS.name +
+      TABLE_COLUMN_WIDTHS.phone +
+      TABLE_COLUMN_WIDTHS.resident +
+      TABLE_COLUMN_WIDTHS.day * monthDates.length +
+      TABLE_COLUMN_WIDTHS.total +
+      TABLE_COLUMN_WIDTHS.unitPrice +
+      TABLE_COLUMN_WIDTHS.payment +
+      TABLE_COLUMN_WIDTHS.note +
+      TABLE_COLUMN_WIDTHS.category +
+      TABLE_COLUMN_WIDTHS.actions,
+    [monthDates.length],
+  );
 
   useEffect(() => {
     let active = true;
@@ -827,6 +935,7 @@ export default function Page() {
       const workerId = getRecordWorkerId(record);
       const worker = workerId ? workerMap.get(workerId) : undefined;
       const snapshot = getMonthlyRecordSnapshot(record.work_entries);
+      const parsedSnapshotNote = parseSnapshotNote(snapshot?.note);
       const dailyWorkEntries = getDailyWorkEntriesFromRecord(record.work_entries, selectedMonth);
       const summedDailyWorkUnits = getDailyWorkEntriesTotal(dailyWorkEntries);
       const totalWorkUnits =
@@ -857,6 +966,7 @@ export default function Page() {
         unitPrice: unitPrice ? String(unitPrice) : "",
         workUnits: totalWorkUnits ? String(totalWorkUnits) : "",
         note,
+        category: parsedSnapshotNote.category,
         },
         name,
         residentId: formatResidentId(
@@ -871,6 +981,7 @@ export default function Page() {
         trade: getTradeLabel(snapshot?.job_type || worker?.job_type || null),
         dailyWorkEntries,
         note,
+        category: parsedSnapshotNote.category,
       } satisfies LaborRow;
     });
   }, [dailyWorkers, monthlyRecords, selectedMonth]);
@@ -884,31 +995,19 @@ export default function Page() {
     setRows([createEmptyRow(`manual-${Date.now()}`)]);
   }, [baseStatementRows]);
 
-  const tradeOptions = useMemo(() => {
-    const uniqueTrades = new Set<string>();
-
-    rows.forEach((row) => {
-      if (row.trade.trim()) {
-        uniqueTrades.add(row.trade);
-      }
-    });
-
-    return [ALL_TRADES_LABEL, ...Array.from(uniqueTrades).sort((left, right) => left.localeCompare(right))];
-  }, [rows]);
-
   useEffect(() => {
-    if (selectedTradeFilter !== ALL_TRADES_LABEL && !tradeOptions.includes(selectedTradeFilter)) {
-      setSelectedTradeFilter(ALL_TRADES_LABEL);
+    if (!CATEGORY_FILTER_OPTIONS.some((option) => option === selectedCategoryFilter)) {
+      setSelectedCategoryFilter(ALL_CATEGORIES_LABEL);
     }
-  }, [selectedTradeFilter, tradeOptions]);
+  }, [selectedCategoryFilter]);
 
   const visibleRows = useMemo(() => {
-    if (selectedTradeFilter === ALL_TRADES_LABEL) {
+    if (selectedCategoryFilter === ALL_CATEGORIES_LABEL) {
       return rows;
     }
 
-    return rows.filter((row) => row.trade === selectedTradeFilter);
-  }, [rows, selectedTradeFilter]);
+    return rows.filter((row) => getCategoryFilterValue(row.category) === selectedCategoryFilter);
+  }, [rows, selectedCategoryFilter]);
 
   const totalWorkUnits = useMemo(
     () => visibleRows.reduce((sum, row) => sum + getEffectiveWorkUnits(row), 0),
@@ -1051,7 +1150,10 @@ export default function Page() {
     }
 
     target.focus();
-    target.select();
+
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      target.select();
+    }
   };
 
   const focusDailyCell = (rowId: string, date: string) => {
@@ -1079,15 +1181,19 @@ export default function Page() {
     }
 
     target.focus();
-    target.select();
+
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      target.select();
+    }
+
     pendingFocusRef.current = null;
   }, [rows, visibleRows]);
 
   const addRow = (options?: { focusField?: EditableField }) => {
     const newRowId = `manual-${Date.now()}`;
 
-    if (selectedTradeFilter !== ALL_TRADES_LABEL) {
-      setSelectedTradeFilter(ALL_TRADES_LABEL);
+    if (selectedCategoryFilter !== ALL_CATEGORIES_LABEL) {
+      setSelectedCategoryFilter(ALL_CATEGORIES_LABEL);
     }
 
     setRows((currentRows) => [...currentRows, createEmptyRow(newRowId)]);
@@ -1215,7 +1321,7 @@ export default function Page() {
   };
 
   const handleCellKeyDown = (
-    event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+    event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
     rowId: string,
     field: EditableField,
   ) => {
@@ -1492,13 +1598,14 @@ export default function Page() {
       parseNumber(row.unitPrice),
       getEffectiveWorkUnits(row),
       getPaymentAmount(row),
-      getRowAutoNote(row),
+      getRowAutoNoteMultiline(row),
+      row.category,
     ]);
 
     const worksheetData = [
-      ["번호", "성명", "주민번호", "전화번호", "직종", "단가", "공수", "지급액", "비고"],
+      ["번호", "성명", "주민번호", "전화번호", "직종", "단가", "공수", "지급액", "비고", "구분"],
       ...exportRows,
-      ["", "", "", "", "", "합계", totalWorkUnits, totalPaymentAmount, ""],
+      ["", "", "", "", "", "합계", totalWorkUnits, totalPaymentAmount, "", ""],
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -1512,6 +1619,7 @@ export default function Page() {
       { wch: 10 },
       { wch: 14 },
       { wch: 24 },
+      { wch: 16 },
     ];
 
     const lastRowIndex = worksheetData.length;
@@ -1605,6 +1713,7 @@ export default function Page() {
           const unitPrice = normalizeUploadedNumericText(uploadedRow["단가"]);
           const workUnits = normalizeUploadedNumericText(uploadedRow["공수"]);
           const note = String(uploadedRow["비고"] ?? "").trim();
+          const category = String(uploadedRow["구분"] ?? "").trim();
           const amount = parseExcelNumber(uploadedRow["지급액"]);
 
           const hasContent =
@@ -1615,6 +1724,7 @@ export default function Page() {
             Boolean(unitPrice) ||
             Boolean(workUnits) ||
             Boolean(note) ||
+            Boolean(category) ||
             amount > 0;
 
           if (!hasContent) {
@@ -1633,12 +1743,13 @@ export default function Page() {
             workUnits,
             dailyWorkEntries: {},
             note,
+            category,
           } satisfies LaborRow;
         })
         .filter((row): row is LaborRow => row !== null);
 
       setRows(nextRows.length ? nextRows : [createEmptyRow(`manual-${uploadTimestamp}`)]);
-      setSelectedTradeFilter(ALL_TRADES_LABEL);
+      setSelectedCategoryFilter(ALL_CATEGORIES_LABEL);
       setFocusedNumericCell(null);
       pendingFocusRef.current = null;
       setSaveError("");
@@ -1658,16 +1769,18 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-9 w-full min-w-0 border-0 bg-transparent px-1 text-[13px] leading-[1.25] outline-none transition focus:bg-amber-50/70";
-  const sheetNumericClass = `${sheetInputClass} whitespace-nowrap px-1.5 text-right text-[13px] tabular-nums`;
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1.5 text-[13px] leading-[1.2] outline-none transition focus:bg-amber-50/70";
+  const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right text-[13px] tabular-nums`;
   const sheetResidentInputClass =
-    "min-h-[2.7rem] w-full min-w-0 resize-none border-0 bg-transparent px-1 py-1 text-[12px] leading-[1.15] tracking-[-0.02em] [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+    "min-h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2 text-[12px] leading-[1.2] tracking-[-0.02em] [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
   const sheetNoteTextareaClass =
-    "min-h-[2.7rem] w-full min-w-0 resize-none border-0 bg-transparent px-1 py-1 text-[12.5px] leading-[1.2] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+    "min-h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2 text-[12px] leading-[1.25] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+  const sheetCategoryInputClass =
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1.5 text-[12.5px] leading-[1.2] text-center outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
-    "h-9 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[13px] font-medium tabular-nums outline-none transition focus:bg-amber-50/70";
+    "h-10 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[13px] font-medium leading-[1.2] tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
-    "inline-flex h-8 min-w-[56px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
+    "inline-flex h-9 min-w-[56px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
   return (
     <>
@@ -1805,6 +1918,10 @@ export default function Page() {
             width: 7mm !important;
           }
 
+          .print-col-category {
+            width: 14mm !important;
+          }
+
           .print-col-actions {
             width: 0 !important;
           }
@@ -1862,6 +1979,7 @@ export default function Page() {
 
           .print-cell-name,
           .print-cell-trade,
+          .print-cell-category,
           .print-cell-phone,
           .print-cell-resident,
           .print-cell-date,
@@ -1875,6 +1993,7 @@ export default function Page() {
 
           .print-cell-name,
           .print-cell-trade,
+          .print-cell-category,
           .print-cell-phone,
           .print-cell-resident,
           .print-cell-number,
@@ -1888,6 +2007,7 @@ export default function Page() {
           }
 
           .print-cell-trade,
+          .print-cell-category,
           .print-cell-name,
           .print-cell-phone,
           .print-cell-resident {
@@ -1960,6 +2080,7 @@ export default function Page() {
           }
 
           .print-cell-trade input,
+          .print-cell-category input,
           .print-cell-name input,
           .print-cell-phone input,
           .print-cell-resident input,
@@ -2016,15 +2137,15 @@ export default function Page() {
                 />
               </label>
               <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
-                <span className="mb-1 block font-medium text-stone-700">직종 필터</span>
+                <span className="mb-1 block font-medium text-stone-700">구분</span>
                 <select
                   className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
-                  value={selectedTradeFilter}
-                  onChange={(event) => setSelectedTradeFilter(event.target.value)}
+                  value={selectedCategoryFilter}
+                  onChange={(event) => setSelectedCategoryFilter(event.target.value)}
                 >
-                  {tradeOptions.map((trade) => (
-                    <option key={trade} value={trade}>
-                      {trade}
+                  {CATEGORY_FILTER_OPTIONS.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
                     </option>
                   ))}
                 </select>
@@ -2038,6 +2159,10 @@ export default function Page() {
                   onChange={(event) => setSelectedMonth(event.target.value)}
                 />
               </label>
+            </div>
+
+            <div className="border-b border-stone-300 px-2 py-1.5 text-[13px] text-stone-600">
+              기간: {monthPeriod.label}
             </div>
 
             <div className="border-b border-stone-300 px-2 py-1.5 text-[13px] text-stone-600">
@@ -2135,12 +2260,7 @@ export default function Page() {
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)]">
                     <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">기간</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">
-                      {selectedMonth || "-"}
-                      {selectedSite?.construction_start_date || selectedSite?.construction_end_date || selectedSite?.start_date || selectedSite?.end_date
-                        ? ` / ${formatDateDisplay(selectedSite?.construction_start_date ?? selectedSite?.start_date)} ~ ${formatDateDisplay(selectedSite?.construction_end_date ?? selectedSite?.end_date)}`
-                        : ""}
-                    </div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{monthPeriod.label}</div>
                   </div>
                 </div>
               </div>
@@ -2149,7 +2269,7 @@ export default function Page() {
             <div className="print-sheet-scroll overflow-x-auto">
               <table
                 className="print-sheet-table w-full border-collapse text-[14px]"
-                style={{ minWidth: `${TABLE_MIN_WIDTH}px` }}
+                style={{ minWidth: `${tableMinWidth}px` }}
               >
                 <colgroup>
                   <col className="print-col-index" style={{ width: `${TABLE_COLUMN_WIDTHS.index}px` }} />
@@ -2164,6 +2284,7 @@ export default function Page() {
                   <col className="print-col-unit-price" style={{ width: `${TABLE_COLUMN_WIDTHS.unitPrice}px` }} />
                   <col className="print-col-payment" style={{ width: `${TABLE_COLUMN_WIDTHS.payment}px` }} />
                   <col className="print-col-note" style={{ width: `${TABLE_COLUMN_WIDTHS.note}px` }} />
+                  <col className="print-col-category" style={{ width: `${TABLE_COLUMN_WIDTHS.category}px` }} />
                   <col className="print-col-actions" style={{ width: `${TABLE_COLUMN_WIDTHS.actions}px` }} />
                 </colgroup>
                 <thead className="bg-[#f3ede1] text-stone-700">
@@ -2173,11 +2294,12 @@ export default function Page() {
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">성명</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">전화번호</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">주민번호</th>
-                    <th colSpan={MAX_DAY_COLUMNS} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">일자별 공수</th>
+                    <th colSpan={monthDates.length} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">일자별 공수</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">총 공수</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">단가</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">지급액</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">비고</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">구분</th>
                     <th rowSpan={2} className="print-col-actions px-2 py-2 text-center font-semibold">관리</th>
                   </tr>
                   <tr className="border-b border-stone-400">
@@ -2197,9 +2319,9 @@ export default function Page() {
                     const rowHasDailyEntries = hasDailyWorkEntries(row.dailyWorkEntries);
 
                     return (
-                      <tr key={row.id} className="border-b border-stone-300 align-top odd:bg-white even:bg-stone-50/30">
-                        <td className="border-r border-stone-300 px-2 py-1.5 text-center text-sm tabular-nums">{index + 1}</td>
-                        <td className="print-cell-trade border-r border-stone-300 px-1 py-1">
+                      <tr key={row.id} className="border-b border-stone-300 odd:bg-white even:bg-stone-50/30">
+                        <td className="border-r border-stone-300 px-2 py-2 text-center align-middle text-sm tabular-nums">{index + 1}</td>
+                        <td className="print-cell-trade border-r border-stone-300 px-1 py-1.5 align-middle">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:trade`] = element;
@@ -2211,7 +2333,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-name border-r border-stone-300 px-1 py-1">
+                        <td className="print-cell-name border-r border-stone-300 px-1 py-1.5 align-middle">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:name`] = element;
@@ -2223,7 +2345,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-phone border-r border-stone-300 px-1 py-1 align-middle">
+                        <td className="print-cell-phone border-r border-stone-300 px-1 py-1.5 align-middle">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:phone`] = element;
@@ -2233,10 +2355,10 @@ export default function Page() {
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "phone")}
                             inputMode="numeric"
                             placeholder="010-0000-0000"
-                            className={`${sheetInputClass} whitespace-nowrap px-0.5 text-[12.5px] tracking-[-0.015em]`}
+                            className={`${sheetInputClass} whitespace-nowrap px-1 text-[12.5px] tracking-[-0.015em]`}
                           />
                         </td>
-                        <td className="print-cell-resident border-r border-stone-300 px-0.5 py-1 align-top">
+                        <td className="print-cell-resident border-r border-stone-300 px-0.5 py-1.5 align-middle">
                           <textarea
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
@@ -2251,7 +2373,7 @@ export default function Page() {
                           />
                         </td>
                         {monthDates.map((date) => (
-                          <td key={`${row.id}:${date}`} className="print-cell-date border-r border-stone-300 px-0.5 py-1">
+                          <td key={`${row.id}:${date}`} className="print-cell-date border-r border-stone-300 px-0.5 py-1.5 align-middle">
                             <input
                               ref={(element) => {
                                 dailyCellRefs.current[`${row.id}:${date}`] = element;
@@ -2268,7 +2390,7 @@ export default function Page() {
                             />
                           </td>
                         ))}
-                        <td className="print-cell-number border-r border-stone-300 px-1 py-1">
+                        <td className="print-cell-number border-r border-stone-300 px-1 py-1.5 align-middle">
                           <div className="space-y-0.5">
                             <input
                               ref={(element) => {
@@ -2289,7 +2411,7 @@ export default function Page() {
                             {rowHasDailyEntries ? <p className="text-[11px] text-stone-400">일자합계</p> : null}
                           </div>
                         </td>
-                        <td className="print-cell-number border-r border-stone-300 px-1 py-1">
+                        <td className="print-cell-number border-r border-stone-300 px-1 py-1.5 align-middle">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
@@ -2306,15 +2428,15 @@ export default function Page() {
                             className={`${sheetNumericClass} px-1 text-[12.5px]`}
                           />
                         </td>
-                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-1 text-right font-medium tabular-nums text-slate-800">
+                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-1.5 align-middle text-right font-medium tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
-                        <td className="print-cell-note border-r border-stone-300 px-0.5 py-0.5 align-top">
+                        <td className="print-cell-note border-r border-stone-300 px-0.5 py-1 align-middle">
                           <textarea
                             ref={(element) => {
                               cellRefs.current[`${row.id}:note`] = element;
                             }}
-                            value={getRowAutoNote(row)}
+                            value={getRowAutoNoteMultiline(row)}
                             readOnly
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "note")}
                             placeholder="비고"
@@ -2322,7 +2444,20 @@ export default function Page() {
                             className={sheetNoteTextareaClass}
                           />
                         </td>
-                        <td className="print-cell-actions px-1 py-1">
+                        <td className="print-cell-category border-r border-stone-300 px-1 py-1.5 align-middle">
+                          <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:category`] = element;
+                            }}
+                            value={row.category}
+                            onChange={(event) => updateRow(row.id, "category", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "category")}
+                            placeholder="직영/용역/기타"
+                            list="labor-category-options"
+                            className={sheetCategoryInputClass}
+                          />
+                        </td>
+                        <td className="print-cell-actions px-1 py-1.5 align-middle">
                           <button type="button" aria-label="삭제" onClick={() => removeRowAtIndex(rowIndex)} className={deleteButtonClass}>
                             삭제
                           </button>
@@ -2333,7 +2468,7 @@ export default function Page() {
                 </tbody>
                 <tfoot className="bg-[#f3ede1]">
                   <tr className="border-t-2 border-stone-500">
-                    <td colSpan={5 + MAX_DAY_COLUMNS} className="print-summary-label border-r border-stone-300 px-2 py-2 text-right text-[15px] font-semibold text-stone-700">
+                    <td colSpan={5 + monthDates.length} className="print-summary-label border-r border-stone-300 px-2 py-2 text-right text-[15px] font-semibold text-stone-700">
                       합계
                     </td>
                     <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
@@ -2343,12 +2478,18 @@ export default function Page() {
                     <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
+                    <td className="border-r border-stone-300 px-2 py-2"></td>
                     <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-[15px] text-stone-600">{visibleRows.length}명</td>
                     <td className="print-col-actions px-2 py-2"></td>
                   </tr>
                 </tfoot>
               </table>
             </div>
+            <datalist id="labor-category-options">
+              <option value="직영" />
+              <option value="용역" />
+              <option value="기타" />
+            </datalist>
 
             <footer className="border-t border-stone-400 px-3 py-3">
               <div className="grid gap-0 border border-stone-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
