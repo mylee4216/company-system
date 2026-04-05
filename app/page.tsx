@@ -137,7 +137,7 @@ const ALL_CATEGORIES_LABEL = "전체";
 const CATEGORY_FILTER_OPTIONS = [ALL_CATEGORIES_LABEL, "직영", "용역", "기타"] as const;
 const SNAPSHOT_META_PREFIX = "__ROW_META__";
 const MAX_DAY_COLUMNS = 31;
-const APP_PASSWORD = "company123";
+const APP_PASSWORD = "leejuu1996!";
 const AUTH_STORAGE_KEY = "company-system-authenticated";
 const TABLE_COLUMN_WIDTHS = {
   index: 52,
