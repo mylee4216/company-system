@@ -1427,9 +1427,49 @@ export default function Page() {
           .print-sheet-table {
             width: 100% !important;
             min-width: 0 !important;
-            table-layout: fixed;
+            table-layout: auto;
             font-size: 10px;
             line-height: 1.3;
+          }
+
+          .print-sheet-table col.print-col-index {
+            width: 4% !important;
+          }
+
+          .print-sheet-table col.print-col-name {
+            width: 9% !important;
+          }
+
+          .print-sheet-table col.print-col-resident {
+            width: 12% !important;
+          }
+
+          .print-sheet-table col.print-col-phone {
+            width: 13.5% !important;
+          }
+
+          .print-sheet-table col.print-col-trade {
+            width: 8% !important;
+          }
+
+          .print-sheet-table col.print-col-unit-price {
+            width: 8% !important;
+          }
+
+          .print-sheet-table col.print-col-work-units {
+            width: 6% !important;
+          }
+
+          .print-sheet-table col.print-col-amount {
+            width: 10% !important;
+          }
+
+          .print-sheet-table col.print-col-note {
+            width: 29.5% !important;
+          }
+
+          .print-sheet-table col.print-col-actions {
+            width: 0 !important;
           }
 
           .print-sheet-table thead {
@@ -1470,17 +1510,17 @@ export default function Page() {
 
           .print-sheet-table th:nth-child(3),
           .print-sheet-table td:nth-child(3) {
-            width: 13%;
+            width: 12%;
           }
 
           .print-sheet-table th:nth-child(4),
           .print-sheet-table td:nth-child(4) {
-            width: 11%;
+            width: 13.5%;
           }
 
           .print-sheet-table th:nth-child(5),
           .print-sheet-table td:nth-child(5) {
-            width: 9%;
+            width: 8%;
           }
 
           .print-sheet-table th:nth-child(6),
@@ -1500,7 +1540,7 @@ export default function Page() {
 
           .print-sheet-table th:nth-child(9),
           .print-sheet-table td:nth-child(9) {
-            width: 30%;
+            width: 29.5%;
           }
 
           .print-cell-name,
@@ -1514,7 +1554,8 @@ export default function Page() {
           .print-cell-resident,
           .print-cell-phone {
             white-space: nowrap !important;
-            word-break: keep-all;
+            word-break: normal !important;
+            overflow-wrap: normal !important;
             font-size: 9.4px;
             letter-spacing: -0.01em;
           }
@@ -1527,6 +1568,9 @@ export default function Page() {
 
           .print-cell-note {
             min-width: 0;
+            white-space: normal !important;
+            word-break: keep-all;
+            overflow-wrap: anywhere;
           }
 
           .print-sheet-table input {
@@ -1555,6 +1599,9 @@ export default function Page() {
           .print-sheet-table .print-cell-phone input,
           .print-sheet-table .print-cell-number input {
             white-space: nowrap !important;
+            word-break: normal !important;
+            overflow-wrap: normal !important;
+            min-width: 0 !important;
           }
 
           .print-sheet-table-section tbody::before {
