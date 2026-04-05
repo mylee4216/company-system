@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/lib/supabase";
@@ -72,11 +72,14 @@ type DailyWorkerMonthlyRecordSavePayload = {
   daily_worker_id?: number | null;
   site_id: number;
   target_month: string;
+  work_dates?: string[];
   work_entries: WorkEntry[];
   total_work_units: number;
   worked_days_count: number;
   gross_amount: number;
 };
+
+type DailyWorkEntryMap = Record<string, string>;
 
 type LaborRow = {
   id: string;
@@ -88,6 +91,7 @@ type LaborRow = {
   trade: string;
   unitPrice: string;
   workUnits: string;
+  dailyWorkEntries: DailyWorkEntryMap;
   note: string;
 };
 
@@ -136,6 +140,7 @@ function createEmptyRow(id: string, trade = FALLBACK_TRADE): LaborRow {
     trade,
     unitPrice: "",
     workUnits: "",
+    dailyWorkEntries: {},
     note: "",
   };
 }
@@ -273,7 +278,7 @@ function formatCurrency(value: number) {
 }
 
 function getPaymentAmount(row: LaborRow) {
-  return parseNumber(row.unitPrice) * parseNumber(row.workUnits);
+  return parseNumber(row.unitPrice) * getEffectiveWorkUnits(row);
 }
 
 function getDefaultMonth() {
@@ -289,6 +294,71 @@ function getWorkUnitsFromEntries(entries: WorkEntry[] | null) {
     const units = entry.units ?? entry.work_days ?? 0;
     return sum + parseNumber(units);
   }, 0);
+}
+
+function getMonthDateList(targetMonth: string) {
+  if (!/^\d{4}-\d{2}$/.test(targetMonth)) {
+    return [] as string[];
+  }
+
+  const [year, month] = targetMonth.split("-").map(Number);
+
+  if (!year || !month) {
+    return [] as string[];
+  }
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  return Array.from({ length: daysInMonth }, (_, index) => {
+    const day = String(index + 1).padStart(2, "0");
+    return `${targetMonth}-${day}`;
+  });
+}
+
+function getDailyWorkEntriesFromRecord(entries: WorkEntry[] | null, targetMonth: string): DailyWorkEntryMap {
+  if (!entries?.length || !targetMonth) {
+    return {};
+  }
+
+  return entries.reduce<DailyWorkEntryMap>((accumulator, entry) => {
+    if (!entry.date || !entry.date.startsWith(`${targetMonth}-`)) {
+      return accumulator;
+    }
+
+    const units = parseNumber(entry.units ?? entry.work_days);
+
+    if (units <= 0) {
+      return accumulator;
+    }
+
+    accumulator[entry.date] = String(units);
+    return accumulator;
+  }, {});
+}
+
+function getDailyWorkEntriesTotal(dailyWorkEntries: DailyWorkEntryMap) {
+  return Object.values(dailyWorkEntries).reduce((sum, value) => sum + parseNumber(value), 0);
+}
+
+function hasDailyWorkEntries(dailyWorkEntries: DailyWorkEntryMap) {
+  return Object.values(dailyWorkEntries).some((value) => parseNumber(value) > 0);
+}
+
+function getEffectiveWorkUnits(row: LaborRow) {
+  if (hasDailyWorkEntries(row.dailyWorkEntries)) {
+    return getDailyWorkEntriesTotal(row.dailyWorkEntries);
+  }
+
+  return parseNumber(row.workUnits);
+}
+
+function getWorkedDaysCount(row: LaborRow) {
+  if (hasDailyWorkEntries(row.dailyWorkEntries)) {
+    return Object.values(row.dailyWorkEntries).filter((value) => parseNumber(value) > 0).length;
+  }
+
+  const workUnits = parseNumber(row.workUnits);
+  return workUnits > 0 ? Math.ceil(workUnits) : 0;
 }
 
 function getLastWorkedDate(entries: WorkEntry[] | null) {
@@ -318,21 +388,39 @@ function getMonthlyRecordSnapshot(entries: WorkEntry[] | null) {
 }
 
 function buildMonthlyRecordWorkEntries(row: LaborRow, workUnits: number, grossAmount: number): WorkEntry[] {
-  return [
-    {
-      units: workUnits,
-      row_snapshot: {
-        name: row.name.trim() || null,
-        resident_number: row.residentId.trim() || null,
-        phone: row.phone.trim() || null,
-        job_type: row.trade.trim() || null,
-        unit_price: parseNumber(row.unitPrice) || null,
-        total_work_units: workUnits,
-        gross_amount: grossAmount,
-        note: row.note.trim() || null,
+  const rowSnapshot = {
+    name: row.name.trim() || null,
+    resident_number: row.residentId.trim() || null,
+    phone: row.phone.trim() || null,
+    job_type: row.trade.trim() || null,
+    unit_price: parseNumber(row.unitPrice) || null,
+    total_work_units: workUnits,
+    gross_amount: grossAmount,
+    note: row.note.trim() || null,
+  } satisfies MonthlyRecordRowSnapshot;
+
+  const datedEntries = Object.entries(row.dailyWorkEntries)
+    .map(([date, units]) => ({
+      date,
+      units: parseNumber(units),
+    }))
+    .filter((entry) => entry.units > 0)
+    .sort((left, right) => left.date.localeCompare(right.date));
+
+  if (!datedEntries.length) {
+    return [
+      {
+        units: workUnits,
+        row_snapshot: rowSnapshot,
       },
-    },
-  ];
+    ];
+  }
+
+  return datedEntries.map((entry, index) => ({
+    date: entry.date,
+    units: entry.units,
+    row_snapshot: index === 0 ? rowSnapshot : null,
+  }));
 }
 
 function getTradeLabel(jobType: string | null) {
@@ -353,8 +441,10 @@ function getMonthlyRecordTextValue(
 }
 
 function isFilledRow(row: LaborRow) {
-  return [row.name, row.residentId, row.phone, row.trade, row.unitPrice, row.workUnits, row.note].some(
-    (value) => value.trim(),
+  return (
+    [row.name, row.residentId, row.phone, row.trade, row.unitPrice, row.workUnits, row.note].some((value) =>
+      value.trim(),
+    ) || hasDailyWorkEntries(row.dailyWorkEntries)
   );
 }
 
@@ -488,6 +578,7 @@ export default function Page() {
   const [selectedTradeFilter, setSelectedTradeFilter] = useState(ALL_TRADES_LABEL);
   const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth);
   const [rows, setRows] = useState<LaborRow[]>([createEmptyRow("manual-1")]);
+  const [expandedRowIds, setExpandedRowIds] = useState<Record<string, boolean>>({});
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRecordsLoading, setIsRecordsLoading] = useState(false);
@@ -587,6 +678,8 @@ export default function Page() {
     [availableSites, selectedSiteId],
   );
 
+  const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
+
   useEffect(() => {
     let active = true;
 
@@ -640,7 +733,10 @@ export default function Page() {
       const workerId = getRecordWorkerId(record);
       const worker = workerId ? workerMap.get(workerId) : undefined;
       const snapshot = getMonthlyRecordSnapshot(record.work_entries);
+      const dailyWorkEntries = getDailyWorkEntriesFromRecord(record.work_entries, selectedMonth);
+      const summedDailyWorkUnits = getDailyWorkEntriesTotal(dailyWorkEntries);
       const totalWorkUnits =
+        summedDailyWorkUnits ||
         parseNumber(record.total_work_units) ||
         parseNumber(snapshot?.total_work_units) ||
         getWorkUnitsFromEntries(record.work_entries);
@@ -679,10 +775,11 @@ export default function Page() {
           snapshot?.phone || getMonthlyRecordTextValue(record, "phone") || worker?.phone || "",
         ),
         trade: getTradeLabel(snapshot?.job_type || worker?.job_type || null),
+        dailyWorkEntries,
         note,
       } satisfies LaborRow;
     });
-  }, [dailyWorkers, monthlyRecords]);
+  }, [dailyWorkers, monthlyRecords, selectedMonth]);
 
   useEffect(() => {
     if (baseStatementRows.length) {
@@ -722,7 +819,7 @@ export default function Page() {
   }, [rows, selectedTradeFilter]);
 
   const totalWorkUnits = useMemo(
-    () => visibleRows.reduce((sum, row) => sum + parseNumber(row.workUnits), 0),
+    () => visibleRows.reduce((sum, row) => sum + getEffectiveWorkUnits(row), 0),
     [visibleRows],
   );
 
@@ -755,6 +852,47 @@ export default function Page() {
         }
 
         return { ...row, [field]: value };
+      }),
+    );
+  };
+
+  const toggleDailyEntries = (rowId: string) => {
+    setExpandedRowIds((current) => ({
+      ...current,
+      [rowId]: !current[rowId],
+    }));
+  };
+
+  const updateDailyWorkEntry = (rowId: string, date: string, value: string) => {
+    setSaveSuccessMessage("");
+    setSaveError("");
+    setSaveWarningMessage("");
+
+    const sanitizedValue = sanitizeDecimal(value);
+
+    setRows((currentRows) =>
+      currentRows.map((row) => {
+        if (row.id !== rowId) {
+          return row;
+        }
+
+        const nextDailyWorkEntries = { ...row.dailyWorkEntries };
+
+        if (!sanitizedValue || parseNumber(sanitizedValue) <= 0) {
+          delete nextDailyWorkEntries[date];
+        } else {
+          nextDailyWorkEntries[date] = sanitizedValue;
+        }
+
+        const nextWorkUnits = hasDailyWorkEntries(nextDailyWorkEntries)
+          ? String(getDailyWorkEntriesTotal(nextDailyWorkEntries))
+          : "";
+
+        return {
+          ...row,
+          workUnits: nextWorkUnits,
+          dailyWorkEntries: nextDailyWorkEntries,
+        };
       }),
     );
   };
@@ -851,6 +989,16 @@ export default function Page() {
     setRows((currentRows) => {
       if (rowIndex < 0 || rowIndex >= currentRows.length) {
         return currentRows;
+      }
+
+      const targetRow = currentRows[rowIndex];
+
+      if (targetRow) {
+        setExpandedRowIds((current) => {
+          const nextState = { ...current };
+          delete nextState[targetRow.id];
+          return nextState;
+        });
       }
 
       return currentRows.filter((_, index) => index !== rowIndex);
@@ -1094,8 +1242,12 @@ export default function Page() {
         });
 
         const recordsToUpsert = rowsWithWorkerId.map(({ row, workerId }) => {
-          const workUnits = parseNumber(row.workUnits);
+          const workUnits = getEffectiveWorkUnits(row);
           const grossAmount = getPaymentAmount(row);
+          const workDates = Object.entries(row.dailyWorkEntries)
+            .filter(([, units]) => parseNumber(units) > 0)
+            .map(([date]) => date)
+            .sort((left, right) => left.localeCompare(right));
           let recordId = row.sourceRecordId;
 
           if (!recordId && workerId) {
@@ -1111,9 +1263,10 @@ export default function Page() {
             daily_worker_id: workerId ?? null,
             site_id: siteId,
             target_month: selectedMonth,
+            work_dates: workDates,
             work_entries: buildMonthlyRecordWorkEntries(row, workUnits, grossAmount),
             total_work_units: workUnits,
-            worked_days_count: workUnits > 0 ? Math.ceil(workUnits) : 0,
+            worked_days_count: getWorkedDaysCount(row),
             gross_amount: grossAmount,
           } satisfies DailyWorkerMonthlyRecordSavePayload & { id: string };
         });
@@ -1307,6 +1460,7 @@ export default function Page() {
             trade: trade || FALLBACK_TRADE,
             unitPrice,
             workUnits,
+            dailyWorkEntries: {},
             note,
           } satisfies LaborRow;
         })
@@ -1859,7 +2013,7 @@ export default function Page() {
               </div>
 
               <div className="print-sheet-scroll overflow-x-auto">
-                <table className="print-sheet-table min-w-[1240px] w-full border-collapse text-sm">
+                <table className="print-sheet-table min-w-[1320px] w-full border-collapse text-sm">
                   <colgroup>
                     <col className="print-col-index" />
                     <col className="print-col-name" />
@@ -1883,14 +2037,17 @@ export default function Page() {
                       <th className="w-24 border-r border-stone-300 px-2 py-2 text-right font-semibold">공수</th>
                       <th className="w-32 border-r border-stone-300 px-2 py-2 text-right font-semibold">지급액</th>
                       <th className="min-w-[280px] border-r border-stone-300 px-2 py-2 text-left font-semibold">비고</th>
-                      <th className="w-20 px-2 py-2 text-center font-semibold">삭제</th>
+                      <th className="w-32 px-2 py-2 text-center font-semibold">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleRows.map((row, index) => {
                       const rowIndex = rows.findIndex((currentRow) => currentRow.id === row.id);
+                      const rowHasDailyEntries = hasDailyWorkEntries(row.dailyWorkEntries);
+                      const isExpanded = Boolean(expandedRowIds[row.id]);
 
                       return (
+                        <Fragment key={row.id}>
                         <tr key={row.id} className="border-b border-stone-300 align-middle odd:bg-white even:bg-stone-50/40">
                         <td className="border-r border-stone-300 px-2 py-1.5 text-center text-xs text-stone-700">
                           {index + 1}
@@ -1961,19 +2118,25 @@ export default function Page() {
                           />
                         </td>
                         <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
-                          <input
-                            ref={(element) => {
-                              cellRefs.current[`${row.id}:workUnits`] = element;
-                            }}
-                            value={getNumericInputValue(row, "workUnits")}
-                            onChange={(event) => updateRow(row.id, "workUnits", event.target.value)}
-                            onFocus={(event) => handleNumericInputFocus(event, row.id, "workUnits")}
-                            onBlur={() => handleNumericInputBlur(row.id, "workUnits")}
-                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "workUnits")}
-                            inputMode="decimal"
-                            placeholder="0"
-                            className={sheetNumericClass}
-                          />
+                          <div className="space-y-1">
+                            <input
+                              ref={(element) => {
+                                cellRefs.current[`${row.id}:workUnits`] = element;
+                              }}
+                              value={getNumericInputValue(row, "workUnits")}
+                              onChange={(event) => updateRow(row.id, "workUnits", event.target.value)}
+                              onFocus={(event) => handleNumericInputFocus(event, row.id, "workUnits")}
+                              onBlur={() => handleNumericInputBlur(row.id, "workUnits")}
+                              onKeyDown={(event) => handleCellKeyDown(event, row.id, "workUnits")}
+                              inputMode="decimal"
+                              placeholder="0"
+                              readOnly={rowHasDailyEntries}
+                              className={`${sheetNumericClass} ${rowHasDailyEntries ? "bg-stone-50 text-stone-500" : ""}`}
+                            />
+                            {rowHasDailyEntries ? (
+                              <p className="text-[11px] leading-none text-stone-500">일자별 합계 적용</p>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-1 text-right text-sm font-medium tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
@@ -1990,7 +2153,15 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="px-1.5 py-1 text-center">
+                        <td className="px-1.5 py-1">
+                          <div className="flex flex-col items-stretch gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => toggleDailyEntries(row.id)}
+                            className="inline-flex h-7 items-center justify-center rounded border border-sky-200 bg-sky-50 px-2 py-0 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-100"
+                          >
+                            {isExpanded ? "일자닫기" : "일자입력"}
+                          </button>
                           <button
                             type="button"
                             aria-label="삭제"
@@ -1999,8 +2170,38 @@ export default function Page() {
                           >
                             삭제
                           </button>
+                          </div>
                         </td>
                         </tr>
+                        {isExpanded ? (
+                          <tr key={`${row.id}-daily`} className="print-hidden bg-stone-50">
+                            <td colSpan={10} className="border-b border-stone-300 px-3 py-3">
+                              <div className="rounded border border-stone-200 bg-white">
+                                <div className="flex flex-col gap-1 border-b border-stone-200 bg-stone-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="text-sm font-medium text-stone-700">일자별 공수 입력</div>
+                                  <div className="text-xs text-stone-500">
+                                    기준월 {selectedMonth || "-"} / 0 또는 빈값은 제외 / 합계 {formatDecimalForDisplay(String(getDailyWorkEntriesTotal(row.dailyWorkEntries))) || "0"}
+                                  </div>
+                                </div>
+                                <div className="grid gap-x-3 gap-y-2 px-3 py-3 sm:grid-cols-2 xl:grid-cols-3">
+                                  {monthDates.map((date) => (
+                                    <label key={`${row.id}:${date}`} className="grid grid-cols-[1fr_96px] items-center gap-2 text-sm">
+                                      <span className="tabular-nums text-stone-600">{date}</span>
+                                      <input
+                                        value={row.dailyWorkEntries[date] ?? ""}
+                                        onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
+                                        inputMode="decimal"
+                                        placeholder="0"
+                                        className={sheetNumericClass}
+                                      />
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                        </Fragment>
                       );
                     })}
                   </tbody>
