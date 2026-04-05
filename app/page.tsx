@@ -277,19 +277,19 @@ function isFilledRow(row: LaborRow) {
 
 function getFriendlySaveErrorMessage(error: unknown) {
   if (!(error instanceof Error)) {
-    return "???以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄??二쇱꽭??";
+    return "저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
   }
 
   if (error.message.startsWith("MATCH_WORKER:")) {
     const workerNames = error.message.replace("MATCH_WORKER:", "").trim();
-    return `?쇱슜吏??뺣낫瑜?李얠쓣 ???녿뒗 ?됱씠 ?덉뒿?덈떎: ${workerNames}. ?대쫫, 二쇰?踰덊샇 ?먮뒗 ?꾪솕踰덊샇瑜??뺤씤??二쇱꽭??`;
+    return `일치하는 근로자 정보를 찾을 수 없는 항목이 있습니다: ${workerNames}. 성명, 주민번호 또는 전화번호를 확인해 주세요.`;
   }
 
   if (error.message.includes("schema cache")) {
-    return "DB ?ㅽ궎留??뺣낫媛 ?꾩옱 ???濡쒖쭅怨?留욎? ?딆븘 ??ν븯吏 紐삵뻽?듬땲?? ?뚯씠釉?援ъ“瑜??ㅼ떆 ?뺤씤??二쇱꽭??";
+    return "DB 스키마 정보가 아직 반영되지 않았습니다. 잠시 후 새로고침한 뒤 다시 시도해 주세요.";
   }
 
-  return "??μ뿉 ?ㅽ뙣?덉뒿?덈떎. ?낅젰媛믨낵 ?곌껐 ?곹깭瑜??뺤씤?????ㅼ떆 ?쒕룄??二쇱꽭??";
+  return "저장 중 문제가 발생했습니다. 입력 내용을 확인한 뒤 다시 시도해 주세요.";
 }
 
 async function fetchCompanies() {
@@ -299,7 +299,7 @@ async function fetchCompanies() {
     .order("name", { ascending: true });
 
   if (error) {
-    throw new Error(`?뚯궗 ?곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲?? ${error.message}`);
+    throw new Error(`회사 정보를 불러오지 못했습니다: ${error.message}`);
   }
 
   return (data ?? []) as CompanyRow[];
@@ -314,7 +314,7 @@ async function fetchSites() {
     .order("name", { ascending: true });
 
   if (error) {
-    throw new Error(`?꾩옣 ?곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲?? ${error.message}`);
+    throw new Error(`현장 정보를 불러오지 못했습니다: ${error.message}`);
   }
 
   return (data ?? []) as SiteRow[];
@@ -327,7 +327,7 @@ async function fetchDailyWorkers() {
     .order("name", { ascending: true });
 
   if (error) {
-    throw new Error(`?쇱슜吏??곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲?? ${error.message}`);
+    throw new Error(`근로자 정보를 불러오지 못했습니다: ${error.message}`);
   }
 
   return (data ?? []) as DailyWorkerRow[];
@@ -344,7 +344,7 @@ async function fetchDailyWorkerMonthlyRecords(siteId: number, targetMonth: strin
     .order("id", { ascending: true });
 
   if (error) {
-    throw new Error(`?붾퀎 ?쇱슜吏?湲곕줉??遺덈윭?ㅼ? 紐삵뻽?듬땲?? ${error.message}`);
+    throw new Error(`월별 근로 기록을 불러오지 못했습니다: ${error.message}`);
   }
 
   return (data ?? []) as DailyWorkerMonthlyRecordRow[];
@@ -400,7 +400,7 @@ export default function Page() {
         }
 
         const message =
-          error instanceof Error ? error.message : "?곗씠?곕? 遺덈윭?ㅻ뒗 以?臾몄젣媛 諛쒖깮?덉뒿?덈떎.";
+          error instanceof Error ? error.message : "데이터를 불러오는 중 문제가 발생했습니다.";
         setLoadError(message);
       } finally {
         if (active) {
@@ -487,7 +487,7 @@ export default function Page() {
         }
 
         const message =
-          error instanceof Error ? error.message : "?붾퀎 湲곕줉??遺덈윭?ㅻ뒗 以?臾몄젣媛 諛쒖깮?덉뒿?덈떎.";
+          error instanceof Error ? error.message : "월별 기록을 불러오는 중 문제가 발생했습니다.";
         setLoadError(message);
         setMonthlyRecords([]);
       } finally {
@@ -521,7 +521,7 @@ export default function Page() {
         id: `record-${record.id}`,
         sourceRecordId: record.id,
         sourceWorkerId: workerId,
-        name: worker?.name ?? `?쇱슜吏?#${workerId ?? "-"}`,
+        name: worker?.name ?? `근로자 #${workerId ?? "-"}`,
         residentId: formatResidentId(
           getMonthlyRecordTextValue(record, "resident_number") || worker?.resident_number || "",
         ),
@@ -529,7 +529,7 @@ export default function Page() {
         trade: getTradeLabel(worker?.job_type ?? null),
         unitPrice: unitPrice ? String(unitPrice) : "",
         workUnits: totalWorkUnits ? String(totalWorkUnits) : "",
-        note: lastWorkedDate ? `理쒖쥌 ?묒뾽??${formatDateDisplay(lastWorkedDate)}` : "",
+        note: lastWorkedDate ? `최종 작업일 ${formatDateDisplay(lastWorkedDate)}` : "",
       } satisfies LaborRow;
     });
   }, [dailyWorkers, monthlyRecords]);
@@ -836,7 +836,7 @@ export default function Page() {
 
   const handleSave = async () => {
     if (!selectedCompanyId || !selectedSiteId || !selectedMonth) {
-      setSaveError("????꾩뿉 ?뚯궗, ?꾩옣, 湲곗??붿쓣 紐⑤몢 ?좏깮??二쇱꽭??");
+      setSaveError("저장 전에 회사, 현장, 기준월을 모두 선택해 주세요.");
       setSaveSuccessMessage("");
       return;
     }
@@ -857,7 +857,7 @@ export default function Page() {
 
       if (unresolvedRows.length) {
         throw new Error(
-          `MATCH_WORKER:${unresolvedRows.map(({ row }) => row.name || "(?대쫫 ?놁쓬)").join(", ")}`,
+          `MATCH_WORKER:${unresolvedRows.map(({ row }) => row.name || "(성명 없음)").join(", ")}`,
         );
       }
 
@@ -951,7 +951,7 @@ export default function Page() {
       }
 
       await reloadMonthlyRecords();
-      setSaveSuccessMessage("??μ씠 ?꾨즺?섏뿀?듬땲??");
+      setSaveSuccessMessage("저장이 완료되었습니다.");
     } catch (error) {
       setSaveError(getFriendlySaveErrorMessage(error));
       setSaveSuccessMessage("");
@@ -964,54 +964,56 @@ export default function Page() {
     "h-9 w-full border border-stone-200 bg-white px-2 text-sm outline-none transition focus:border-stone-700";
   const sheetNumericClass = `${sheetInputClass} text-right tabular-nums`;
   const deleteButtonClass =
-    "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-xs font-medium text-transparent transition hover:border-red-300 hover:bg-red-100 before:text-red-700 before:content-['??젣']";
+    "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-xs font-medium text-transparent transition hover:border-red-300 hover:bg-red-100 before:text-red-700 before:content-['삭제']";
 
   return (
     <main className="min-h-screen bg-[#f3f0e8] px-3 py-4 text-slate-900 sm:px-4 lg:px-6">
       <div className="mx-auto w-full max-w-[1500px]">
         <section className="border border-stone-400 bg-white shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
           <header className="border-b-2 border-stone-700 px-4 py-4 sm:px-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                  Labor Cost Statement
-                </p>
-                <h1 className="text-2xl font-bold tracking-[0.12em] text-slate-900 sm:text-3xl">
-                  ?몃Т鍮?紐낆꽭??                </h1>
-                <p className="text-sm leading-6 text-stone-600">
-                  ?뚯궗, ?꾩옣, 湲곗??붿쓣 議고쉶?????몄썝蹂??몃Т鍮꾨? ?낅젰?섍퀬 ??ν빀?덈떎.
-                </p>
-              </div>
+  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+        노무비 명세서
+      </p>
+      <h1 className="text-2xl font-bold tracking-[0.12em] text-slate-900 sm:text-3xl">
+        노무비 명세서
+      </h1>
+      <p className="text-sm leading-6 text-stone-600">
+        회사, 현장, 기준월을 선택하고 월별 노무비 내역을 입력하거나 검토할 수 있습니다.
+      </p>
+    </div>
 
-              <div className="grid min-w-[280px] grid-cols-2 border border-stone-400 text-sm">
-                <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 font-medium">
-                  湲곗???                </div>
-                <div className="border-b border-stone-300 px-3 py-2 text-right tabular-nums">
-                  {selectedMonth || "-"}
-                </div>
-                <div className="border-r border-stone-300 bg-stone-100 px-3 py-2 font-medium">
-                  議고쉶 ?됱닔
-                </div>
-                <div className="px-3 py-2 text-right tabular-nums">{visibleRows.length}</div>
-              </div>
-            </div>
-          </header>
+    <div className="grid min-w-[280px] grid-cols-2 border border-stone-400 text-sm">
+      <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 font-medium">
+        기준월
+      </div>
+      <div className="border-b border-stone-300 px-3 py-2 text-right tabular-nums">
+        {selectedMonth || "-"}
+      </div>
+      <div className="border-r border-stone-300 bg-stone-100 px-3 py-2 font-medium">
+        행 수
+      </div>
+      <div className="px-3 py-2 text-right tabular-nums">{visibleRows.length}</div>
+    </div>
+  </div>
+</header>
 
           <div className="space-y-4 px-4 py-4 sm:px-6">
             <section className="border border-stone-300">
               <div className="border-b border-stone-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700">
-                議고쉶 議곌굔
+                조회 조건
               </div>
               <div className="grid gap-x-4 gap-y-3 px-3 py-3 md:grid-cols-2 xl:grid-cols-4">
                 <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">?뚯궗</span>
+                  <span className="font-medium text-stone-700">회사 선택</span>
                   <select
                     className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
                     value={selectedCompanyId}
                     onChange={(event) => setSelectedCompanyId(event.target.value)}
                     disabled={isLoading || !companies.length}
                   >
-                    {companies.length ? null : <option value="">?뚯궗 ?놁쓬</option>}
+                    {companies.length ? null : <option value="">회사 선택</option>}
                     {companies.map((company) => (
                       <option key={company.id} value={String(company.id)}>
                         {company.name}
@@ -1021,14 +1023,14 @@ export default function Page() {
                 </label>
 
                 <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">?꾩옣</span>
+                  <span className="font-medium text-stone-700">현장 선택</span>
                   <select
                     className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
                     value={selectedSiteId}
                     onChange={(event) => setSelectedSiteId(event.target.value)}
                     disabled={isLoading || !availableSites.length}
                   >
-                    {availableSites.length ? null : <option value="">?꾩옣 ?놁쓬</option>}
+                    {availableSites.length ? null : <option value="">현장 선택</option>}
                     {availableSites.map((site) => (
                       <option key={site.id} value={String(site.id)}>
                         {site.name}
@@ -1038,7 +1040,7 @@ export default function Page() {
                 </label>
 
                 <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">吏곸쥌</span>
+                  <span className="font-medium text-stone-700">직종</span>
                   <select
                     className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
                     value={selectedTradeFilter}
@@ -1065,7 +1067,7 @@ export default function Page() {
 
               {selectedCompany ? (
                 <div className="border-t border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-600">
-                  ?ъ뾽?먮쾲??{selectedCompany.business_number || "-"} / 二쇱냼 {selectedCompany.address || "-"}
+                  사업자등록번호 {selectedCompany.business_number || "-"} / 주소 {selectedCompany.address || "-"}
                 </div>
               ) : null}
               {loadError ? (
@@ -1087,15 +1089,15 @@ export default function Page() {
 
             <section className="border border-stone-300">
               <div className="border-b border-stone-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700">
-                ?꾩옣 ?뺣낫
+                현장 정보
               </div>
               <div className="grid gap-0 md:grid-cols-2 xl:grid-cols-4">
                 <div className="border-b border-r border-stone-300 px-3 py-3">
-                  <div className="text-xs font-medium text-stone-500">발주처</div>
+                  <div className="text-xs font-medium text-stone-500">발주자</div>
                   <div className="mt-1 text-sm font-semibold text-slate-900">{selectedSite?.client_name || "-"}</div>
                 </div>
                 <div className="border-b border-r border-stone-300 px-3 py-3">
-                  <div className="text-xs font-medium text-stone-500">怨듭궗援щ텇</div>
+                  <div className="text-xs font-medium text-stone-500">공사구분</div>
                   <div className="mt-1 text-sm font-semibold text-slate-900">{selectedSite?.contract_type || "-"}</div>
                 </div>
                 <div className="border-b border-r border-stone-300 px-3 py-3">
@@ -1105,14 +1107,14 @@ export default function Page() {
                   </div>
                 </div>
                 <div className="border-b px-3 py-3">
-                  <div className="text-xs font-medium text-stone-500">以怨듭씪</div>
+                  <div className="text-xs font-medium text-stone-500">준공일</div>
                   <div className="mt-1 text-sm font-semibold text-slate-900">
                     {formatDateDisplay(selectedSite?.construction_end_date ?? selectedSite?.end_date)}
                   </div>
                 </div>
               </div>
               <div className="border-t border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-600">
-                ?좏깮 ?꾩옣: {selectedSite?.name || "?좏깮???꾩옣 ?놁쓬"}
+                선택 현장: {selectedSite?.name || "선택된 현장이 없습니다."}
               </div>
             </section>
 
@@ -1120,7 +1122,7 @@ export default function Page() {
               <div className="flex flex-col gap-3 border-b border-stone-300 bg-stone-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-base font-semibold text-slate-900">노무비 입력표</h2>
-                  <p className="text-sm text-stone-600">Enter ?ㅻ? ?꾨Ⅴ硫?媛숈? ?댁쓽 ?ㅼ쓬 ?됱쑝濡??대룞?⑸땲??</p>
+                  <p className="text-sm text-stone-600">Enter 키로 다음 셀로 이동하며 내용을 연속 입력할 수 있습니다.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -1128,7 +1130,7 @@ export default function Page() {
                     onClick={() => addRow()}
                     className="inline-flex h-9 items-center justify-center border border-stone-700 bg-white px-3 text-sm font-medium text-stone-800 transition hover:bg-stone-100"
                   >
-                    ??異붽?
+                    행 추가
                   </button>
                   <button
                     type="button"
@@ -1145,16 +1147,16 @@ export default function Page() {
                 <table className="min-w-[1240px] w-full border-collapse text-sm">
                   <thead className="bg-[#f5f2ea] text-stone-700">
                     <tr className="border-b border-stone-400">
-                      <th className="w-14 border-r border-stone-300 px-2 py-2 text-center font-semibold">踰덊샇</th>
-                      <th className="w-32 border-r border-stone-300 px-2 py-2 text-left font-semibold">?깅챸</th>
-                      <th className="w-40 border-r border-stone-300 px-2 py-2 text-left font-semibold">二쇰?踰덊샇</th>
-                      <th className="w-36 border-r border-stone-300 px-2 py-2 text-left font-semibold">?꾪솕踰덊샇</th>
-                      <th className="w-28 border-r border-stone-300 px-2 py-2 text-left font-semibold">吏곸쥌</th>
-                      <th className="w-28 border-r border-stone-300 px-2 py-2 text-right font-semibold">?④?</th>
-                      <th className="w-24 border-r border-stone-300 px-2 py-2 text-right font-semibold">怨듭닔</th>
-                      <th className="w-32 border-r border-stone-300 px-2 py-2 text-right font-semibold">吏湲됱븸</th>
-                      <th className="min-w-[280px] border-r border-stone-300 px-2 py-2 text-left font-semibold">鍮꾧퀬</th>
-                      <th className="w-20 px-2 py-2 text-center font-semibold">??젣</th>
+                      <th className="w-14 border-r border-stone-300 px-2 py-2 text-center font-semibold">번호</th>
+                      <th className="w-32 border-r border-stone-300 px-2 py-2 text-left font-semibold">성명</th>
+                      <th className="w-40 border-r border-stone-300 px-2 py-2 text-left font-semibold">주민번호</th>
+                      <th className="w-36 border-r border-stone-300 px-2 py-2 text-left font-semibold">전화번호</th>
+                      <th className="w-28 border-r border-stone-300 px-2 py-2 text-left font-semibold">직종</th>
+                      <th className="w-28 border-r border-stone-300 px-2 py-2 text-right font-semibold">단가</th>
+                      <th className="w-24 border-r border-stone-300 px-2 py-2 text-right font-semibold">공수</th>
+                      <th className="w-32 border-r border-stone-300 px-2 py-2 text-right font-semibold">지급액</th>
+                      <th className="min-w-[280px] border-r border-stone-300 px-2 py-2 text-left font-semibold">비고</th>
+                      <th className="w-20 px-2 py-2 text-center font-semibold">삭제</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1174,7 +1176,7 @@ export default function Page() {
                             value={row.name}
                             onChange={(event) => updateRow(row.id, "name", event.target.value)}
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "name")}
-                            placeholder="?깅챸"
+                            placeholder="성명"
                             className={sheetInputClass}
                           />
                         </td>
@@ -1212,7 +1214,7 @@ export default function Page() {
                             value={row.trade}
                             onChange={(event) => updateRow(row.id, "trade", event.target.value)}
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "trade")}
-                            placeholder="吏곸쥌"
+                            placeholder="직종"
                             className={sheetInputClass}
                           />
                         </td>
@@ -1257,18 +1259,18 @@ export default function Page() {
                             value={row.note}
                             onChange={(event) => updateRow(row.id, "note", event.target.value)}
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "note")}
-                            placeholder="鍮꾧퀬"
+                            placeholder="비고"
                             className={sheetInputClass}
                           />
                         </td>
                         <td className="px-1.5 py-1 text-center">
                           <button
                             type="button"
-                            aria-label="??젣"
+                            aria-label="삭제"
                             onClick={() => removeRowAtIndex(rowIndex)}
                             className={deleteButtonClass}
                           >
-                            ??젣
+                            삭제
                           </button>
                         </td>
                         </tr>
@@ -1278,7 +1280,7 @@ export default function Page() {
                   <tfoot className="bg-[#f5f2ea]">
                     <tr className="border-t-2 border-stone-500">
                       <td colSpan={6} className="border-r border-stone-300 px-2 py-2 text-right text-sm font-semibold text-stone-700">
-                        ?⑷퀎
+                        합계
                       </td>
                       <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
                         {totalWorkUnits.toLocaleString("ko-KR")}
@@ -1287,7 +1289,7 @@ export default function Page() {
                         {formatCurrency(totalPaymentAmount)}
                       </td>
                       <td colSpan={2} className="px-2 py-2 text-sm text-stone-600">
-                        珥?怨듭닔 / 珥?吏湲됱븸
+                        공수 / 지급액 합계
                       </td>
                     </tr>
                   </tfoot>
@@ -1298,13 +1300,13 @@ export default function Page() {
             <section className="border border-stone-300">
               <div className="grid gap-0 md:grid-cols-[1.2fr_1fr_1fr_auto]">
                 <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 md:border-b-0">
-                  ?낅젰 ?덈궡
+                  입력 안내
                 </div>
                 <div className="border-b border-r border-stone-300 px-3 py-2 text-sm text-stone-600 md:border-b-0">
-                  二쇰?踰덊샇 ?먮룞 ?щ㎎ ?좎?
+                  주민번호는 숫자만 입력
                 </div>
                 <div className="border-b border-r border-stone-300 px-3 py-2 text-sm text-stone-600 md:border-b-0">
-                  ?꾪솕踰덊샇 ?먮룞 ?щ㎎ ?좎?
+                  전화번호는 숫자만 입력
                 </div>
                 <div className="px-3 py-2 text-right">
                   <button
@@ -1319,27 +1321,27 @@ export default function Page() {
               </div>
               <div className="grid gap-0 border-t border-stone-300 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
                 <div className="border-r border-stone-300 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700">
-                  ?섎떒 ?⑷퀎
+                  하단 합계
                 </div>
                 <div className="border-r border-stone-300 px-3 py-2 text-sm">
-                  珥?怨듭닔 <span className="float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
+                  총 공수<span className="float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
                 </div>
                 <div className="border-r border-stone-300 px-3 py-2 text-sm">
-                  珥?吏湲됱븸 <span className="float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
+                  총 지급액<span className="float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
                 </div>
-                <div className="px-3 py-2 text-sm text-stone-600">?レ옄 ?낅젰移몄? ?곗륫 ?뺣젹濡??쒖떆?⑸땲??</div>
+                <div className="px-3 py-2 text-sm text-stone-600">현재 입력된 내용을 확인한 뒤 저장해 주세요.</div>
               </div>
             </section>
 
             <section className="border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm leading-6 text-stone-600">
-              <p>?낅젰 UX ?덈궡</p>
-              <p>?좎쭨 `20260404` -&gt; `2026-04-04`</p>
-              <p>二쇰?踰덊샇 13?먮━ -&gt; `######-#######`</p>
-              <p>?꾪솕踰덊샇 `01012345678` -&gt; `010-1234-5678`</p>
-              {isLoading ? <p>?곗씠?곕? 遺덈윭?ㅻ뒗 以묒엯?덈떎.</p> : null}
-              {isRecordsLoading ? <p>??λ맂 紐낆꽭?쒕? ?ㅼ떆 遺덈윭?ㅻ뒗 以묒엯?덈떎.</p> : null}
+              <p>입력 UX 안내</p>
+              <p>날짜 `20260404` -&gt; `2026-04-04`</p>
+              <p>주민번호 13자리 -&gt; `######-#######`</p>
+              <p>전화번호 `01012345678` -&gt; `010-1234-5678`</p>
+              {isLoading ? <p>데이터를 불러오는 중입니다.</p> : null}
+              {isRecordsLoading ? <p>월별 기록을 불러오는 중입니다.</p> : null}
               {!isLoading && !baseStatementRows.length ? (
-                <p>?좏깮??議곌굔??留욌뒗 ?붾퀎 湲곕줉???놁뼱 鍮??됱쑝濡??쒖옉?⑸땲??</p>
+                <p>선택한 조건에 해당하는 월별 기록이 없어 새로 입력할 수 있습니다.</p>
               ) : null}
             </section>
           </div>
