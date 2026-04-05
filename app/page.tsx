@@ -128,6 +128,31 @@ const EXCEL_UPLOAD_HEADERS = ["번호", "성명", "주민번호", "전화번호"
 
 const ALL_TRADES_LABEL = "전체";
 const MAX_DAY_COLUMNS = 31;
+const TABLE_COLUMN_WIDTHS = {
+  index: 52,
+  trade: 108,
+  name: 116,
+  phone: 144,
+  resident: 156,
+  day: 34,
+  total: 74,
+  unitPrice: 84,
+  payment: 106,
+  note: 94,
+  actions: 62,
+} as const;
+const TABLE_MIN_WIDTH =
+  TABLE_COLUMN_WIDTHS.index +
+  TABLE_COLUMN_WIDTHS.trade +
+  TABLE_COLUMN_WIDTHS.name +
+  TABLE_COLUMN_WIDTHS.phone +
+  TABLE_COLUMN_WIDTHS.resident +
+  TABLE_COLUMN_WIDTHS.day * MAX_DAY_COLUMNS +
+  TABLE_COLUMN_WIDTHS.total +
+  TABLE_COLUMN_WIDTHS.unitPrice +
+  TABLE_COLUMN_WIDTHS.payment +
+  TABLE_COLUMN_WIDTHS.note +
+  TABLE_COLUMN_WIDTHS.actions;
 
 function createEmptyRow(id: string, trade = ""): LaborRow {
   return {
@@ -1613,7 +1638,7 @@ export default function Page() {
           html,
           body {
             background: #ffffff;
-            font-size: 10px;
+            font-size: 9px;
             width: 297mm;
           }
 
@@ -1664,9 +1689,53 @@ export default function Page() {
           .print-sheet-table {
             width: 100% !important;
             min-width: 0 !important;
-            table-layout: auto;
-            font-size: 8.6px;
-            line-height: 1.24;
+            table-layout: fixed;
+            font-size: 8.2px;
+            line-height: 1.18;
+          }
+
+          .print-col-index {
+            width: 8mm !important;
+          }
+
+          .print-col-trade {
+            width: 18mm !important;
+          }
+
+          .print-col-name {
+            width: 17mm !important;
+          }
+
+          .print-col-phone {
+            width: 24mm !important;
+          }
+
+          .print-col-resident {
+            width: 27mm !important;
+          }
+
+          .print-col-day {
+            width: 4mm !important;
+          }
+
+          .print-col-total {
+            width: 12mm !important;
+          }
+
+          .print-col-unit-price {
+            width: 16mm !important;
+          }
+
+          .print-col-payment {
+            width: 18mm !important;
+          }
+
+          .print-col-note {
+            width: 18mm !important;
+          }
+
+          .print-col-actions {
+            width: 0 !important;
           }
 
           .print-sheet-table thead {
@@ -1686,10 +1755,12 @@ export default function Page() {
 
           .print-sheet-table th,
           .print-sheet-table td {
-            padding: 2px 2px !important;
+            padding: 1.4mm 0.8mm !important;
             vertical-align: middle;
             overflow: visible !important;
-            font-size: 8.6px !important;
+            font-size: 8.2px !important;
+            line-height: 1.18 !important;
+            box-sizing: border-box !important;
           }
 
           .print-cell-actions,
@@ -1698,11 +1769,12 @@ export default function Page() {
           }
 
           .print-kicker {
-            font-size: 9px !important;
+            font-size: 8px !important;
+            line-height: 1.1 !important;
           }
 
           .print-title {
-            font-size: 18px !important;
+            font-size: 16px !important;
             line-height: 1.1 !important;
           }
 
@@ -1713,8 +1785,8 @@ export default function Page() {
           .print-summary-value,
           .print-sheet-table thead th,
           .print-sheet-table tfoot td {
-            font-size: 9px !important;
-            line-height: 1.22 !important;
+            font-size: 8.7px !important;
+            line-height: 1.2 !important;
           }
 
           .print-cell-name,
@@ -1728,6 +1800,15 @@ export default function Page() {
             overflow-wrap: normal !important;
             overflow: visible !important;
             text-overflow: initial !important;
+          }
+
+          .print-cell-name,
+          .print-cell-trade,
+          .print-cell-phone,
+          .print-cell-resident,
+          .print-cell-number,
+          .print-cell-note {
+            font-size: 8.2px !important;
           }
 
           .print-cell-number {
@@ -1752,18 +1833,39 @@ export default function Page() {
 
           .print-cell-date,
           .print-day-header {
-            min-width: 12px !important;
-            width: 12px !important;
-            max-width: 12px !important;
+            min-width: 4mm !important;
+            width: 4mm !important;
+            max-width: 4mm !important;
             text-align: center !important;
           }
 
           .print-day-header {
-            font-size: 8.2px !important;
+            font-size: 7.2px !important;
             font-weight: 700 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+          }
+
+          .print-cell-phone,
+          .print-cell-resident,
+          .print-cell-phone input,
+          .print-cell-resident input {
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow-wrap: normal !important;
+            letter-spacing: -0.02em !important;
+          }
+
+          .print-cell-phone input {
+            font-size: 7.9px !important;
+          }
+
+          .print-cell-resident input {
+            font-size: 7.8px !important;
           }
 
           .print-sheet-table input {
+            display: block !important;
             border-color: transparent !important;
             padding-left: 0 !important;
             padding-right: 0 !important;
@@ -1779,8 +1881,9 @@ export default function Page() {
             min-width: 0 !important;
             max-width: none !important;
             white-space: nowrap !important;
-            font-size: 8.6px !important;
-            letter-spacing: -0.01em;
+            font-size: 8.2px !important;
+            letter-spacing: -0.015em;
+            box-sizing: border-box !important;
           }
 
           .print-cell-trade input,
@@ -1789,18 +1892,19 @@ export default function Page() {
           .print-cell-resident input {
             width: 100% !important;
             min-width: 0 !important;
-            font-size: 8.8px !important;
-            letter-spacing: -0.01em;
+            line-height: 1.15 !important;
           }
 
           .print-cell-note input {
             white-space: normal !important;
-            line-height: 1.22 !important;
+            line-height: 1.2 !important;
           }
 
           .print-cell-date input {
-            font-size: 8px !important;
+            font-size: 7.1px !important;
             font-weight: 600 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
           }
         }
       `}</style>
@@ -1973,22 +2077,22 @@ export default function Page() {
             <div className="print-sheet-scroll overflow-x-auto">
               <table
                 className="print-sheet-table w-full border-collapse text-[14px]"
-                style={{ minWidth: `${1116 + MAX_DAY_COLUMNS * 42}px` }}
+                style={{ minWidth: `${TABLE_MIN_WIDTH}px` }}
               >
                 <colgroup>
-                  <col style={{ width: "52px" }} />
-                  <col style={{ width: "112px" }} />
-                  <col style={{ width: "132px" }} />
-                  <col style={{ width: "172px" }} />
-                  <col style={{ width: "184px" }} />
+                  <col className="print-col-index" style={{ width: `${TABLE_COLUMN_WIDTHS.index}px` }} />
+                  <col className="print-col-trade" style={{ width: `${TABLE_COLUMN_WIDTHS.trade}px` }} />
+                  <col className="print-col-name" style={{ width: `${TABLE_COLUMN_WIDTHS.name}px` }} />
+                  <col className="print-col-phone" style={{ width: `${TABLE_COLUMN_WIDTHS.phone}px` }} />
+                  <col className="print-col-resident" style={{ width: `${TABLE_COLUMN_WIDTHS.resident}px` }} />
                   {monthDates.map((date, index) => (
-                    <col key={`col-${date ?? `slot-${index + 1}`}`} style={{ width: "42px" }} />
+                    <col key={`col-${date ?? `slot-${index + 1}`}`} className="print-col-day" style={{ width: `${TABLE_COLUMN_WIDTHS.day}px` }} />
                   ))}
-                  <col style={{ width: "92px" }} />
-                  <col style={{ width: "112px" }} />
-                  <col style={{ width: "132px" }} />
-                  <col style={{ width: "130px" }} />
-                  <col style={{ width: "70px" }} />
+                  <col className="print-col-total" style={{ width: `${TABLE_COLUMN_WIDTHS.total}px` }} />
+                  <col className="print-col-unit-price" style={{ width: `${TABLE_COLUMN_WIDTHS.unitPrice}px` }} />
+                  <col className="print-col-payment" style={{ width: `${TABLE_COLUMN_WIDTHS.payment}px` }} />
+                  <col className="print-col-note" style={{ width: `${TABLE_COLUMN_WIDTHS.note}px` }} />
+                  <col className="print-col-actions" style={{ width: `${TABLE_COLUMN_WIDTHS.actions}px` }} />
                 </colgroup>
                 <thead className="bg-[#f3ede1] text-stone-700">
                   <tr className="border-b border-stone-400">
