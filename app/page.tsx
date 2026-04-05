@@ -137,6 +137,8 @@ const ALL_CATEGORIES_LABEL = "전체";
 const CATEGORY_FILTER_OPTIONS = [ALL_CATEGORIES_LABEL, "직영", "용역", "기타"] as const;
 const SNAPSHOT_META_PREFIX = "__ROW_META__";
 const MAX_DAY_COLUMNS = 31;
+const APP_PASSWORD = "company123";
+const AUTH_STORAGE_KEY = "company-system-authenticated";
 const TABLE_COLUMN_WIDTHS = {
   index: 52,
   trade: 96,
@@ -750,6 +752,9 @@ export default function Page() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState(ALL_CATEGORIES_LABEL);
   const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth);
   const [rows, setRows] = useState<LaborRow[]>([createEmptyRow("manual-1")]);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authStatus, setAuthStatus] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRecordsLoading, setIsRecordsLoading] = useState(false);
@@ -767,6 +772,16 @@ export default function Page() {
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    const isAuthenticated = window.localStorage.getItem(AUTH_STORAGE_KEY) === "true";
+    setAuthStatus(isAuthenticated ? "authenticated" : "unauthenticated");
+  }, []);
+
+  useEffect(() => {
+    if (authStatus !== "authenticated") {
+      setIsLoading(false);
+      return;
+    }
+
     let active = true;
 
     async function loadStatementData() {
@@ -807,7 +822,7 @@ export default function Page() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authStatus]);
 
   useEffect(() => {
     if (!companies.length) {
@@ -907,6 +922,12 @@ export default function Page() {
   );
 
   useEffect(() => {
+    if (authStatus !== "authenticated") {
+      setMonthlyRecords([]);
+      setIsRecordsLoading(false);
+      return;
+    }
+
     let active = true;
 
     async function loadMonthlyRecords() {
@@ -950,7 +971,7 @@ export default function Page() {
     return () => {
       active = false;
     };
-  }, [selectedMonth, selectedSiteId]);
+  }, [authStatus, selectedMonth, selectedSiteId]);
 
   const baseStatementRows = useMemo(() => {
     const workerMap = new Map(dailyWorkers.map((worker) => [worker.id, worker]));
@@ -1826,6 +1847,71 @@ export default function Page() {
     "screen-daily-entry-input block h-12 w-full min-w-[36px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center text-[15.5px] font-semibold leading-[3rem] tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
     "inline-flex h-10 min-w-[60px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[14px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
+
+  const handlePasswordSubmit = () => {
+    if (passwordInput === APP_PASSWORD) {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, "true");
+      setAuthError("");
+      setPasswordInput("");
+      setAuthStatus("authenticated");
+      return;
+    }
+
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    setAuthError("비밀번호가 올바르지 않습니다.");
+    setAuthStatus("unauthenticated");
+  };
+
+  const handlePasswordKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handlePasswordSubmit();
+    }
+  };
+
+  if (authStatus !== "authenticated") {
+    return (
+      <main className="min-h-screen bg-stone-100 px-4 py-10 text-stone-900">
+        <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-md items-center justify-center">
+          <section className="w-full rounded-2xl border border-stone-200 bg-white p-7 shadow-sm">
+            <div className="space-y-2">
+              <h1 className="text-xl font-semibold tracking-[-0.02em] text-stone-900">접근 비밀번호</h1>
+              <p className="text-sm leading-6 text-stone-500">
+                내부 사용 화면입니다. 비밀번호를 입력해야 계속 진행할 수 있습니다.
+              </p>
+            </div>
+            <div className="mt-5 space-y-3">
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(event) => {
+                  setPasswordInput(event.target.value);
+                  if (authError) {
+                    setAuthError("");
+                  }
+                }}
+                onKeyDown={handlePasswordKeyDown}
+                placeholder="비밀번호 입력"
+                autoComplete="current-password"
+                className="h-12 w-full rounded-lg border border-stone-300 bg-white px-4 text-base outline-none transition focus:border-stone-500"
+              />
+              <button
+                type="button"
+                onClick={handlePasswordSubmit}
+                className="h-12 w-full rounded-lg bg-stone-900 text-sm font-medium text-white transition hover:bg-stone-800"
+              >
+                확인
+              </button>
+              {authStatus === "checking" ? (
+                <p className="text-sm text-stone-400">접근 상태를 확인하는 중입니다.</p>
+              ) : null}
+              {authError ? <p className="text-sm text-red-600">{authError}</p> : null}
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <>
