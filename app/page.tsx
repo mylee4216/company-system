@@ -1617,7 +1617,7 @@ export default function Page() {
                     onClick={handlePrint}
                     className="inline-flex h-9 items-center justify-center border border-slate-700 bg-white px-3 text-sm font-medium text-slate-800 transition hover:bg-slate-100"
                   >
-                    PDF 異쒕젰
+                    PDF 출력
                   </button>
                   <button
                     type="button"
