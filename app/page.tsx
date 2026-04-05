@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/lib/supabase";
@@ -103,15 +103,15 @@ type FocusedNumericCell = {
 };
 
 type UploadedSheetRow = {
-  번호?: string | number;
-  성명?: string;
-  주민번호?: string | number;
-  전화번호?: string | number;
-  직종?: string;
-  단가?: string | number;
-  공수?: string | number;
-  지급액?: string | number;
-  비고?: string;
+  "踰덊샇"?: string | number;
+  "?깅챸"?: string;
+  "二쇰?踰덊샇"?: string | number;
+  "?꾪솕踰덊샇"?: string | number;
+  "吏곸쥌"?: string;
+  "?④?"?: string | number;
+  "怨듭닔"?: string | number;
+  "吏湲됱븸"?: string | number;
+  "鍮꾧퀬"?: string;
 };
 
 const EDITABLE_FIELDS: EditableField[] = [
@@ -124,9 +124,9 @@ const EDITABLE_FIELDS: EditableField[] = [
   "note",
 ];
 
-const EXCEL_UPLOAD_HEADERS = ["번호", "성명", "주민번호", "전화번호", "직종", "단가", "공수", "지급액", "비고"] as const;
+const EXCEL_UPLOAD_HEADERS = ["踰덊샇", "?깅챸", "二쇰?踰덊샇", "?꾪솕踰덊샇", "吏곸쥌", "?④?", "怨듭닔", "吏湲됱븸", "鍮꾧퀬"] as const;
 
-const ALL_TRADES_LABEL = "전체";
+const ALL_TRADES_LABEL = "?꾩껜";
 const FALLBACK_TRADE = "미분류";
 
 function createEmptyRow(id: string, trade = FALLBACK_TRADE): LaborRow {
@@ -327,20 +327,6 @@ function getMonthDateList(targetMonth: string) {
   });
 }
 
-function getMonthDateGroups(monthDates: string[], groupSize = 10) {
-  if (!monthDates.length || groupSize <= 0) {
-    return [] as string[][];
-  }
-
-  const groups: string[][] = [];
-
-  for (let index = 0; index < monthDates.length; index += groupSize) {
-    groups.push(monthDates.slice(index, index + groupSize));
-  }
-
-  return groups;
-}
-
 function getMonthDayLabel(date: string) {
   const day = Number(date.slice(-2));
   return Number.isFinite(day) ? `${day}일` : date;
@@ -481,19 +467,19 @@ function isFilledRow(row: LaborRow) {
 
 function getFriendlySaveErrorMessage(error: unknown) {
   if (!(error instanceof Error)) {
-    return "저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+    return "???以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄??二쇱꽭??";
   }
 
   if (error.message.startsWith("MATCH_WORKER:")) {
     const workerNames = error.message.replace("MATCH_WORKER:", "").trim();
-    return `일치하는 근로자 정보를 찾을 수 없는 항목이 있습니다: ${workerNames}. 성명, 주민번호 또는 전화번호를 확인해 주세요.`;
+    return `?쇱튂?섎뒗 洹쇰줈???뺣낫瑜?李얠쓣 ???녿뒗 ??ぉ???덉뒿?덈떎: ${workerNames}. ?깅챸, 二쇰?踰덊샇 ?먮뒗 ?꾪솕踰덊샇瑜??뺤씤??二쇱꽭??`;
   }
 
   if (error.message.includes("schema cache")) {
-    return "저장 항목과 DB 컬럼 구성이 맞지 않아 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+    return "?????ぉ怨?DB 而щ읆 援ъ꽦??留욎? ?딆븘 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄??二쇱꽭??";
   }
 
-  return "저장 중 문제가 발생했습니다. 입력 내용을 확인한 뒤 다시 시도해 주세요.";
+  return "???以?臾몄젣媛 諛쒖깮?덉뒿?덈떎. ?낅젰 ?댁슜???뺤씤?????ㅼ떆 ?쒕룄??二쇱꽭??";
 }
 
 type SupabaseLikeError = {
@@ -547,7 +533,7 @@ async function fetchCompanies() {
     .order("name", { ascending: true });
 
   if (error) {
-    throw new Error(`회사 정보를 불러오지 못했습니다: ${error.message}`);
+    throw new Error(`?뚯궗 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲?? ${error.message}`);
   }
 
   return (data ?? []) as CompanyRow[];
@@ -562,7 +548,7 @@ async function fetchSites() {
     .order("name", { ascending: true });
 
   if (error) {
-    throw new Error(`현장 정보를 불러오지 못했습니다: ${error.message}`);
+    throw new Error(`?꾩옣 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲?? ${error.message}`);
   }
 
   return (data ?? []) as SiteRow[];
@@ -575,7 +561,7 @@ async function fetchDailyWorkers() {
     .order("name", { ascending: true });
 
   if (error) {
-    throw new Error(`근로자 정보를 불러오지 못했습니다: ${error.message}`);
+    throw new Error(`洹쇰줈???뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲?? ${error.message}`);
   }
 
   return (data ?? []) as DailyWorkerRow[];
@@ -592,7 +578,7 @@ async function fetchDailyWorkerMonthlyRecords(siteId: number, targetMonth: strin
     .order("id", { ascending: true });
 
   if (error) {
-    throw new Error(`월별 근로 기록을 불러오지 못했습니다: ${error.message}`);
+    throw new Error(`?붾퀎 洹쇰줈 湲곕줉??遺덈윭?ㅼ? 紐삵뻽?듬땲?? ${error.message}`);
   }
 
   return (data ?? []) as DailyWorkerMonthlyRecordRow[];
@@ -609,7 +595,6 @@ export default function Page() {
   const [selectedTradeFilter, setSelectedTradeFilter] = useState(ALL_TRADES_LABEL);
   const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth);
   const [rows, setRows] = useState<LaborRow[]>([createEmptyRow("manual-1")]);
-  const [expandedRowIds, setExpandedRowIds] = useState<Record<string, boolean>>({});
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRecordsLoading, setIsRecordsLoading] = useState(false);
@@ -621,6 +606,7 @@ export default function Page() {
   const [focusedNumericCell, setFocusedNumericCell] = useState<FocusedNumericCell | null>(null);
 
   const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const dailyCellRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingFocusRef = useRef<{ rowId: string; field: EditableField } | null>(null);
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -651,7 +637,7 @@ export default function Page() {
         }
 
         const message =
-          error instanceof Error ? error.message : "데이터를 불러오는 중 문제가 발생했습니다.";
+          error instanceof Error ? error.message : "?곗씠?곕? 遺덈윭?ㅻ뒗 以?臾몄젣媛 諛쒖깮?덉뒿?덈떎.";
         setLoadError(message);
       } finally {
         if (active) {
@@ -710,7 +696,6 @@ export default function Page() {
   );
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
-  const monthDateGroups = useMemo(() => getMonthDateGroups(monthDates), [monthDates]);
 
   useEffect(() => {
     let active = true;
@@ -741,7 +726,7 @@ export default function Page() {
         }
 
         const message =
-          error instanceof Error ? error.message : "월별 기록을 불러오는 중 문제가 발생했습니다.";
+          error instanceof Error ? error.message : "?붾퀎 湲곕줉??遺덈윭?ㅻ뒗 以?臾몄젣媛 諛쒖깮?덉뒿?덈떎.";
         setLoadError(message);
         setMonthlyRecords([]);
       } finally {
@@ -778,15 +763,15 @@ export default function Page() {
         parseNumber(worker?.daily_wage) ||
         (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
       const lastWorkedDate = getLastWorkedDate(record.work_entries);
-      const note = snapshot?.note?.trim() || (lastWorkedDate ? `최종 작업일 ${formatDateDisplay(lastWorkedDate)}` : "");
-      const name = snapshot?.name?.trim() || worker?.name || `근로자 #${workerId ?? "-"}`;
+      const note = snapshot?.note?.trim() || (lastWorkedDate ? `理쒖쥌 ?묒뾽??${formatDateDisplay(lastWorkedDate)}` : "");
+      const name = snapshot?.name?.trim() || worker?.name || `洹쇰줈??#${workerId ?? "-"}`;
 
       return {
         ...{
         id: `record-${record.id}`,
         sourceRecordId: record.id,
         sourceWorkerId: workerId,
-        name: worker?.name ?? `근로자 #${workerId ?? "-"}`,
+        name: worker?.name ?? `洹쇰줈??#${workerId ?? "-"}`,
         residentId: formatResidentId(
           getMonthlyRecordTextValue(record, "resident_number") || worker?.resident_number || "",
         ),
@@ -794,7 +779,7 @@ export default function Page() {
         trade: getTradeLabel(worker?.job_type ?? null),
         unitPrice: unitPrice ? String(unitPrice) : "",
         workUnits: totalWorkUnits ? String(totalWorkUnits) : "",
-        note: lastWorkedDate ? `최종 작업일 ${formatDateDisplay(lastWorkedDate)}` : "",
+        note: lastWorkedDate ? `理쒖쥌 ?묒뾽??${formatDateDisplay(lastWorkedDate)}` : "",
         },
         name,
         residentId: formatResidentId(
@@ -886,13 +871,6 @@ export default function Page() {
         return { ...row, [field]: value };
       }),
     );
-  };
-
-  const toggleDailyEntries = (rowId: string) => {
-    setExpandedRowIds((current) => ({
-      ...current,
-      [rowId]: !current[rowId],
-    }));
   };
 
   const updateDailyWorkEntry = (rowId: string, date: string, value: string) => {
@@ -1001,6 +979,17 @@ export default function Page() {
     target.select();
   };
 
+  const focusDailyCell = (rowId: string, date: string) => {
+    const target = dailyCellRefs.current[`${rowId}:${date}`];
+
+    if (!target) {
+      return;
+    }
+
+    target.focus();
+    target.select();
+  };
+
   useEffect(() => {
     const pendingFocus = pendingFocusRef.current;
 
@@ -1044,16 +1033,6 @@ export default function Page() {
     setRows((currentRows) => {
       if (rowIndex < 0 || rowIndex >= currentRows.length) {
         return currentRows;
-      }
-
-      const targetRow = currentRows[rowIndex];
-
-      if (targetRow) {
-        setExpandedRowIds((current) => {
-          const nextState = { ...current };
-          delete nextState[targetRow.id];
-          return nextState;
-        });
       }
 
       return currentRows.filter((_, index) => index !== rowIndex);
@@ -1119,6 +1098,49 @@ export default function Page() {
     addRow({ focusField: EDITABLE_FIELDS[0], trade: currentRow?.trade });
   };
 
+  const moveDailyFocus = (
+    rowId: string,
+    date: string,
+    direction: "down" | "next" | "previous",
+  ) => {
+    const currentRowIndex = visibleRows.findIndex((row) => row.id === rowId);
+    const currentDateIndex = monthDates.indexOf(date);
+
+    if (currentRowIndex < 0 || currentDateIndex < 0) {
+      return;
+    }
+
+    if (direction === "down") {
+      const nextRow = visibleRows[currentRowIndex + 1];
+
+      if (nextRow) {
+        focusDailyCell(nextRow.id, date);
+        return;
+      }
+
+      const currentRow = visibleRows[currentRowIndex];
+      const newRowId = addRow({ trade: currentRow?.trade });
+      window.requestAnimationFrame(() => {
+        focusDailyCell(newRowId, date);
+      });
+      return;
+    }
+
+    const nextDateIndex = currentDateIndex + (direction === "previous" ? -1 : 1);
+
+    if (nextDateIndex >= 0 && nextDateIndex < monthDates.length) {
+      focusDailyCell(rowId, monthDates[nextDateIndex]);
+      return;
+    }
+
+    if (direction === "previous") {
+      focusCell(rowId, "phone");
+      return;
+    }
+
+    focusCell(rowId, "workUnits");
+  };
+
   const handleCellKeyDown = (
     event: KeyboardEvent<HTMLInputElement>,
     rowId: string,
@@ -1137,6 +1159,27 @@ export default function Page() {
     if (event.key === "Tab") {
       event.preventDefault();
       moveFocus(rowId, field, event.shiftKey ? "previous" : "next");
+    }
+  };
+
+  const handleDailyCellKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+    rowId: string,
+    date: string,
+  ) => {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      moveDailyFocus(rowId, date, "down");
+      return;
+    }
+
+    if (event.key === "Tab") {
+      event.preventDefault();
+      moveDailyFocus(rowId, date, event.shiftKey ? "previous" : "next");
     }
   };
 
@@ -1192,7 +1235,7 @@ export default function Page() {
 
   const handleSave = async () => {
     if (!selectedCompanyId || !selectedSiteId || !selectedMonth) {
-      setSaveError("저장 전에 회사, 현장, 기준월을 모두 선택해 주세요.");
+      setSaveError("????꾩뿉 ?뚯궗, ?꾩옣, 湲곗??붿쓣 紐⑤몢 ?좏깮??二쇱꽭??");
       setSaveWarningMessage("");
       setSaveSuccessMessage("");
       return;
@@ -1215,8 +1258,8 @@ export default function Page() {
 
       if (unresolvedRows.length) {
         setSaveWarningMessage(
-          `근로자 마스터와 연결되지 않은 행이 있지만 저장은 가능합니다: ${unresolvedRows
-            .map(({ row }) => row.name || "(성명 없음)")
+          `洹쇰줈??留덉뒪?곗? ?곌껐?섏? ?딆? ?됱씠 ?덉?留???μ? 媛?ν빀?덈떎: ${unresolvedRows
+            .map(({ row }) => row.name || "(?깅챸 ?놁쓬)")
             .join(", ")}`,
         );
       }
@@ -1233,7 +1276,7 @@ export default function Page() {
 
         if (error) {
           logSupabaseError("delete removed rows", error, { removedRecordIds });
-          throw toAppError(error, "삭제된 행 정리에 실패했습니다.");
+          throw toAppError(error, "??젣?????뺣━???ㅽ뙣?덉뒿?덈떎.");
         }
       }
 
@@ -1264,7 +1307,7 @@ export default function Page() {
 
           if (updateFailure?.error) {
             logSupabaseError("update worker profile", updateFailure.error, { workerProfileUpdates });
-            throw toAppError(updateFailure.error, "근로자 연락처 정보 저장에 실패했습니다.");
+            throw toAppError(updateFailure.error, "洹쇰줈???곕씫泥??뺣낫 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎.");
           }
 
           setDailyWorkers((currentWorkers) =>
@@ -1339,7 +1382,7 @@ export default function Page() {
 
           if (error) {
             logSupabaseError("update monthly record", error, { recordId: id, updatePayload });
-            throw toAppError(error, "기존 노무비 행 저장에 실패했습니다.");
+            throw toAppError(error, "湲곗〈 ?몃Т鍮?????μ뿉 ?ㅽ뙣?덉뒿?덈떎.");
           }
         }
 
@@ -1350,13 +1393,13 @@ export default function Page() {
 
           if (error) {
             logSupabaseError("insert monthly records", error, { recordsToInsert });
-            throw toAppError(error, "업로드 행 저장에 실패했습니다.");
+            throw toAppError(error, "?낅줈??????μ뿉 ?ㅽ뙣?덉뒿?덈떎.");
           }
         }
       }
 
       await reloadMonthlyRecords();
-      setSaveSuccessMessage("저장이 완료되었습니다.");
+      setSaveSuccessMessage("??μ씠 ?꾨즺?섏뿀?듬땲??");
     } catch (error) {
       logSupabaseError("handleSave catch", error);
       setSaveError(getFriendlySaveErrorMessage(error));
@@ -1380,9 +1423,9 @@ export default function Page() {
     ]);
 
     const worksheetData = [
-      ["번호", "성명", "주민번호", "전화번호", "직종", "단가", "공수", "지급액", "비고"],
+      ["踰덊샇", "?깅챸", "二쇰?踰덊샇", "?꾪솕踰덊샇", "吏곸쥌", "?④?", "怨듭닔", "吏湲됱븸", "鍮꾧퀬"],
       ...exportRows,
-      ["", "", "", "", "", "합계", totalWorkUnits, totalPaymentAmount, ""],
+      ["", "", "", "", "", "?⑷퀎", totalWorkUnits, totalPaymentAmount, ""],
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -1416,8 +1459,8 @@ export default function Page() {
     });
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "노무비명세서");
-    XLSX.writeFile(workbook, `노무비명세서_${selectedMonth || getDefaultMonth()}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "?몃Т鍮꾨챸?몄꽌");
+    XLSX.writeFile(workbook, `?몃Т鍮꾨챸?몄꽌_${selectedMonth || getDefaultMonth()}.xlsx`);
   };
 
   const resetExcelInput = () => {
@@ -1447,7 +1490,7 @@ export default function Page() {
       file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
     if (!isXlsxFile) {
-      setSaveError("엑셀(.xlsx) 파일만 업로드할 수 있습니다.");
+      setSaveError("?묒?(.xlsx) ?뚯씪留??낅줈?쒗븷 ???덉뒿?덈떎.");
       setSaveSuccessMessage("");
       resetExcelInput();
       return;
@@ -1482,14 +1525,14 @@ export default function Page() {
       const uploadTimestamp = Date.now();
       const nextRows = uploadedRows
         .map<LaborRow | null>((uploadedRow, index) => {
-          const name = String(uploadedRow["성명"] ?? "").trim();
-          const residentId = formatResidentId(String(uploadedRow["주민번호"] ?? "").trim());
-          const phone = formatPhoneNumber(String(uploadedRow["전화번호"] ?? "").trim());
-          const trade = String(uploadedRow["직종"] ?? "").trim();
-          const unitPrice = normalizeUploadedNumericText(uploadedRow["단가"]);
-          const workUnits = normalizeUploadedNumericText(uploadedRow["공수"]);
-          const note = String(uploadedRow["비고"] ?? "").trim();
-          const amount = parseExcelNumber(uploadedRow["지급액"]);
+          const name = String(uploadedRow["?깅챸"] ?? "").trim();
+          const residentId = formatResidentId(String(uploadedRow["二쇰?踰덊샇"] ?? "").trim());
+          const phone = formatPhoneNumber(String(uploadedRow["?꾪솕踰덊샇"] ?? "").trim());
+          const trade = String(uploadedRow["吏곸쥌"] ?? "").trim();
+          const unitPrice = normalizeUploadedNumericText(uploadedRow["?④?"]);
+          const workUnits = normalizeUploadedNumericText(uploadedRow["怨듭닔"]);
+          const note = String(uploadedRow["鍮꾧퀬"] ?? "").trim();
+          const amount = parseExcelNumber(uploadedRow["吏湲됱븸"]);
 
           const hasContent =
             Boolean(name) ||
@@ -1527,12 +1570,12 @@ export default function Page() {
       pendingFocusRef.current = null;
       setSaveError("");
       setSaveWarningMessage("");
-      setSaveSuccessMessage("엑셀 업로드 내용을 화면에 반영했습니다. 검토 후 저장해 주세요.");
+      setSaveSuccessMessage("?묒? ?낅줈???댁슜???붾㈃??諛섏쁺?덉뒿?덈떎. 寃??????ν빐 二쇱꽭??");
     } catch (error) {
       const message =
         error instanceof Error && error.message === "INVALID_EXCEL_FORMAT"
-          ? "엑셀 양식을 확인하세요."
-          : "엑셀 파일을 읽는 중 오류가 발생했습니다.";
+          ? "?묒? ?묒떇???뺤씤?섏꽭??"
+          : "?묒? ?뚯씪???쎈뒗 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.";
       setSaveError(message);
       setSaveWarningMessage("");
       setSaveSuccessMessage("");
@@ -1542,10 +1585,10 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-9 w-full border border-stone-200 bg-white px-2 text-sm outline-none transition focus:border-stone-700";
+    "h-9 w-full border-0 bg-transparent px-1.5 text-sm outline-none transition focus:bg-amber-50/70";
   const sheetNumericClass = `${sheetInputClass} text-right tabular-nums`;
   const dailyEntryInputClass =
-    "h-8 w-full min-w-[54px] border border-stone-200 bg-white px-1.5 text-center text-xs tabular-nums outline-none transition focus:border-stone-700";
+    "h-8 w-full min-w-[44px] border-0 bg-transparent px-1 text-center text-xs tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
     "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-xs font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
@@ -1554,13 +1597,12 @@ export default function Page() {
       <style jsx global>{`
         @page {
           size: A4 landscape;
-          margin: 8mm 10mm;
+          margin: 7mm;
         }
 
         @media screen {
           .print-root,
           .print-shell,
-          .print-sheet-section,
           .print-sheet-scroll {
             position: static !important;
             inset: auto !important;
@@ -1617,14 +1659,6 @@ export default function Page() {
           }
 
           .print-root,
-          .print-shell,
-          .print-sheet-section,
-          .print-sheet-meta,
-          .print-sheet-table-section {
-            max-width: none !important;
-          }
-
-          .print-root,
           .print-shell {
             min-width: 0 !important;
           }
@@ -1633,74 +1667,12 @@ export default function Page() {
             display: none !important;
           }
 
-          .print-sheet-section {
-            break-inside: avoid-page;
-            page-break-inside: avoid;
-            margin: 0 0 8mm;
-          }
-
-          .print-sheet-meta {
-            margin-bottom: 5mm;
-          }
-
-          .print-sheet-table-section {
-            break-inside: auto;
-            page-break-inside: auto;
-            margin-bottom: 0;
-          }
-
-          .print-sheet-table-section .border-b,
-          .print-sheet-table-section .bg-stone-50 {
-            break-inside: avoid-page;
-            page-break-inside: avoid;
-          }
-
           .print-sheet-table {
             width: 100% !important;
             min-width: 0 !important;
-            table-layout: fixed;
-            font-size: 10px;
-            line-height: 1.3;
-          }
-
-          .print-sheet-table col.print-col-index {
-            width: 4% !important;
-          }
-
-          .print-sheet-table col.print-col-name {
-            width: 8% !important;
-          }
-
-          .print-sheet-table col.print-col-resident {
-            width: 15% !important;
-          }
-
-          .print-sheet-table col.print-col-phone {
-            width: 14% !important;
-          }
-
-          .print-sheet-table col.print-col-trade {
-            width: 10% !important;
-          }
-
-          .print-sheet-table col.print-col-unit-price {
-            width: 8% !important;
-          }
-
-          .print-sheet-table col.print-col-work-units {
-            width: 6% !important;
-          }
-
-          .print-sheet-table col.print-col-amount {
-            width: 10% !important;
-          }
-
-          .print-sheet-table col.print-col-note {
-            width: 25% !important;
-          }
-
-          .print-sheet-table col.print-col-actions {
-            width: 0 !important;
+            table-layout: auto;
+            font-size: 9px;
+            line-height: 1.2;
           }
 
           .print-sheet-table thead {
@@ -1720,96 +1692,40 @@ export default function Page() {
 
           .print-sheet-table th,
           .print-sheet-table td {
-            padding: 4px 5px !important;
+            padding: 2px 3px !important;
             vertical-align: middle;
             overflow: visible !important;
           }
 
-          .print-sheet-table tr > :last-child {
+          .print-cell-actions,
+          .print-col-actions {
             display: none !important;
           }
 
-          .print-sheet-table th:nth-child(1),
-          .print-sheet-table td:nth-child(1) {
-            width: 4%;
-          }
-
-          .print-sheet-table th:nth-child(2),
-          .print-sheet-table td:nth-child(2) {
-            width: 8%;
-          }
-
-          .print-sheet-table th:nth-child(3),
-          .print-sheet-table td:nth-child(3) {
-            width: 15%;
-          }
-
-          .print-sheet-table th:nth-child(4),
-          .print-sheet-table td:nth-child(4) {
-            width: 14%;
-          }
-
-          .print-sheet-table th:nth-child(5),
-          .print-sheet-table td:nth-child(5) {
-            width: 10%;
-          }
-
-          .print-sheet-table th:nth-child(6),
-          .print-sheet-table td:nth-child(6) {
-            width: 8%;
-          }
-
-          .print-sheet-table th:nth-child(7),
-          .print-sheet-table td:nth-child(7) {
-            width: 6%;
-          }
-
-          .print-sheet-table th:nth-child(8),
-          .print-sheet-table td:nth-child(8) {
-            width: 10%;
-          }
-
-          .print-sheet-table th:nth-child(9),
-          .print-sheet-table td:nth-child(9) {
-            width: 25%;
-          }
-
           .print-cell-name,
-          .print-cell-trade,
-          .print-cell-note {
-            white-space: normal !important;
-            word-break: keep-all;
-            overflow-wrap: anywhere;
-          }
-
-          .print-cell-name {
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-          }
-
+          .print-cell-phone,
           .print-cell-resident,
-          .print-cell-phone {
+          .print-cell-note,
+          .print-cell-date,
+          .print-cell-number {
             white-space: nowrap !important;
             word-break: normal !important;
             overflow-wrap: normal !important;
             overflow: hidden !important;
             text-overflow: clip !important;
-            font-size: 9.6px;
-            letter-spacing: -0.015em;
           }
 
           .print-cell-number {
-            white-space: nowrap !important;
             text-align: right !important;
             font-variant-numeric: tabular-nums;
           }
 
-          .print-cell-note {
-            min-width: 0;
-            white-space: normal !important;
-            word-break: keep-all;
-            overflow-wrap: anywhere;
+          .print-cell-date,
+          .print-day-header {
+            min-width: 12px !important;
+            width: 12px !important;
+            max-width: 12px !important;
+            text-align: center !important;
           }
 
           .print-sheet-table input {
@@ -1828,288 +1744,223 @@ export default function Page() {
             min-width: 0 !important;
             max-width: 100% !important;
           }
-
-          .print-sheet-table .print-cell-name input,
-          .print-sheet-table .print-cell-trade input,
-          .print-sheet-table .print-cell-note input {
-            white-space: normal !important;
-            overflow-wrap: anywhere;
-            word-break: keep-all;
-          }
-
-          .print-sheet-table .print-cell-name input {
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-          }
-
-          .print-sheet-table .print-cell-resident input,
-          .print-sheet-table .print-cell-phone input,
-          .print-sheet-table .print-cell-number input {
-            white-space: nowrap !important;
-            word-break: normal !important;
-            overflow-wrap: normal !important;
-            min-width: 0 !important;
-            overflow: hidden !important;
-            text-overflow: clip !important;
-          }
-
-          .print-sheet-table-section tbody::before {
-            content: "";
-            display: table-row;
-            height: 1mm;
-          }
         }
       `}</style>
-      <main className="min-h-screen bg-[#f3f0e8] px-3 py-4 text-slate-900 sm:px-4 lg:px-6">
-      <div className="print-root mx-auto w-full max-w-[1500px]">
-        <section className="print-shell border border-stone-400 bg-white shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
-          <header className="border-b-2 border-stone-700 px-4 py-4 sm:px-6">
-  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-    <div className="space-y-2">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-        노무비 명세서
-      </p>
-      <h1 className="text-2xl font-bold tracking-[0.12em] text-slate-900 sm:text-3xl">
-        노무비 명세서
-      </h1>
-      <p className="text-sm leading-6 text-stone-600">
-        회사, 현장, 기준월을 선택하고 월별 노무비 내역을 입력하거나 검토할 수 있습니다.
-      </p>
-    </div>
+      <main className="min-h-screen bg-[#e7e0d2] px-3 py-4 text-slate-900 sm:px-4 lg:px-6">
+        <div className="print-root mx-auto w-full max-w-[1880px]">
+          <section className="print-hidden print-interactive mb-3 border border-stone-400 bg-[#f7f2e7] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
+            <div className="grid gap-0 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
+              <label className="border-b border-r border-stone-300 px-3 py-2 text-sm">
+                <span className="mb-1 block font-medium text-stone-700">상호</span>
+                <select
+                  className="h-9 w-full border border-stone-300 bg-white px-2 text-sm outline-none transition focus:border-stone-700"
+                  value={selectedCompanyId}
+                  onChange={(event) => setSelectedCompanyId(event.target.value)}
+                  disabled={isLoading || !companies.length}
+                >
+                  {companies.length ? null : <option value="">회사 선택</option>}
+                  {companies.map((company) => (
+                    <option key={company.id} value={String(company.id)}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="border-b border-r border-stone-300 px-3 py-2 text-sm">
+                <span className="mb-1 block font-medium text-stone-700">공사명 / 현장명</span>
+                <select
+                  className="h-9 w-full border border-stone-300 bg-white px-2 text-sm outline-none transition focus:border-stone-700"
+                  value={selectedSiteId}
+                  onChange={(event) => setSelectedSiteId(event.target.value)}
+                  disabled={isLoading || !availableSites.length}
+                >
+                  {availableSites.length ? null : <option value="">현장 선택</option>}
+                  {availableSites.map((site) => (
+                    <option key={site.id} value={String(site.id)}>
+                      {site.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="border-b border-r border-stone-300 px-3 py-2 text-sm">
+                <span className="mb-1 block font-medium text-stone-700">직종 필터</span>
+                <select
+                  className="h-9 w-full border border-stone-300 bg-white px-2 text-sm outline-none transition focus:border-stone-700"
+                  value={selectedTradeFilter}
+                  onChange={(event) => setSelectedTradeFilter(event.target.value)}
+                >
+                  {tradeOptions.map((trade) => (
+                    <option key={trade} value={trade}>
+                      {trade}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="border-b border-stone-300 px-3 py-2 text-sm md:border-r xl:border-r-0">
+                <span className="mb-1 block font-medium text-stone-700">기준월</span>
+                <input
+                  type="month"
+                  className="h-9 w-full border border-stone-300 bg-white px-2 text-sm outline-none transition focus:border-stone-700"
+                  value={selectedMonth}
+                  onChange={(event) => setSelectedMonth(event.target.value)}
+                />
+              </label>
+            </div>
 
-    <div className="grid min-w-[280px] grid-cols-2 border border-stone-400 text-sm">
-      <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 font-medium">
-        기준월
-      </div>
-      <div className="border-b border-stone-300 px-3 py-2 text-right tabular-nums">
-        {selectedMonth || "-"}
-      </div>
-      <div className="border-r border-stone-300 bg-stone-100 px-3 py-2 font-medium">
-        행 수
-      </div>
-      <div className="px-3 py-2 text-right tabular-nums">{visibleRows.length}</div>
-    </div>
-  </div>
-</header>
+            <div className="flex flex-wrap gap-2 border-b border-stone-300 px-3 py-2">
+              <input
+                ref={excelFileInputRef}
+                type="file"
+                accept=".xlsx"
+                onChange={handleExcelUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => addRow()}
+                className="inline-flex h-9 items-center justify-center border border-stone-700 bg-white px-3 text-sm font-medium text-stone-800 transition hover:bg-stone-100"
+              >
+                행 추가
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadExcel}
+                className="inline-flex h-9 items-center justify-center border border-sky-700 bg-white px-3 text-sm font-medium text-sky-800 transition hover:bg-sky-50"
+              >
+                엑셀 다운로드
+              </button>
+              <button
+                type="button"
+                onClick={handleUploadButtonClick}
+                className="inline-flex h-9 items-center justify-center border border-violet-700 bg-white px-3 text-sm font-medium text-violet-800 transition hover:bg-violet-50"
+              >
+                엑셀 업로드
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex h-9 items-center justify-center border border-slate-700 bg-white px-3 text-sm font-medium text-slate-800 transition hover:bg-slate-100"
+              >
+                PDF 출력
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving || isLoading || isRecordsLoading}
+                className="inline-flex h-9 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-sm font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
+              >
+                {isSaving ? "저장 중..." : "저장"}
+              </button>
+            </div>
 
-          <div className="space-y-4 px-4 py-4 sm:px-6">
-            <section className="print-hidden print-interactive relative z-10 border border-stone-300">
-              <div className="border-b border-stone-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700">
-                조회 조건
+            {selectedCompany ? (
+              <div className="border-b border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-600">
+                사업자번호 {selectedCompany.business_number || "-"} / 주소 {selectedCompany.address || "-"}
               </div>
-              <div className="grid gap-x-4 gap-y-3 px-3 py-3 md:grid-cols-2 xl:grid-cols-4">
-                <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">회사 선택</span>
-                  <select
-                    className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
-                    value={selectedCompanyId}
-                    onChange={(event) => setSelectedCompanyId(event.target.value)}
-                    disabled={isLoading || !companies.length}
-                  >
-                    {companies.length ? null : <option value="">회사 선택</option>}
-                    {companies.map((company) => (
-                      <option key={company.id} value={String(company.id)}>
-                        {company.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+            ) : null}
+            {loadError ? <p className="border-b border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{loadError}</p> : null}
+            {saveError ? <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{saveError}</p> : null}
+            {saveWarningMessage ? (
+              <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{saveWarningMessage}</p>
+            ) : null}
+            {saveSuccessMessage ? (
+              <p className="bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{saveSuccessMessage}</p>
+            ) : null}
+          </section>
 
-                <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">현장 선택</span>
-                  <select
-                    className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
-                    value={selectedSiteId}
-                    onChange={(event) => setSelectedSiteId(event.target.value)}
-                    disabled={isLoading || !availableSites.length}
-                  >
-                    {availableSites.length ? null : <option value="">현장 선택</option>}
-                    {availableSites.map((site) => (
-                      <option key={site.id} value={String(site.id)}>
-                        {site.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">직종</span>
-                  <select
-                    className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
-                    value={selectedTradeFilter}
-                    onChange={(event) => setSelectedTradeFilter(event.target.value)}
-                  >
-                    {tradeOptions.map((trade) => (
-                      <option key={trade} value={trade}>
-                        {trade}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">기준월</span>
-                  <input
-                    type="month"
-                    className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
-                    value={selectedMonth}
-                    onChange={(event) => setSelectedMonth(event.target.value)}
-                  />
-                </label>
-              </div>
-
-              {selectedCompany ? (
-                <div className="border-t border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-600">
-                  사업자등록번호 {selectedCompany.business_number || "-"} / 주소 {selectedCompany.address || "-"}
+          <section className="print-shell border border-stone-500 bg-white shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)]">
+            <header className="border-b-2 border-stone-700 px-4 py-4 sm:px-5">
+              <div className="mb-3 flex items-end justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[11px] tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
+                  <h1 className="mt-1 text-2xl font-bold tracking-[0.3em] text-slate-900 sm:text-3xl">노 무 비 명 세 서</h1>
                 </div>
-              ) : null}
-              {loadError ? (
-                <p className="border-t border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {loadError}
-                </p>
-              ) : null}
-              {saveError ? (
-                <p className="border-t border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                  {saveError}
-                </p>
-              ) : null}
-              {saveWarningMessage ? (
-                <p className="border-t border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                  {saveWarningMessage}
-                </p>
-              ) : null}
-              {saveSuccessMessage ? (
-                <p className="border-t border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                  {saveSuccessMessage}
-                </p>
-              ) : null}
-            </section>
-
-            <section className="print-sheet-section print-sheet-meta border border-stone-300">
-              <div className="border-b border-stone-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700">
-                현장 정보
-              </div>
-              <div className="grid gap-0 md:grid-cols-2 xl:grid-cols-4">
-                <div className="border-b border-r border-stone-300 px-3 py-3">
-                  <div className="text-xs font-medium text-stone-500">발주자</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">{selectedSite?.client_name || "-"}</div>
-                </div>
-                <div className="border-b border-r border-stone-300 px-3 py-3">
-                  <div className="text-xs font-medium text-stone-500">공사구분</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">{selectedSite?.contract_type || "-"}</div>
-                </div>
-                <div className="border-b border-r border-stone-300 px-3 py-3">
-                  <div className="text-xs font-medium text-stone-500">착공일</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">
-                    {formatDateDisplay(selectedSite?.construction_start_date ?? selectedSite?.start_date)}
-                  </div>
-                </div>
-                <div className="border-b px-3 py-3">
-                  <div className="text-xs font-medium text-stone-500">준공일</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">
-                    {formatDateDisplay(selectedSite?.construction_end_date ?? selectedSite?.end_date)}
+                <div className="hidden min-w-[160px] border border-stone-400 text-xs sm:block">
+                  <div className="grid grid-cols-[68px_1fr]">
+                    <div className="border-b border-r border-stone-300 bg-stone-100 px-2 py-1.5 font-medium">기준월</div>
+                    <div className="border-b border-stone-300 px-2 py-1.5 text-right tabular-nums">{selectedMonth || "-"}</div>
+                    <div className="border-r border-stone-300 bg-stone-100 px-2 py-1.5 font-medium">인원수</div>
+                    <div className="px-2 py-1.5 text-right tabular-nums">{visibleRows.length}</div>
                   </div>
                 </div>
               </div>
-              <div className="border-t border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-600">
-                선택 현장: {selectedSite?.name || "선택된 현장이 없습니다."}
-              </div>
-            </section>
 
-            <section className="print-sheet-section print-sheet-table-section border border-stone-300">
-              <div className="flex flex-col gap-3 border-b border-stone-300 bg-stone-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900">노무비 입력표</h2>
-                  <p className="text-sm text-stone-600">Enter 키로 다음 셀로 이동하며 내용을 연속 입력할 수 있습니다.</p>
-                </div>
-                <div className="print-hidden print-interactive relative z-10 flex flex-wrap items-center gap-2">
-                  <input
-                    ref={excelFileInputRef}
-                    type="file"
-                    accept=".xlsx"
-                    onChange={handleExcelUpload}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => addRow()}
-                    className="inline-flex h-9 items-center justify-center border border-stone-700 bg-white px-3 text-sm font-medium text-stone-800 transition hover:bg-stone-100"
-                  >
-                    행 추가
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDownloadExcel}
-                    className="inline-flex h-9 items-center justify-center border border-sky-700 bg-white px-3 text-sm font-medium text-sky-800 transition hover:bg-sky-50"
-                  >
-                    엑셀 다운로드
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleUploadButtonClick}
-                    className="inline-flex h-9 items-center justify-center border border-violet-700 bg-white px-3 text-sm font-medium text-violet-800 transition hover:bg-violet-50"
-                  >
-                    엑셀 업로드
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handlePrint}
-                    className="inline-flex h-9 items-center justify-center border border-slate-700 bg-white px-3 text-sm font-medium text-slate-800 transition hover:bg-slate-100"
-                  >
-                    PDF 출력
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={isSaving || isLoading || isRecordsLoading}
-                    className="inline-flex h-9 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-sm font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
-                  >
-                    {isSaving ? "저장 중..." : "저장"}
-                  </button>
+              <div className="overflow-hidden border border-stone-400">
+                <div className="grid grid-cols-1 border-stone-300 md:grid-cols-2">
+                  <div className="grid grid-cols-[96px_1fr] border-b border-stone-300 md:border-r">
+                    <div className="bg-stone-100 px-3 py-2 text-sm font-medium">상호</div>
+                    <div className="px-3 py-2 text-sm">{selectedCompany?.name || "-"}</div>
+                  </div>
+                  <div className="grid grid-cols-[96px_1fr] border-b border-stone-300">
+                    <div className="bg-stone-100 px-3 py-2 text-sm font-medium">공사명</div>
+                    <div className="px-3 py-2 text-sm">{selectedSite?.name || "-"}</div>
+                  </div>
+                  <div className="grid grid-cols-[96px_1fr] border-b border-stone-300 md:border-b-0 md:border-r">
+                    <div className="bg-stone-100 px-3 py-2 text-sm font-medium">현장명</div>
+                    <div className="px-3 py-2 text-sm">{selectedSite?.client_name || selectedSite?.name || "-"}</div>
+                  </div>
+                  <div className="grid grid-cols-[96px_1fr]">
+                    <div className="bg-stone-100 px-3 py-2 text-sm font-medium">기간</div>
+                    <div className="px-3 py-2 text-sm">
+                      {selectedMonth || "-"}
+                      {selectedSite?.construction_start_date || selectedSite?.construction_end_date || selectedSite?.start_date || selectedSite?.end_date
+                        ? ` / ${formatDateDisplay(selectedSite?.construction_start_date ?? selectedSite?.start_date)} ~ ${formatDateDisplay(selectedSite?.construction_end_date ?? selectedSite?.end_date)}`
+                        : ""}
+                    </div>
+                  </div>
                 </div>
               </div>
+            </header>
 
-              <div className="print-sheet-scroll overflow-x-auto">
-                <table className="print-sheet-table min-w-[1320px] w-full border-collapse text-sm">
-                  <colgroup>
-                    <col className="print-col-index" />
-                    <col className="print-col-name" />
-                    <col className="print-col-resident" />
-                    <col className="print-col-phone" />
-                    <col className="print-col-trade" />
-                    <col className="print-col-unit-price" />
-                    <col className="print-col-work-units" />
-                    <col className="print-col-amount" />
-                    <col className="print-col-note" />
-                    <col className="print-col-actions" />
-                  </colgroup>
-                  <thead className="bg-[#f5f2ea] text-stone-700">
-                    <tr className="border-b border-stone-400">
-                      <th className="w-14 border-r border-stone-300 px-2 py-2 text-center font-semibold">번호</th>
-                      <th className="w-32 border-r border-stone-300 px-2 py-2 text-left font-semibold">성명</th>
-                      <th className="w-40 border-r border-stone-300 px-2 py-2 text-left font-semibold">주민번호</th>
-                      <th className="w-36 border-r border-stone-300 px-2 py-2 text-left font-semibold">전화번호</th>
-                      <th className="w-28 border-r border-stone-300 px-2 py-2 text-left font-semibold">직종</th>
-                      <th className="w-28 border-r border-stone-300 px-2 py-2 text-right font-semibold">단가</th>
-                      <th className="w-24 border-r border-stone-300 px-2 py-2 text-right font-semibold">공수</th>
-                      <th className="w-32 border-r border-stone-300 px-2 py-2 text-right font-semibold">지급액</th>
-                      <th className="min-w-[280px] border-r border-stone-300 px-2 py-2 text-left font-semibold">비고</th>
-                      <th className="w-32 px-2 py-2 text-center font-semibold">관리</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleRows.map((row, index) => {
-                      const rowIndex = rows.findIndex((currentRow) => currentRow.id === row.id);
-                      const rowHasDailyEntries = hasDailyWorkEntries(row.dailyWorkEntries);
-                      const isExpanded = Boolean(expandedRowIds[row.id]);
+            <div className="print-sheet-scroll overflow-x-auto">
+              <table className="print-sheet-table min-w-[2200px] w-full border-collapse text-[13px]">
+                <thead className="bg-[#f3ede1] text-stone-700">
+                  <tr className="border-b border-stone-400">
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">번호</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">직종</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">성명</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">전화번호</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">주민번호</th>
+                    <th colSpan={monthDates.length || 1} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">일자별 공수</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">총공수</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">단가</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">지급액</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">비고</th>
+                    <th rowSpan={2} className="print-col-actions px-2 py-2 text-center font-semibold">관리</th>
+                  </tr>
+                  <tr className="border-b border-stone-400">
+                    {monthDates.length ? (
+                      monthDates.map((date) => (
+                        <th key={date} className="print-day-header border-r border-stone-300 px-1 py-1 text-center text-[11px] font-medium">
+                          {Number(date.slice(-2))}
+                        </th>
+                      ))
+                    ) : (
+                      <th className="border-r border-stone-300 px-2 py-1 text-center text-[11px] font-medium">-</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map((row, index) => {
+                    const rowIndex = rows.findIndex((currentRow) => currentRow.id === row.id);
+                    const rowHasDailyEntries = hasDailyWorkEntries(row.dailyWorkEntries);
 
-                      return (
-                        <Fragment key={row.id}>
-                        <tr key={row.id} className="border-b border-stone-300 align-middle odd:bg-white even:bg-stone-50/40">
-                        <td className="border-r border-stone-300 px-2 py-1.5 text-center text-xs text-stone-700">
-                          {index + 1}
+                    return (
+                      <tr key={row.id} className="border-b border-stone-300 align-middle odd:bg-white even:bg-stone-50/30">
+                        <td className="border-r border-stone-300 px-2 py-1 text-center text-xs">{index + 1}</td>
+                        <td className="border-r border-stone-300 px-1 py-1">
+                          <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:trade`] = element;
+                            }}
+                            value={row.trade}
+                            onChange={(event) => updateRow(row.id, "trade", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "trade")}
+                            placeholder="직종"
+                            className={sheetInputClass}
+                          />
                         </td>
-                        <td className="print-cell-name border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-name border-r border-stone-300 px-1 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:name`] = element;
@@ -2121,20 +1972,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-resident border-r border-stone-300 px-1.5 py-1">
-                          <input
-                            ref={(element) => {
-                              cellRefs.current[`${row.id}:residentId`] = element;
-                            }}
-                            value={row.residentId}
-                            onChange={(event) => updateRow(row.id, "residentId", event.target.value)}
-                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "residentId")}
-                            inputMode="numeric"
-                            placeholder="000000-0000000"
-                            className={sheetInputClass}
-                          />
-                        </td>
-                        <td className="print-cell-phone border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-phone border-r border-stone-300 px-1 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:phone`] = element;
@@ -2147,19 +1985,63 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-trade border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-resident border-r border-stone-300 px-1 py-1">
                           <input
                             ref={(element) => {
-                              cellRefs.current[`${row.id}:trade`] = element;
+                              cellRefs.current[`${row.id}:residentId`] = element;
                             }}
-                            value={row.trade}
-                            onChange={(event) => updateRow(row.id, "trade", event.target.value)}
-                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "trade")}
-                            placeholder="직종"
+                            value={row.residentId}
+                            onChange={(event) => updateRow(row.id, "residentId", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "residentId")}
+                            inputMode="numeric"
+                            placeholder="000000-0000000"
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
+                        {monthDates.length ? (
+                          monthDates.map((date) => (
+                            <td key={`${row.id}:${date}`} className="print-cell-date border-r border-stone-300 px-0.5 py-1">
+                              <input
+                                ref={(element) => {
+                                  dailyCellRefs.current[`${row.id}:${date}`] = element;
+                                }}
+                                type="text"
+                                value={row.dailyWorkEntries[date] ?? ""}
+                                onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
+                                onBlur={() => handleDailyWorkEntryBlur(row.id, date)}
+                                onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, date)}
+                                inputMode="decimal"
+                                autoComplete="off"
+                                aria-label={`${getMonthDayLabel(date)} 공수`}
+                                className={dailyEntryInputClass}
+                              />
+                            </td>
+                          ))
+                        ) : (
+                          <td className="border-r border-stone-300 px-1 py-1 text-center text-xs text-stone-400">-</td>
+                        )}
+                        <td className="print-cell-number border-r border-stone-300 px-1 py-1">
+                          <div className="space-y-0.5">
+                            <input
+                              ref={(element) => {
+                                cellRefs.current[`${row.id}:workUnits`] = element;
+                              }}
+                              type="text"
+                              value={getNumericInputValue(row, "workUnits")}
+                              onChange={(event) => updateRow(row.id, "workUnits", event.target.value)}
+                              onFocus={(event) => handleNumericInputFocus(event, row.id, "workUnits")}
+                              onBlur={() => handleNumericInputBlur(row.id, "workUnits")}
+                              onKeyDown={(event) => handleCellKeyDown(event, row.id, "workUnits")}
+                              inputMode="decimal"
+                              autoComplete="off"
+                              placeholder="0"
+                              readOnly={rowHasDailyEntries}
+                              className={`${sheetNumericClass} ${rowHasDailyEntries ? "text-stone-500" : ""}`}
+                            />
+                            {rowHasDailyEntries ? <p className="text-[10px] text-stone-400">일자합계</p> : null}
+                          </div>
+                        </td>
+                        <td className="print-cell-number border-r border-stone-300 px-1 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
@@ -2176,33 +2058,10 @@ export default function Page() {
                             className={sheetNumericClass}
                           />
                         </td>
-                        <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
-                          <div className="space-y-1">
-                            <input
-                              ref={(element) => {
-                                cellRefs.current[`${row.id}:workUnits`] = element;
-                              }}
-                              type="text"
-                              value={getNumericInputValue(row, "workUnits")}
-                              onChange={(event) => updateRow(row.id, "workUnits", event.target.value)}
-                              onFocus={(event) => handleNumericInputFocus(event, row.id, "workUnits")}
-                              onBlur={() => handleNumericInputBlur(row.id, "workUnits")}
-                              onKeyDown={(event) => handleCellKeyDown(event, row.id, "workUnits")}
-                              inputMode="decimal"
-                              autoComplete="off"
-                              placeholder="0"
-                              readOnly={rowHasDailyEntries}
-                              className={`${sheetNumericClass} ${rowHasDailyEntries ? "bg-stone-50 text-stone-500" : ""}`}
-                            />
-                            {rowHasDailyEntries ? (
-                              <p className="text-[11px] leading-none text-stone-500">일자별 합계 적용</p>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-1 text-right text-sm font-medium tabular-nums text-slate-800">
+                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-1 text-right font-medium tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
-                        <td className="print-cell-note border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-note border-r border-stone-300 px-1 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:note`] = element;
@@ -2214,164 +2073,56 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="px-1.5 py-1">
-                          <div className="flex flex-col items-stretch gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => toggleDailyEntries(row.id)}
-                            className="inline-flex h-7 items-center justify-center rounded border border-sky-200 bg-sky-50 px-2 py-0 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-100"
-                          >
-                            {isExpanded ? "일자닫기" : "일자입력"}
-                          </button>
-                          <button
-                            type="button"
-                            aria-label="삭제"
-                            onClick={() => removeRowAtIndex(rowIndex)}
-                            className={deleteButtonClass}
-                          >
+                        <td className="print-cell-actions px-1 py-1">
+                          <button type="button" aria-label="삭제" onClick={() => removeRowAtIndex(rowIndex)} className={deleteButtonClass}>
                             삭제
                           </button>
-                          </div>
                         </td>
-                        </tr>
-                        {isExpanded ? (
-                          <tr key={`${row.id}-daily`} className="print-hidden bg-stone-50">
-                            <td colSpan={10} className="border-b border-stone-300 px-3 py-3">
-                              <div className="rounded border border-stone-200 bg-white">
-                                <div className="flex flex-col gap-1 border-b border-stone-200 bg-stone-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-                                  <div className="text-sm font-medium text-stone-700">일자별 공수 입력</div>
-                                  <div className="text-xs text-stone-500">
-                                    기준월 {selectedMonth || "-"} / 0 또는 빈값은 제외 / 합계 {formatDecimalForDisplay(String(getDailyWorkEntriesTotal(row.dailyWorkEntries))) || "0"}
-                                  </div>
-                                </div>
-                                <div className="overflow-x-auto px-3 py-3">
-                                  <table className="min-w-full border-collapse text-xs text-stone-700">
-                                    <tbody>
-                                      {monthDateGroups.map((dateGroup, groupIndex) => {
-                                        const startLabel = getMonthDayLabel(dateGroup[0] ?? "");
-                                        const endLabel = getMonthDayLabel(dateGroup.at(-1) ?? "");
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="bg-[#f3ede1]">
+                  <tr className="border-t-2 border-stone-500">
+                    <td colSpan={5 + (monthDates.length || 1)} className="border-r border-stone-300 px-2 py-2 text-right text-sm font-semibold text-stone-700">
+                      합계
+                    </td>
+                    <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
+                      {totalWorkUnits.toLocaleString("ko-KR")}
+                    </td>
+                    <td className="border-r border-stone-300 px-2 py-2"></td>
+                    <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
+                      {formatCurrency(totalPaymentAmount)}
+                    </td>
+                    <td className="border-r border-stone-300 px-2 py-2 text-sm text-stone-600">{visibleRows.length}명</td>
+                    <td className="print-col-actions px-2 py-2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
 
-                                        return (
-                                          <Fragment key={`${row.id}:group:${groupIndex}`}>
-                                            <tr className="bg-stone-50">
-                                              <th
-                                                colSpan={dateGroup.length}
-                                                className="border border-stone-200 px-2 py-1.5 text-left font-medium text-stone-600"
-                                              >
-                                                {startLabel} ~ {endLabel}
-                                              </th>
-                                            </tr>
-                                            <tr>
-                                              {dateGroup.map((date) => (
-                                                <th
-                                                  key={`${row.id}:${date}:label`}
-                                                  className="border border-stone-200 px-1 py-1 text-center font-medium tabular-nums text-stone-500"
-                                                >
-                                                  {getMonthDayLabel(date)}
-                                                </th>
-                                              ))}
-                                            </tr>
-                                            <tr>
-                                              {dateGroup.map((date) => (
-                                                <td key={`${row.id}:${date}:input`} className="border border-stone-200 p-1 align-middle">
-                                                  <input
-                                                    type="text"
-                                                    value={row.dailyWorkEntries[date] ?? ""}
-                                                    onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
-                                                    onBlur={() => handleDailyWorkEntryBlur(row.id, date)}
-                                                    inputMode="decimal"
-                                                    autoComplete="off"
-                                                    placeholder="0"
-                                                    aria-label={`${getMonthDayLabel(date)} work units`}
-                                                    className={dailyEntryInputClass}
-                                                  />
-                                                </td>
-                                              ))}
-                                            </tr>
-                                          </Fragment>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : null}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot className="bg-[#f5f2ea]">
-                    <tr className="border-t-2 border-stone-500">
-                      <td colSpan={6} className="border-r border-stone-300 px-2 py-2 text-right text-sm font-semibold text-stone-700">
-                        합계
-                      </td>
-                      <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
-                        {totalWorkUnits.toLocaleString("ko-KR")}
-                      </td>
-                      <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
-                        {formatCurrency(totalPaymentAmount)}
-                      </td>
-                      <td colSpan={2} className="px-2 py-2 text-sm text-stone-600">
-                        공수 / 지급액 합계
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+            <footer className="border-t border-stone-400 px-4 py-3">
+              <div className="grid gap-0 border border-stone-300 md:grid-cols-[1.2fr_0.7fr_0.7fr_1fr]">
+                <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 md:border-b-0">하단 요약</div>
+                <div className="border-b border-r border-stone-300 px-3 py-2 text-sm md:border-b-0">
+                  총 공수 <span className="float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
+                </div>
+                <div className="border-b border-r border-stone-300 px-3 py-2 text-sm md:border-b-0">
+                  총 지급액 <span className="float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
+                </div>
+                <div className="px-3 py-2 text-sm text-stone-600">Enter는 아래 행, Tab은 다음 칸으로 이동합니다. 날짜 칸도 동일하게 이동합니다.</div>
               </div>
-            </section>
-
-            <section className="print-hidden print-interactive relative z-10 border border-stone-300">
-              <div className="grid gap-0 md:grid-cols-[1.2fr_1fr_1fr_auto]">
-                <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 md:border-b-0">
-                  입력 안내
-                </div>
-                <div className="border-b border-r border-stone-300 px-3 py-2 text-sm text-stone-600 md:border-b-0">
-                  주민번호는 숫자만 입력
-                </div>
-                <div className="border-b border-r border-stone-300 px-3 py-2 text-sm text-stone-600 md:border-b-0">
-                  전화번호는 숫자만 입력
-                </div>
-                <div className="px-3 py-2 text-right">
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={isSaving || isLoading || isRecordsLoading}
-                    className="inline-flex h-9 items-center justify-center border border-emerald-700 bg-emerald-700 px-5 text-sm font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
-                  >
-                    {isSaving ? "저장 중..." : "저장"}
-                  </button>
-                </div>
+              <div className="print-hidden mt-2 text-xs leading-6 text-stone-500">
+                <p>주민번호는 숫자만 입력하면 자동 포맷됩니다.</p>
+                <p>전화번호는 숫자만 입력하면 자동 포맷됩니다.</p>
+                <p>날짜 칸에 공수를 입력하면 총공수와 지급액이 즉시 연동됩니다.</p>
+                {isLoading ? <p>기초 데이터를 불러오는 중입니다.</p> : null}
+                {isRecordsLoading ? <p>월별 저장 내역을 불러오는 중입니다.</p> : null}
+                {!isLoading && !baseStatementRows.length ? <p>선택한 조건에 기존 저장 데이터가 없어 새로 입력할 수 있습니다.</p> : null}
               </div>
-              <div className="grid gap-0 border-t border-stone-300 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
-                <div className="border-r border-stone-300 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700">
-                  하단 합계
-                </div>
-                <div className="border-r border-stone-300 px-3 py-2 text-sm">
-                  총 공수<span className="float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
-                </div>
-                <div className="border-r border-stone-300 px-3 py-2 text-sm">
-                  총 지급액<span className="float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
-                </div>
-                <div className="px-3 py-2 text-sm text-stone-600">현재 입력된 내용을 확인한 뒤 저장해 주세요.</div>
-              </div>
-            </section>
-
-            <section className="print-hidden print-interactive relative z-10 border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm leading-6 text-stone-600">
-              <p>입력 UX 안내</p>
-              <p>날짜 `20260404` -&gt; `2026-04-04`</p>
-              <p>주민번호 13자리 -&gt; `######-#######`</p>
-              <p>전화번호 `01012345678` -&gt; `010-1234-5678`</p>
-              {isLoading ? <p>데이터를 불러오는 중입니다.</p> : null}
-              {isRecordsLoading ? <p>월별 기록을 불러오는 중입니다.</p> : null}
-              {!isLoading && !baseStatementRows.length ? (
-                <p>선택한 조건에 해당하는 월별 기록이 없어 새로 입력할 수 있습니다.</p>
-              ) : null}
-            </section>
-          </div>
-        </section>
-      </div>
+            </footer>
+          </section>
+        </div>
       </main>
     </>
   );
