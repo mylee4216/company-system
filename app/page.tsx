@@ -139,6 +139,37 @@ const SNAPSHOT_META_PREFIX = "__ROW_META__";
 const MAX_DAY_COLUMNS = 31;
 const APP_PASSWORD = "leejuu1996!";
 const AUTH_STORAGE_KEY = "company-system-authenticated";
+const isBrowser = () => typeof window !== "undefined";
+
+function getStoredAuthStatus(): boolean {
+  if (!isBrowser()) {
+    return false;
+  }
+
+  return window.localStorage.getItem(AUTH_STORAGE_KEY) === "true";
+}
+
+function setStoredAuthStatus(isAuthenticated: boolean): void {
+  if (!isBrowser()) {
+    return;
+  }
+
+  if (isAuthenticated) {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, "true");
+    return;
+  }
+
+  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function runOnNextFrame(callback: () => void): void {
+  if (!isBrowser()) {
+    callback();
+    return;
+  }
+
+  window.requestAnimationFrame(callback);
+}
 const TABLE_COLUMN_WIDTHS = {
   index: 52,
   trade: 96,
@@ -772,8 +803,7 @@ export default function Page() {
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const isAuthenticated = window.localStorage.getItem(AUTH_STORAGE_KEY) === "true";
-    setAuthStatus(isAuthenticated ? "authenticated" : "unauthenticated");
+    setAuthStatus(getStoredAuthStatus() ? "authenticated" : "unauthenticated");
   }, []);
 
   useEffect(() => {
@@ -1193,7 +1223,7 @@ export default function Page() {
     field: NumericField,
   ) => {
     setFocusedNumericCell({ rowId, field });
-    window.requestAnimationFrame(() => {
+    runOnNextFrame(() => {
       event.target.select();
     });
   };
@@ -1365,7 +1395,7 @@ export default function Page() {
       }
 
       const newRowId = addRow();
-      window.requestAnimationFrame(() => {
+      runOnNextFrame(() => {
         focusDailyCell(newRowId, date);
       });
       return;
@@ -1722,6 +1752,10 @@ export default function Page() {
   };
 
   const handlePrint = () => {
+    if (!isBrowser()) {
+      return;
+    }
+
     window.print();
   };
 
@@ -1850,14 +1884,14 @@ export default function Page() {
 
   const handlePasswordSubmit = () => {
     if (passwordInput === APP_PASSWORD) {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, "true");
+      setStoredAuthStatus(true);
       setAuthError("");
       setPasswordInput("");
       setAuthStatus("authenticated");
       return;
     }
 
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    setStoredAuthStatus(false);
     setAuthError("비밀번호가 올바르지 않습니다.");
     setAuthStatus("unauthenticated");
   };
