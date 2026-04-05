@@ -137,11 +137,11 @@ const TABLE_COLUMN_WIDTHS = {
   index: 52,
   trade: 96,
   name: 108,
-  phone: 148,
-  resident: 136,
-  day: 33,
+  phone: 162,
+  resident: 150,
+  day: 28,
   total: 70,
-  unitPrice: 92,
+  unitPrice: 108,
   payment: 98,
   note: 144,
   category: 120,
@@ -1769,16 +1769,16 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-11 w-full min-w-0 border-0 bg-transparent px-1.5 text-[14.5px] leading-[1.35] outline-none transition focus:bg-amber-50/70";
-  const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right text-[14.5px] tabular-nums`;
+    "h-11 w-full min-w-0 border-0 bg-transparent px-1.5 text-[15.5px] leading-[1.45] outline-none transition focus:bg-amber-50/70";
+  const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right text-[15.5px] tabular-nums`;
   const sheetResidentInputClass =
-    "min-h-11 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2.5 text-[13.5px] leading-[1.35] tracking-[-0.02em] whitespace-pre-wrap break-keep [overflow-wrap:normal] [word-break:keep-all] [hyphens:manual] outline-none transition focus:bg-amber-50/70";
+    "min-h-11 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-2.5 text-[15px] leading-[1.4] tracking-[-0.02em] whitespace-nowrap [overflow-wrap:normal] [word-break:normal] [hyphens:manual] outline-none transition focus:bg-amber-50/70";
   const sheetNoteTextareaClass =
-    "min-h-11 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2.5 text-[13.5px] leading-[1.35] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+    "min-h-11 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2.5 text-[15px] leading-[1.4] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
   const sheetCategoryInputClass =
-    "h-11 w-full min-w-0 border-0 bg-transparent px-1.5 text-[13.5px] leading-[1.35] text-center outline-none transition focus:bg-amber-50/70";
+    "h-11 w-full min-w-0 border-0 bg-transparent px-1.5 text-[15px] leading-[1.4] text-center outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
-    "h-11 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[14px] font-medium leading-[1.3] tabular-nums outline-none transition focus:bg-amber-50/70";
+    "h-11 w-full min-w-[36px] border-0 bg-transparent px-0 text-center text-[15px] font-medium leading-[1.35] tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
     "inline-flex h-10 min-w-[60px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[13.5px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
@@ -1809,10 +1809,39 @@ export default function Page() {
           }
 
           .print-cell-resident textarea {
-            white-space: pre-wrap;
-            word-break: keep-all;
+            white-space: nowrap;
+            word-break: normal;
             overflow-wrap: normal;
             hyphens: manual;
+          }
+
+          .print-sheet-table {
+            table-layout: fixed;
+          }
+
+          .print-cell-phone,
+          .print-cell-resident,
+          .print-cell-unit-price,
+          .print-cell-number {
+            overflow: visible;
+          }
+
+          .print-cell-phone,
+          .print-cell-phone input {
+            min-width: 162px;
+            white-space: nowrap;
+          }
+
+          .print-cell-resident,
+          .print-cell-resident textarea {
+            min-width: 150px;
+            white-space: nowrap;
+          }
+
+          .print-cell-unit-price,
+          .print-cell-unit-price input {
+            min-width: 108px;
+            white-space: nowrap;
           }
 
           .print-interactive,
@@ -2288,7 +2317,7 @@ export default function Page() {
 
             <div className="print-sheet-scroll overflow-x-auto">
               <table
-                className="print-sheet-table w-full border-collapse text-[15px] leading-[1.35]"
+                className="print-sheet-table w-full border-collapse text-[15.5px] leading-[1.45]"
                 style={{ minWidth: `${tableMinWidth}px` }}
               >
                 <colgroup>
@@ -2309,24 +2338,24 @@ export default function Page() {
                 </colgroup>
                 <thead className="bg-[#f3ede1] text-stone-700">
                   <tr className="border-b border-stone-400">
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">번호</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">직종</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">성명</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">전화번호</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">주민번호</th>
-                    <th colSpan={monthDates.length} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">일자별 공수</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">총 공수</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">단가</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">지급액</th>
-                    <th rowSpan={2} className="print-note-header border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">비고</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">구분</th>
-                    <th rowSpan={2} className="print-col-actions px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">관리</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">번호</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">직종</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">성명</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-1.5 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">전화번호</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-1.5 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">주민번호</th>
+                    <th colSpan={monthDates.length} className="border-r border-stone-300 px-2 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">일자별 공수</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">총 공수</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-1.5 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">단가</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">지급액</th>
+                    <th rowSpan={2} className="print-note-header border-r border-stone-300 px-2 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">비고</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">구분</th>
+                    <th rowSpan={2} className="print-col-actions px-2 py-2.5 text-center text-[16.5px] font-semibold leading-[1.35]">관리</th>
                   </tr>
                   <tr className="border-b border-stone-400">
                     {monthDates.map((date, index) => (
                       <th
                         key={date}
-                        className="print-day-header border-r border-stone-300 px-0.5 py-2 text-center text-[14px] font-semibold leading-[1.2] text-stone-800"
+                        className="print-day-header border-r border-stone-300 px-0 py-2 text-center text-[14.5px] font-semibold leading-[1.2] text-stone-800"
                       >
                         {index + 1}
                       </th>
@@ -2340,7 +2369,7 @@ export default function Page() {
 
                     return (
                       <tr key={row.id} className="border-b border-stone-300 odd:bg-white even:bg-stone-50/30">
-                        <td className="border-r border-stone-300 px-2 py-2.5 text-center align-middle text-[14px] leading-[1.3] tabular-nums">{index + 1}</td>
+                        <td className="border-r border-stone-300 px-2 py-2.5 text-center align-middle text-[15px] leading-[1.35] tabular-nums">{index + 1}</td>
                         <td className="print-cell-trade border-r border-stone-300 px-1 py-1.5 align-middle">
                           <input
                             ref={(element) => {
@@ -2375,7 +2404,7 @@ export default function Page() {
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "phone")}
                             inputMode="numeric"
                             placeholder="010-0000-0000"
-                            className={`${sheetInputClass} whitespace-nowrap px-1 text-[13.5px] tracking-[-0.015em]`}
+                            className={`${sheetInputClass} whitespace-nowrap px-0.5 text-[15px] tracking-[-0.015em]`}
                           />
                         </td>
                         <td className="print-cell-resident border-r border-stone-300 px-0.5 py-1.5 align-middle">
@@ -2428,10 +2457,10 @@ export default function Page() {
                               readOnly={rowHasDailyEntries}
                               className={`${sheetNumericClass} ${rowHasDailyEntries ? "text-stone-500" : ""}`}
                             />
-                            {rowHasDailyEntries ? <p className="text-[12px] leading-[1.25] text-stone-400">일자합계</p> : null}
+                            {rowHasDailyEntries ? <p className="text-[12.5px] leading-[1.3] text-stone-400">일자합계</p> : null}
                           </div>
                         </td>
-                        <td className="print-cell-number border-r border-stone-300 px-1 py-1.5 align-middle">
+                        <td className="print-cell-unit-price print-cell-number border-r border-stone-300 px-0.5 py-1.5 align-middle">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
@@ -2445,10 +2474,10 @@ export default function Page() {
                             inputMode="decimal"
                             autoComplete="off"
                             placeholder="0"
-                            className={`${sheetNumericClass} px-1 text-[13.5px]`}
+                            className={`${sheetNumericClass} px-0.5 text-[15px]`}
                           />
                         </td>
-                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-2 align-middle text-right text-[14.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-2 align-middle text-right text-[15.5px] font-medium leading-[1.35] tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
                         <td className="print-cell-note border-r border-stone-300 px-0.5 py-1 align-middle">
