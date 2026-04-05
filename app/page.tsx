@@ -2127,15 +2127,17 @@ export default function Page() {
 
           .screen-daily-entry-input {
             margin: 0 auto;
+            box-sizing: border-box;
             text-align: center !important;
             text-align-last: center;
             vertical-align: middle;
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
+            padding-top: 0.04rem !important;
+            padding-bottom: 0.04rem !important;
             min-width: 28px !important;
-            min-height: 2rem;
-            font-size: 11.5px !important;
-            line-height: 2rem !important;
+            min-height: 1.92rem !important;
+            font-size: 11.25px !important;
+            line-height: 1.78rem !important;
+            letter-spacing: -0.01em !important;
           }
 
           .print-footer-guide {
