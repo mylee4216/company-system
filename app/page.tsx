@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { supabase } from "@/lib/supabase";
 
@@ -77,6 +77,8 @@ type LaborRow = {
   workUnits: string;
   note: string;
 };
+
+type EditableField = "name" | "residentId" | "phone" | "trade" | "unitPrice" | "workUnits" | "note";
 
 const ALL_TRADES_LABEL = "전체";
 const FALLBACK_TRADE = "미분류";
@@ -236,7 +238,7 @@ function getFriendlySaveErrorMessage(error: unknown) {
   }
 
   if (error.message.includes("schema cache")) {
-    return "저장 대상 컬럼이 현재 DB 구조와 맞지 않아 저장하지 못했습니다. 저장 로직을 실제 테이블 기준으로 다시 맞춘 뒤 재시도해 주세요.";
+    return "DB 스키마 정보가 현재 저장 로직과 맞지 않아 저장하지 못했습니다. 테이블 구조를 다시 확인해 주세요.";
   }
 
   return "저장에 실패했습니다. 입력값과 연결 상태를 확인한 뒤 다시 시도해 주세요.";
@@ -249,7 +251,7 @@ async function fetchCompanies() {
     .order("name", { ascending: true });
 
   if (error) {
-    throw new Error(`회사 데이터를 불러오지 못했습니다: ${error.message}`);
+    throw new Error(`회사 데이터를 불러오지 못했습니다. ${error.message}`);
   }
 
   return (data ?? []) as CompanyRow[];
@@ -264,7 +266,7 @@ async function fetchSites() {
     .order("name", { ascending: true });
 
   if (error) {
-    throw new Error(`현장 데이터를 불러오지 못했습니다: ${error.message}`);
+    throw new Error(`현장 데이터를 불러오지 못했습니다. ${error.message}`);
   }
 
   return (data ?? []) as SiteRow[];
@@ -277,7 +279,7 @@ async function fetchDailyWorkers() {
     .order("name", { ascending: true });
 
   if (error) {
-    throw new Error(`일용직 데이터를 불러오지 못했습니다: ${error.message}`);
+    throw new Error(`일용직 데이터를 불러오지 못했습니다. ${error.message}`);
   }
 
   return (data ?? []) as DailyWorkerRow[];
@@ -294,7 +296,7 @@ async function fetchDailyWorkerMonthlyRecords(siteId: number, targetMonth: strin
     .order("id", { ascending: true });
 
   if (error) {
-    throw new Error(`월별 일용직 기록을 불러오지 못했습니다: ${error.message}`);
+    throw new Error(`월별 일용직 기록을 불러오지 못했습니다. ${error.message}`);
   }
 
   return (data ?? []) as DailyWorkerMonthlyRecordRow[];
@@ -318,6 +320,8 @@ export default function Page() {
   const [loadError, setLoadError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
+
+  const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     let active = true;
@@ -433,7 +437,7 @@ export default function Page() {
         }
 
         const message =
-          error instanceof Error ? error.message : "??? ??????????? ????????";
+          error instanceof Error ? error.message : "월별 기록을 불러오는 중 문제가 발생했습니다.";
         setLoadError(message);
         setMonthlyRecords([]);
       } finally {
@@ -460,8 +464,7 @@ export default function Page() {
         parseNumber(record.total_work_units) || getWorkUnitsFromEntries(record.work_entries);
       const grossAmount = parseNumber(record.gross_amount);
       const unitPrice =
-        parseNumber(worker?.daily_wage) ||
-        (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
+        parseNumber(worker?.daily_wage) || (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
       const lastWorkedDate = getLastWorkedDate(record.work_entries);
 
       return {
@@ -505,10 +508,7 @@ export default function Page() {
   }, [rows]);
 
   useEffect(() => {
-    if (
-      selectedTradeFilter !== ALL_TRADES_LABEL &&
-      !tradeOptions.includes(selectedTradeFilter)
-    ) {
+    if (selectedTradeFilter !== ALL_TRADES_LABEL && !tradeOptions.includes(selectedTradeFilter)) {
       setSelectedTradeFilter(ALL_TRADES_LABEL);
     }
   }, [selectedTradeFilter, tradeOptions]);
@@ -534,6 +534,7 @@ export default function Page() {
   const updateRow = (rowId: string, field: keyof LaborRow, value: string) => {
     setSaveSuccessMessage("");
     setSaveError("");
+
     setRows((currentRows) =>
       currentRows.map((row) => {
         if (row.id !== rowId) {
@@ -557,13 +558,33 @@ export default function Page() {
     );
   };
 
-  const addRow = () => {
+  const focusCell = (rowId: string, field: EditableField) => {
+    const target = cellRefs.current[`${rowId}:${field}`];
+
+    if (!target) {
+      return;
+    }
+
+    target.focus();
+    target.select();
+  };
+
+  const addRow = (focusField?: EditableField) => {
     const trade =
       selectedTradeFilter !== ALL_TRADES_LABEL ? selectedTradeFilter : tradeOptions[1] ?? FALLBACK_TRADE;
+    const newRowId = `manual-${Date.now()}`;
 
-    setRows((currentRows) => [...currentRows, createEmptyRow(`manual-${Date.now()}`, trade)]);
+    setRows((currentRows) => [...currentRows, createEmptyRow(newRowId, trade)]);
     setSaveSuccessMessage("");
     setSaveError("");
+
+    if (focusField) {
+      window.setTimeout(() => {
+        focusCell(newRowId, focusField);
+      }, 0);
+    }
+
+    return newRowId;
   };
 
   const removeRow = (rowId: string) => {
@@ -575,8 +596,31 @@ export default function Page() {
 
       return currentRows.filter((row) => row.id !== rowId);
     });
+
     setSaveSuccessMessage("");
     setSaveError("");
+  };
+
+  const handleCellKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+    rowId: string,
+    field: EditableField,
+  ) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+
+    const currentIndex = visibleRows.findIndex((row) => row.id === rowId);
+    const nextRow = currentIndex >= 0 ? visibleRows[currentIndex + 1] : null;
+
+    if (nextRow) {
+      focusCell(nextRow.id, field);
+      return;
+    }
+
+    addRow(field);
   };
 
   const resolveWorkerId = (row: LaborRow) => {
@@ -631,8 +675,7 @@ export default function Page() {
 
   const handleSave = async () => {
     if (!selectedCompanyId || !selectedSiteId || !selectedMonth) {
-      const message = "저장 전에 회사, 현장, 기준 월을 모두 선택해 주세요.";
-      setSaveError(message);
+      setSaveError("저장 전에 회사, 현장, 기준월을 모두 선택해 주세요.");
       setSaveSuccessMessage("");
       return;
     }
@@ -653,9 +696,7 @@ export default function Page() {
 
       if (unresolvedRows.length) {
         throw new Error(
-          `MATCH_WORKER:${unresolvedRows
-            .map(({ row }) => row.name || "(\uC774\uB984 \uC5C6\uC74C)")
-            .join(", ")}` 
+          `MATCH_WORKER:${unresolvedRows.map(({ row }) => row.name || "(이름 없음)").join(", ")}`,
         );
       }
 
@@ -675,10 +716,7 @@ export default function Page() {
       }
 
       if (rowsWithWorkerId.length) {
-        const workerProfilePayload = new Map<
-          number,
-          Pick<DailyWorkerRow, "phone" | "resident_number">
-        >();
+        const workerProfilePayload = new Map<number, Pick<DailyWorkerRow, "phone" | "resident_number">>();
 
         rowsWithWorkerId.forEach(({ row, workerId }) => {
           if (!workerId) {
@@ -734,14 +772,7 @@ export default function Page() {
               daily_worker_id: workerId!,
               site_id: parseNumber(selectedSiteId),
               target_month: selectedMonth,
-              work_entries:
-                workUnits > 0
-                  ? [
-                      {
-                        units: workUnits,
-                      },
-                    ]
-                  : [],
+              work_entries: workUnits > 0 ? [{ units: workUnits }] : [],
               total_work_units: workUnits,
               gross_amount: amount,
               worked_days_count: workUnits > 0 ? Math.ceil(workUnits) : 0,
@@ -759,66 +790,62 @@ export default function Page() {
       }
 
       await reloadMonthlyRecords();
-      setSaveSuccessMessage("저장 완료");
+      setSaveSuccessMessage("저장이 완료되었습니다.");
     } catch (error) {
-      const message = getFriendlySaveErrorMessage(error);
-      setSaveError(message);
+      setSaveError(getFriendlySaveErrorMessage(error));
       setSaveSuccessMessage("");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const siteInfoItems = [
-    { label: "발주자", value: selectedSite?.client_name || "-" },
-    { label: "공사구분", value: selectedSite?.contract_type || "-" },
-    {
-      label: "착공일",
-      value: formatDateDisplay(selectedSite?.construction_start_date ?? selectedSite?.start_date),
-    },
-    {
-      label: "준공일",
-      value: formatDateDisplay(selectedSite?.construction_end_date ?? selectedSite?.end_date),
-    },
-  ];
+  const sheetInputClass =
+    "h-9 w-full border border-stone-200 bg-white px-2 text-sm outline-none transition focus:border-stone-700";
+  const sheetNumericClass = `${sheetInputClass} text-right tabular-nums`;
 
   return (
-    <main className="min-h-screen bg-stone-100 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
-          <div className="border-b border-stone-200 bg-[linear-gradient(135deg,#f8fafc_0%,#f5f5f4_45%,#ede9e1_100%)] px-6 py-8 sm:px-8">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <main className="min-h-screen bg-[#f3f0e8] px-3 py-4 text-slate-900 sm:px-4 lg:px-6">
+      <div className="mx-auto w-full max-w-[1500px]">
+        <section className="border border-stone-400 bg-white shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+          <header className="border-b-2 border-stone-700 px-4 py-4 sm:px-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
-                <p className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
                   Labor Cost Statement
                 </p>
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-                  노무비 명세표
+                <h1 className="text-2xl font-bold tracking-[0.12em] text-slate-900 sm:text-3xl">
+                  노무비 명세서
                 </h1>
-                <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                  기존 회사 관리 시스템의 회사, 현장, 일용직 데이터를 다시 연결한 조회 화면입니다.
-                  명세표 레이아웃은 유지하고, 공수 입력과 지급액 계산은 바로 이어서 확인할 수
-                  있게 구성했습니다.
+                <p className="text-sm leading-6 text-stone-600">
+                  회사, 현장, 기준월을 조회한 뒤 인원별 노무비를 입력하고 저장합니다.
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/70 bg-white/70 px-4 py-3 text-sm text-slate-600 backdrop-blur">
-                <div>기준 월: {selectedMonth || "-"}</div>
-                <div>표시 인원: {visibleRows.length}명</div>
+
+              <div className="grid min-w-[280px] grid-cols-2 border border-stone-400 text-sm">
+                <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 font-medium">
+                  기준월
+                </div>
+                <div className="border-b border-stone-300 px-3 py-2 text-right tabular-nums">
+                  {selectedMonth || "-"}
+                </div>
+                <div className="border-r border-stone-300 bg-stone-100 px-3 py-2 font-medium">
+                  조회 행수
+                </div>
+                <div className="px-3 py-2 text-right tabular-nums">{visibleRows.length}</div>
               </div>
             </div>
-          </div>
+          </header>
 
-          <div className="space-y-6 px-6 py-6 sm:px-8">
-            <section className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900">상단 필터</h2>
-                <p className="text-sm text-slate-500">회사, 현장, 직종, 기준 월 선택</p>
+          <div className="space-y-4 px-4 py-4 sm:px-6">
+            <section className="border border-stone-300">
+              <div className="border-b border-stone-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700">
+                조회 조건
               </div>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">회사 선택</span>
+              <div className="grid gap-x-4 gap-y-3 px-3 py-3 md:grid-cols-2 xl:grid-cols-4">
+                <label className="space-y-1.5 text-sm">
+                  <span className="font-medium text-stone-700">회사</span>
                   <select
-                    className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
                     value={selectedCompanyId}
                     onChange={(event) => setSelectedCompanyId(event.target.value)}
                     disabled={isLoading || !companies.length}
@@ -832,10 +859,10 @@ export default function Page() {
                   </select>
                 </label>
 
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">현장 선택</span>
+                <label className="space-y-1.5 text-sm">
+                  <span className="font-medium text-stone-700">현장</span>
                   <select
-                    className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
                     value={selectedSiteId}
                     onChange={(event) => setSelectedSiteId(event.target.value)}
                     disabled={isLoading || !availableSites.length}
@@ -849,10 +876,10 @@ export default function Page() {
                   </select>
                 </label>
 
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">직종 필터</span>
+                <label className="space-y-1.5 text-sm">
+                  <span className="font-medium text-stone-700">직종</span>
                   <select
-                    className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
                     value={selectedTradeFilter}
                     onChange={(event) => setSelectedTradeFilter(event.target.value)}
                   >
@@ -864,176 +891,213 @@ export default function Page() {
                   </select>
                 </label>
 
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">기준 월</span>
+                <label className="space-y-1.5 text-sm">
+                  <span className="font-medium text-stone-700">기준월</span>
                   <input
                     type="month"
-                    className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    className="h-10 w-full border border-stone-300 bg-white px-2.5 text-sm outline-none transition focus:border-stone-700"
                     value={selectedMonth}
                     onChange={(event) => setSelectedMonth(event.target.value)}
                   />
                 </label>
               </div>
+
               {selectedCompany ? (
-                <p className="mt-4 text-sm text-slate-500">
-                  사업자번호 {selectedCompany.business_number || "-"} / 주소{" "}
-                  {selectedCompany.address || "-"}
-                </p>
+                <div className="border-t border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-600">
+                  사업자번호 {selectedCompany.business_number || "-"} / 주소 {selectedCompany.address || "-"}
+                </div>
               ) : null}
               {loadError ? (
-                <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <p className="border-t border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {loadError}
                 </p>
               ) : null}
               {saveError ? (
-                <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                <p className="border-t border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                   {saveError}
                 </p>
               ) : null}
               {saveSuccessMessage ? (
-                <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                <p className="border-t border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                   {saveSuccessMessage}
                 </p>
               ) : null}
             </section>
 
-            <section className="rounded-2xl border border-stone-200 bg-white p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900">현장 정보</h2>
-                <p className="text-sm text-slate-500">{selectedSite?.name || "선택된 현장 없음"}</p>
+            <section className="border border-stone-300">
+              <div className="border-b border-stone-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700">
+                현장 정보
               </div>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {siteInfoItems.map((item) => (
-                  <div
-                    key={item.label}
-                    className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4"
-                  >
-                    <div className="text-sm text-slate-500">{item.label}</div>
-                    <div className="mt-2 text-base font-semibold text-slate-900">{item.value}</div>
+              <div className="grid gap-0 md:grid-cols-2 xl:grid-cols-4">
+                <div className="border-b border-r border-stone-300 px-3 py-3">
+                  <div className="text-xs font-medium text-stone-500">발주처</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{selectedSite?.client_name || "-"}</div>
+                </div>
+                <div className="border-b border-r border-stone-300 px-3 py-3">
+                  <div className="text-xs font-medium text-stone-500">공사구분</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{selectedSite?.contract_type || "-"}</div>
+                </div>
+                <div className="border-b border-r border-stone-300 px-3 py-3">
+                  <div className="text-xs font-medium text-stone-500">착공일</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">
+                    {formatDateDisplay(selectedSite?.construction_start_date ?? selectedSite?.start_date)}
                   </div>
-                ))}
+                </div>
+                <div className="border-b px-3 py-3">
+                  <div className="text-xs font-medium text-stone-500">준공일</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">
+                    {formatDateDisplay(selectedSite?.construction_end_date ?? selectedSite?.end_date)}
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-600">
+                선택 현장: {selectedSite?.name || "선택된 현장 없음"}
               </div>
             </section>
 
-            <section className="rounded-2xl border border-stone-200 bg-white">
-              <div className="flex flex-col gap-3 border-b border-stone-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <section className="border border-stone-300">
+              <div className="flex flex-col gap-3 border-b border-stone-300 bg-stone-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">노무비 입력표</h2>
-                  <p className="text-sm text-slate-500">
-                    조회된 월별 데이터로 행을 채우고, 공수 수정 시 지급액을 자동 계산합니다.
-                  </p>
+                  <h2 className="text-base font-semibold text-slate-900">노무비 입력표</h2>
+                  <p className="text-sm text-stone-600">Enter 키를 누르면 같은 열의 다음 행으로 이동합니다.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleSave}
-                    disabled={isSaving || isLoading || isRecordsLoading}
-                    className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                    onClick={() => addRow()}
+                    className="inline-flex h-9 items-center justify-center border border-stone-700 bg-white px-3 text-sm font-medium text-stone-800 transition hover:bg-stone-100"
                   >
-                    {isSaving ? "\uC800\uC7A5 \uC911..." : "\uC800\uC7A5"}
+                    행 추가
                   </button>
                   <button
                     type="button"
-                    onClick={addRow}
-                    className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+                    onClick={handleSave}
+                    disabled={isSaving || isLoading || isRecordsLoading}
+                    className="inline-flex h-9 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-sm font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
                   >
-                    {"\uD589 \uCD94\uAC00"}
+                    {isSaving ? "저장 중..." : "저장"}
                   </button>
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="min-w-[1220px] w-full border-collapse text-sm">
-                  <thead className="bg-stone-100 text-slate-600">
-                    <tr>
-                      <th className="px-3 py-3 text-left font-semibold">번호</th>
-                      <th className="px-3 py-3 text-left font-semibold">성명</th>
-                      <th className="px-3 py-3 text-left font-semibold">주민번호</th>
-                      <th className="px-3 py-3 text-left font-semibold">전화번호</th>
-                      <th className="px-3 py-3 text-left font-semibold">직종</th>
-                      <th className="px-3 py-3 text-left font-semibold">단가</th>
-                      <th className="px-3 py-3 text-left font-semibold">공수</th>
-                      <th className="px-3 py-3 text-left font-semibold">지급액</th>
-                      <th className="px-3 py-3 text-left font-semibold">비고</th>
-                      <th className="px-3 py-3 text-left font-semibold">관리</th>
+                <table className="min-w-[1240px] w-full border-collapse text-sm">
+                  <thead className="bg-[#f5f2ea] text-stone-700">
+                    <tr className="border-b border-stone-400">
+                      <th className="w-14 border-r border-stone-300 px-2 py-2 text-center font-semibold">번호</th>
+                      <th className="w-32 border-r border-stone-300 px-2 py-2 text-left font-semibold">성명</th>
+                      <th className="w-40 border-r border-stone-300 px-2 py-2 text-left font-semibold">주민번호</th>
+                      <th className="w-36 border-r border-stone-300 px-2 py-2 text-left font-semibold">전화번호</th>
+                      <th className="w-28 border-r border-stone-300 px-2 py-2 text-left font-semibold">직종</th>
+                      <th className="w-28 border-r border-stone-300 px-2 py-2 text-right font-semibold">단가</th>
+                      <th className="w-24 border-r border-stone-300 px-2 py-2 text-right font-semibold">공수</th>
+                      <th className="w-32 border-r border-stone-300 px-2 py-2 text-right font-semibold">지급액</th>
+                      <th className="min-w-[280px] border-r border-stone-300 px-2 py-2 text-left font-semibold">비고</th>
+                      <th className="w-20 px-2 py-2 text-center font-semibold">삭제</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleRows.map((row, index) => (
-                      <tr key={row.id} className="border-t border-stone-200 align-top">
-                        <td className="px-3 py-3 text-slate-700">{index + 1}</td>
-                        <td className="px-3 py-3">
+                      <tr key={row.id} className="border-b border-stone-300 align-middle odd:bg-white even:bg-stone-50/40">
+                        <td className="border-r border-stone-300 px-2 py-1.5 text-center text-xs text-stone-700">
+                          {index + 1}
+                        </td>
+                        <td className="border-r border-stone-300 px-1.5 py-1">
                           <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:name`] = element;
+                            }}
                             value={row.name}
                             onChange={(event) => updateRow(row.id, "name", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "name")}
                             placeholder="성명"
-                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                            className={sheetInputClass}
                           />
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="border-r border-stone-300 px-1.5 py-1">
                           <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:residentId`] = element;
+                            }}
                             value={row.residentId}
-                            onChange={(event) =>
-                              updateRow(row.id, "residentId", event.target.value)
-                            }
+                            onChange={(event) => updateRow(row.id, "residentId", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "residentId")}
                             inputMode="numeric"
                             placeholder="000000-0000000"
-                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                            className={sheetInputClass}
                           />
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="border-r border-stone-300 px-1.5 py-1">
                           <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:phone`] = element;
+                            }}
                             value={row.phone}
                             onChange={(event) => updateRow(row.id, "phone", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "phone")}
                             inputMode="numeric"
                             placeholder="010-0000-0000"
-                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                            className={sheetInputClass}
                           />
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="border-r border-stone-300 px-1.5 py-1">
                           <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:trade`] = element;
+                            }}
                             value={row.trade}
                             onChange={(event) => updateRow(row.id, "trade", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "trade")}
                             placeholder="직종"
-                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                            className={sheetInputClass}
                           />
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="border-r border-stone-300 px-1.5 py-1">
                           <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:unitPrice`] = element;
+                            }}
                             value={row.unitPrice}
                             onChange={(event) => updateRow(row.id, "unitPrice", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "unitPrice")}
                             inputMode="decimal"
                             placeholder="0"
-                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-right outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                            className={sheetNumericClass}
                           />
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="border-r border-stone-300 px-1.5 py-1">
                           <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:workUnits`] = element;
+                            }}
                             value={row.workUnits}
                             onChange={(event) => updateRow(row.id, "workUnits", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "workUnits")}
                             inputMode="decimal"
                             placeholder="0"
-                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-right outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                            className={sheetNumericClass}
                           />
                         </td>
-                        <td className="px-3 py-3">
-                          <div className="flex min-h-[42px] items-center rounded-lg bg-stone-100 px-3 font-medium text-slate-800">
-                            {formatCurrency(getPaymentAmount(row))}
-                          </div>
+                        <td className="border-r border-stone-300 bg-stone-50 px-2 py-1 text-right text-sm font-medium tabular-nums text-slate-800">
+                          {formatCurrency(getPaymentAmount(row))}
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="border-r border-stone-300 px-1.5 py-1">
                           <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:note`] = element;
+                            }}
                             value={row.note}
                             onChange={(event) => updateRow(row.id, "note", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "note")}
                             placeholder="비고"
-                            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                            className={sheetInputClass}
                           />
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-1.5 py-1 text-center">
                           <button
                             type="button"
                             onClick={() => removeRow(row.id)}
-                            className="inline-flex items-center justify-center rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-red-300 hover:text-red-600"
+                            className="inline-flex h-9 items-center justify-center border border-stone-300 bg-white px-3 text-sm text-stone-700 transition hover:border-red-400 hover:text-red-600"
                           >
                             삭제
                           </button>
@@ -1041,18 +1105,18 @@ export default function Page() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="border-t border-stone-300 bg-stone-50">
-                    <tr>
-                      <td colSpan={6} className="px-3 py-4 text-right font-semibold text-slate-700">
+                  <tfoot className="bg-[#f5f2ea]">
+                    <tr className="border-t-2 border-stone-500">
+                      <td colSpan={6} className="border-r border-stone-300 px-2 py-2 text-right text-sm font-semibold text-stone-700">
                         합계
                       </td>
-                      <td className="px-3 py-4 font-semibold text-slate-900">
+                      <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
                         {totalWorkUnits.toLocaleString("ko-KR")}
                       </td>
-                      <td className="px-3 py-4 font-semibold text-slate-900">
+                      <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
                         {formatCurrency(totalPaymentAmount)}
                       </td>
-                      <td colSpan={2} className="px-3 py-4 text-sm text-slate-500">
+                      <td colSpan={2} className="px-2 py-2 text-sm text-stone-600">
                         총 공수 / 총 지급액
                       </td>
                     </tr>
@@ -1061,39 +1125,49 @@ export default function Page() {
               </div>
             </section>
 
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving || isLoading || isRecordsLoading}
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-300"
-              >
-                {isSaving ? "\uC800\uC7A5 \uC911..." : "\uC800\uC7A5"}
-              </button>
-            </div>
-
-            <section className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
-                <div className="text-sm text-slate-500">총 공수</div>
-                <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-                  {totalWorkUnits.toLocaleString("ko-KR")}
+            <section className="border border-stone-300">
+              <div className="grid gap-0 md:grid-cols-[1.2fr_1fr_1fr_auto]">
+                <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 md:border-b-0">
+                  입력 안내
+                </div>
+                <div className="border-b border-r border-stone-300 px-3 py-2 text-sm text-stone-600 md:border-b-0">
+                  주민번호 자동 포맷 유지
+                </div>
+                <div className="border-b border-r border-stone-300 px-3 py-2 text-sm text-stone-600 md:border-b-0">
+                  전화번호 자동 포맷 유지
+                </div>
+                <div className="px-3 py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={isSaving || isLoading || isRecordsLoading}
+                    className="inline-flex h-9 items-center justify-center border border-emerald-700 bg-emerald-700 px-5 text-sm font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
+                  >
+                    {isSaving ? "저장 중..." : "저장"}
+                  </button>
                 </div>
               </div>
-              <div className="rounded-2xl border border-stone-200 bg-slate-900 p-5 text-white">
-                <div className="text-sm text-slate-300">총 지급액</div>
-                <div className="mt-2 text-3xl font-semibold tracking-tight">
-                  {formatCurrency(totalPaymentAmount)}
+              <div className="grid gap-0 border-t border-stone-300 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
+                <div className="border-r border-stone-300 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700">
+                  하단 합계
                 </div>
+                <div className="border-r border-stone-300 px-3 py-2 text-sm">
+                  총 공수 <span className="float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
+                </div>
+                <div className="border-r border-stone-300 px-3 py-2 text-sm">
+                  총 지급액 <span className="float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
+                </div>
+                <div className="px-3 py-2 text-sm text-stone-600">숫자 입력칸은 우측 정렬로 표시됩니다.</div>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-dashed border-stone-300 bg-stone-50 px-5 py-4 text-sm leading-6 text-slate-600">
-              <p>입력 UX 보정:</p>
-              <p>날짜 `20260404` → `2026-04-04`</p>
-              <p>주민번호 13자리 → `######-#######`</p>
-              <p>전화번호 `01012345678` → `010-1234-5678`</p>
-              {isLoading ? <p>{"\uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4."}</p> : null}
-              {isRecordsLoading ? <p>{"\uC800\uC7A5\uB41C \uBA85\uC138\uD45C\uB97C \uB2E4\uC2DC \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4."}</p> : null}
+            <section className="border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm leading-6 text-stone-600">
+              <p>입력 UX 안내</p>
+              <p>날짜 `20260404` -&gt; `2026-04-04`</p>
+              <p>주민번호 13자리 -&gt; `######-#######`</p>
+              <p>전화번호 `01012345678` -&gt; `010-1234-5678`</p>
+              {isLoading ? <p>데이터를 불러오는 중입니다.</p> : null}
+              {isRecordsLoading ? <p>저장된 명세표를 다시 불러오는 중입니다.</p> : null}
               {!isLoading && !baseStatementRows.length ? (
                 <p>선택한 조건에 맞는 월별 기록이 없어 빈 행으로 시작합니다.</p>
               ) : null}
