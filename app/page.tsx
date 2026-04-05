@@ -327,6 +327,25 @@ function getMonthDateList(targetMonth: string) {
   });
 }
 
+function getMonthDateGroups(monthDates: string[], groupSize = 10) {
+  if (!monthDates.length || groupSize <= 0) {
+    return [] as string[][];
+  }
+
+  const groups: string[][] = [];
+
+  for (let index = 0; index < monthDates.length; index += groupSize) {
+    groups.push(monthDates.slice(index, index + groupSize));
+  }
+
+  return groups;
+}
+
+function getMonthDayLabel(date: string) {
+  const day = Number(date.slice(-2));
+  return Number.isFinite(day) ? `${day}일` : date;
+}
+
 function getDailyWorkEntriesFromRecord(entries: WorkEntry[] | null, targetMonth: string): DailyWorkEntryMap {
   if (!entries?.length || !targetMonth) {
     return {};
@@ -691,6 +710,7 @@ export default function Page() {
   );
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
+  const monthDateGroups = useMemo(() => getMonthDateGroups(monthDates), [monthDates]);
 
   useEffect(() => {
     let active = true;
@@ -1524,6 +1544,8 @@ export default function Page() {
   const sheetInputClass =
     "h-9 w-full border border-stone-200 bg-white px-2 text-sm outline-none transition focus:border-stone-700";
   const sheetNumericClass = `${sheetInputClass} text-right tabular-nums`;
+  const dailyEntryInputClass =
+    "h-8 w-full min-w-[54px] border border-stone-200 bg-white px-1.5 text-center text-xs tabular-nums outline-none transition focus:border-stone-700";
   const deleteButtonClass =
     "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-xs font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
@@ -2222,22 +2244,55 @@ export default function Page() {
                                     기준월 {selectedMonth || "-"} / 0 또는 빈값은 제외 / 합계 {formatDecimalForDisplay(String(getDailyWorkEntriesTotal(row.dailyWorkEntries))) || "0"}
                                   </div>
                                 </div>
-                                <div className="grid gap-x-3 gap-y-2 px-3 py-3 sm:grid-cols-2 xl:grid-cols-3">
-                                  {monthDates.map((date) => (
-                                    <label key={`${row.id}:${date}`} className="grid grid-cols-[1fr_96px] items-center gap-2 text-sm">
-                                      <span className="tabular-nums text-stone-600">{date}</span>
-                                      <input
-                                        type="text"
-                                        value={row.dailyWorkEntries[date] ?? ""}
-                                        onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
-                                        onBlur={() => handleDailyWorkEntryBlur(row.id, date)}
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        placeholder="0"
-                                        className={sheetNumericClass}
-                                      />
-                                    </label>
-                                  ))}
+                                <div className="overflow-x-auto px-3 py-3">
+                                  <table className="min-w-full border-collapse text-xs text-stone-700">
+                                    <tbody>
+                                      {monthDateGroups.map((dateGroup, groupIndex) => {
+                                        const startLabel = getMonthDayLabel(dateGroup[0] ?? "");
+                                        const endLabel = getMonthDayLabel(dateGroup.at(-1) ?? "");
+
+                                        return (
+                                          <Fragment key={`${row.id}:group:${groupIndex}`}>
+                                            <tr className="bg-stone-50">
+                                              <th
+                                                colSpan={dateGroup.length}
+                                                className="border border-stone-200 px-2 py-1.5 text-left font-medium text-stone-600"
+                                              >
+                                                {startLabel} ~ {endLabel}
+                                              </th>
+                                            </tr>
+                                            <tr>
+                                              {dateGroup.map((date) => (
+                                                <th
+                                                  key={`${row.id}:${date}:label`}
+                                                  className="border border-stone-200 px-1 py-1 text-center font-medium tabular-nums text-stone-500"
+                                                >
+                                                  {getMonthDayLabel(date)}
+                                                </th>
+                                              ))}
+                                            </tr>
+                                            <tr>
+                                              {dateGroup.map((date) => (
+                                                <td key={`${row.id}:${date}:input`} className="border border-stone-200 p-1 align-middle">
+                                                  <input
+                                                    type="text"
+                                                    value={row.dailyWorkEntries[date] ?? ""}
+                                                    onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
+                                                    onBlur={() => handleDailyWorkEntryBlur(row.id, date)}
+                                                    inputMode="decimal"
+                                                    autoComplete="off"
+                                                    placeholder="0"
+                                                    aria-label={`${getMonthDayLabel(date)} work units`}
+                                                    className={dailyEntryInputClass}
+                                                  />
+                                                </td>
+                                              ))}
+                                            </tr>
+                                          </Fragment>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
                                 </div>
                               </div>
                             </td>
