@@ -76,8 +76,6 @@ type DailyWorkerMonthlyRecordSavePayload = {
   total_work_units: number;
   worked_days_count: number;
   gross_amount: number;
-  phone?: string | null;
-  resident_number?: string | null;
 };
 
 type LaborRow = {
@@ -371,10 +369,54 @@ function getFriendlySaveErrorMessage(error: unknown) {
   }
 
   if (error.message.includes("schema cache")) {
-    return "DB 스키마 정보가 아직 반영되지 않았습니다. 잠시 후 새로고침한 뒤 다시 시도해 주세요.";
+    return "저장 항목과 DB 컬럼 구성이 맞지 않아 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.";
   }
 
   return "저장 중 문제가 발생했습니다. 입력 내용을 확인한 뒤 다시 시도해 주세요.";
+}
+
+type SupabaseLikeError = {
+  message: string;
+  details?: string | null;
+  hint?: string | null;
+  code?: string | null;
+};
+
+function isSupabaseLikeError(error: unknown): error is SupabaseLikeError {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  return "message" in error && typeof error.message === "string";
+}
+
+function toAppError(error: unknown, fallbackMessage: string) {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  if (isSupabaseLikeError(error)) {
+    const nextError = new Error(error.message || fallbackMessage);
+    nextError.cause = error;
+    return nextError;
+  }
+
+  return new Error(fallbackMessage);
+}
+
+function logSupabaseError(context: string, error: unknown, extra?: Record<string, unknown>) {
+  if (isSupabaseLikeError(error)) {
+    console.error(`[daily_worker_monthly_records:${context}]`, {
+      message: error.message,
+      details: error.details ?? null,
+      hint: error.hint ?? null,
+      code: error.code ?? null,
+      ...extra,
+    });
+    return;
+  }
+
+  console.error(`[daily_worker_monthly_records:${context}]`, error, extra);
 }
 
 async function fetchCompanies() {
@@ -960,7 +1002,7 @@ export default function Page() {
 
     try {
       const filledRows = rows.filter(isFilledRow);
-
+      const siteId = parseNumber(selectedSiteId);
       const rowsWithWorkerId = filledRows.map((row) => ({
         row,
         workerId: resolveWorkerId(row),
@@ -987,7 +1029,8 @@ export default function Page() {
           .in("id", removedRecordIds);
 
         if (error) {
-          throw new Error(error.message);
+          logSupabaseError("delete removed rows", error, { removedRecordIds });
+          throw toAppError(error, "삭제된 행 정리에 실패했습니다.");
         }
       }
 
@@ -1014,10 +1057,11 @@ export default function Page() {
             ),
           );
 
-          const updateError = updateResults.find((result) => result.error)?.error;
+          const updateFailure = updateResults.find((result) => result.error);
 
-          if (updateError) {
-            throw new Error(updateError.message);
+          if (updateFailure?.error) {
+            logSupabaseError("update worker profile", updateFailure.error, { workerProfileUpdates });
+            throw toAppError(updateFailure.error, "근로자 연락처 정보 저장에 실패했습니다.");
           }
 
           setDailyWorkers((currentWorkers) =>
@@ -1049,49 +1093,65 @@ export default function Page() {
           }
         });
 
-        const payload: DailyWorkerMonthlyRecordSavePayload[] = rowsWithWorkerId.map(
-          ({ row, workerId }) => {
-            const workUnits = parseNumber(row.workUnits);
-            const amount = getPaymentAmount(row);
-            let recordId = row.sourceRecordId ?? undefined;
+        const recordsToUpsert = rowsWithWorkerId.map(({ row, workerId }) => {
+          const workUnits = parseNumber(row.workUnits);
+          const grossAmount = getPaymentAmount(row);
+          let recordId = row.sourceRecordId;
 
-            if (!recordId && workerId) {
-              recordId =
-                assignedRecordIdByWorkerId.get(workerId) ??
-                recordIdByWorkerId.get(workerId) ??
-                crypto.randomUUID();
-              assignedRecordIdByWorkerId.set(workerId, recordId);
-            }
+          if (!recordId && workerId) {
+            recordId =
+              assignedRecordIdByWorkerId.get(workerId) ??
+              recordIdByWorkerId.get(workerId) ??
+              crypto.randomUUID();
+            assignedRecordIdByWorkerId.set(workerId, recordId);
+          }
 
-            return {
-              id: recordId,
-              daily_worker_id: workerId ?? null,
-              site_id: parseNumber(selectedSiteId),
-              target_month: selectedMonth,
-              work_entries: buildMonthlyRecordWorkEntries(row, workUnits, amount),
-              total_work_units: workUnits,
-              gross_amount: amount,
-              worked_days_count: workUnits > 0 ? Math.ceil(workUnits) : 0,
-              phone: row.phone.trim() || null,
-              resident_number: row.residentId.trim() || null,
-            };
-          },
-        );
+          return {
+            id: recordId ?? crypto.randomUUID(),
+            daily_worker_id: workerId ?? null,
+            site_id: siteId,
+            target_month: selectedMonth,
+            work_entries: buildMonthlyRecordWorkEntries(row, workUnits, grossAmount),
+            total_work_units: workUnits,
+            worked_days_count: workUnits > 0 ? Math.ceil(workUnits) : 0,
+            gross_amount: grossAmount,
+          } satisfies DailyWorkerMonthlyRecordSavePayload & { id: string };
+        });
 
-        const { error } = await supabase
-          .from("daily_worker_monthly_records")
-          .upsert(payload, { onConflict: "id" });
+        const existingRecordIds = new Set(monthlyRecords.map((record) => record.id));
+        const recordsToUpdate = recordsToUpsert.filter((record) => existingRecordIds.has(record.id));
+        const recordsToInsert = recordsToUpsert.filter((record) => !existingRecordIds.has(record.id));
 
-        if (error) {
-          throw new Error(error.message);
+        for (const record of recordsToUpdate) {
+          const { id, ...updatePayload } = record;
+          const { error } = await supabase
+            .from("daily_worker_monthly_records")
+            .update(updatePayload)
+            .eq("id", id);
+
+          if (error) {
+            logSupabaseError("update monthly record", error, { recordId: id, updatePayload });
+            throw toAppError(error, "기존 노무비 행 저장에 실패했습니다.");
+          }
+        }
+
+        if (recordsToInsert.length) {
+          const { error } = await supabase
+            .from("daily_worker_monthly_records")
+            .insert(recordsToInsert);
+
+          if (error) {
+            logSupabaseError("insert monthly records", error, { recordsToInsert });
+            throw toAppError(error, "업로드 행 저장에 실패했습니다.");
+          }
         }
       }
 
       await reloadMonthlyRecords();
       setSaveSuccessMessage("저장이 완료되었습니다.");
     } catch (error) {
+      logSupabaseError("handleSave catch", error);
       setSaveError(getFriendlySaveErrorMessage(error));
-      setSaveWarningMessage("");
       setSaveSuccessMessage("");
     } finally {
       setIsSaving(false);
