@@ -43,21 +43,26 @@ type WorkEntry = {
 type DailyWorkerMonthlyRecordRow = {
   id: string;
   target_month?: string | null;
-  month?: string | null;
   work_entries: WorkEntry[] | null;
+  work_dates?: string[] | null;
   total_work_units: number | null;
   worked_days_count: number | null;
   gross_amount: number | null;
-  amount?: number | null;
-  unit_price?: number | null;
-  company_id?: number | null;
-  name?: string | null;
-  resident_number?: string | null;
-  phone?: string | null;
-  job_type?: string | null;
-  worker_id?: number | null;
   daily_worker_id?: number | null;
   site_id: number | null;
+  phone?: string | null;
+  resident_number?: string | null;
+};
+
+type DailyWorkerMonthlyRecordSavePayload = {
+  id?: string;
+  daily_worker_id: number;
+  site_id: number;
+  target_month: string;
+  work_entries: WorkEntry[];
+  total_work_units: number;
+  worked_days_count: number;
+  gross_amount: number;
 };
 
 type LaborRow = {
@@ -202,13 +207,39 @@ function getTradeLabel(jobType: string | null) {
   return normalized ? normalized : FALLBACK_TRADE;
 }
 
-function normalizeText(value: string) {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
+function getRecordWorkerId(record: DailyWorkerMonthlyRecordRow) {
+  return record.daily_worker_id ?? null;
 }
 
-function getRecordWorkerId(record: DailyWorkerMonthlyRecordRow) {
-  return record.daily_worker_id ?? record.worker_id ?? null;
+function getMonthlyRecordTextValue(
+  record: DailyWorkerMonthlyRecordRow,
+  field: "phone" | "resident_number",
+) {
+  const value = record[field];
+  return typeof value === "string" ? value : "";
+}
+
+function isFilledRow(row: LaborRow) {
+  return [row.name, row.residentId, row.phone, row.trade, row.unitPrice, row.workUnits, row.note].some(
+    (value) => value.trim(),
+  );
+}
+
+function getFriendlySaveErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+  }
+
+  if (error.message.startsWith("MATCH_WORKER:")) {
+    const workerNames = error.message.replace("MATCH_WORKER:", "").trim();
+    return `일용직 정보를 찾을 수 없는 행이 있습니다: ${workerNames}. 이름, 주민번호 또는 전화번호를 확인해 주세요.`;
+  }
+
+  if (error.message.includes("schema cache")) {
+    return "저장 대상 컬럼이 현재 DB 구조와 맞지 않아 저장하지 못했습니다. 저장 로직을 실제 테이블 기준으로 다시 맞춘 뒤 재시도해 주세요.";
+  }
+
+  return "저장에 실패했습니다. 입력값과 연결 상태를 확인한 뒤 다시 시도해 주세요.";
 }
 
 async function fetchCompanies() {
@@ -255,7 +286,9 @@ async function fetchDailyWorkers() {
 async function fetchDailyWorkerMonthlyRecords(siteId: number, targetMonth: string) {
   const { data, error } = await supabase
     .from("daily_worker_monthly_records")
-    .select("*")
+    .select(
+      "id, target_month, work_dates, work_entries, total_work_units, worked_days_count, gross_amount, daily_worker_id, site_id",
+    )
     .eq("site_id", siteId)
     .eq("target_month", targetMonth)
     .order("id", { ascending: true });
@@ -284,6 +317,7 @@ export default function Page() {
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -424,9 +458,8 @@ export default function Page() {
       const worker = workerId ? workerMap.get(workerId) : undefined;
       const totalWorkUnits =
         parseNumber(record.total_work_units) || getWorkUnitsFromEntries(record.work_entries);
-      const grossAmount = parseNumber(record.gross_amount ?? record.amount);
+      const grossAmount = parseNumber(record.gross_amount);
       const unitPrice =
-        parseNumber(record.unit_price) ||
         parseNumber(worker?.daily_wage) ||
         (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
       const lastWorkedDate = getLastWorkedDate(record.work_entries);
@@ -435,13 +468,15 @@ export default function Page() {
         id: `record-${record.id}`,
         sourceRecordId: record.id,
         sourceWorkerId: workerId,
-        name: record.name ?? worker?.name ?? `?????#${workerId ?? "-"}`,
-        residentId: formatResidentId(record.resident_number ?? worker?.resident_number ?? ""),
-        phone: formatPhoneNumber(record.phone ?? worker?.phone ?? ""),
-        trade: getTradeLabel(record.job_type ?? worker?.job_type ?? null),
+        name: worker?.name ?? `일용직 #${workerId ?? "-"}`,
+        residentId: formatResidentId(
+          getMonthlyRecordTextValue(record, "resident_number") || worker?.resident_number || "",
+        ),
+        phone: formatPhoneNumber(getMonthlyRecordTextValue(record, "phone") || worker?.phone || ""),
+        trade: getTradeLabel(worker?.job_type ?? null),
         unitPrice: unitPrice ? String(unitPrice) : "",
         workUnits: totalWorkUnits ? String(totalWorkUnits) : "",
-        note: lastWorkedDate ? `??? ?????${formatDateDisplay(lastWorkedDate)}` : "",
+        note: lastWorkedDate ? `최종 작업일 ${formatDateDisplay(lastWorkedDate)}` : "",
       } satisfies LaborRow;
     });
   }, [dailyWorkers, monthlyRecords]);
@@ -497,6 +532,8 @@ export default function Page() {
   );
 
   const updateRow = (rowId: string, field: keyof LaborRow, value: string) => {
+    setSaveSuccessMessage("");
+    setSaveError("");
     setRows((currentRows) =>
       currentRows.map((row) => {
         if (row.id !== rowId) {
@@ -525,16 +562,21 @@ export default function Page() {
       selectedTradeFilter !== ALL_TRADES_LABEL ? selectedTradeFilter : tradeOptions[1] ?? FALLBACK_TRADE;
 
     setRows((currentRows) => [...currentRows, createEmptyRow(`manual-${Date.now()}`, trade)]);
+    setSaveSuccessMessage("");
+    setSaveError("");
   };
 
   const removeRow = (rowId: string) => {
     setRows((currentRows) => {
       if (currentRows.length === 1) {
-        return currentRows;
+        const currentRow = currentRows[0];
+        return [createEmptyRow(`manual-${Date.now()}`, currentRow.trade || FALLBACK_TRADE)];
       }
 
       return currentRows.filter((row) => row.id !== rowId);
     });
+    setSaveSuccessMessage("");
+    setSaveError("");
   };
 
   const resolveWorkerId = (row: LaborRow) => {
@@ -589,21 +631,18 @@ export default function Page() {
 
   const handleSave = async () => {
     if (!selectedCompanyId || !selectedSiteId || !selectedMonth) {
-      const message = "\uC800\uC7A5 \uC804\uC5D0 \uD68C\uC0AC, \uD604\uC7A5, \uADC0\uC18D \uC6D4\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.";
+      const message = "저장 전에 회사, 현장, 기준 월을 모두 선택해 주세요.";
       setSaveError(message);
-      window.alert(message);
+      setSaveSuccessMessage("");
       return;
     }
 
     setIsSaving(true);
     setSaveError("");
+    setSaveSuccessMessage("");
 
     try {
-      const filledRows = rows.filter((row) =>
-        [row.name, row.residentId, row.phone, row.trade, row.unitPrice, row.workUnits, row.note].some(
-          (value) => value.trim(),
-        ),
-      );
+      const filledRows = rows.filter(isFilledRow);
 
       const rowsWithWorkerId = filledRows.map((row) => ({
         row,
@@ -614,9 +653,9 @@ export default function Page() {
 
       if (unresolvedRows.length) {
         throw new Error(
-          `\uB2E4\uC74C \uD589\uC758 worker_id\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4: ${unresolvedRows
+          `MATCH_WORKER:${unresolvedRows
             .map(({ row }) => row.name || "(\uC774\uB984 \uC5C6\uC74C)")
-            .join(", ")}`
+            .join(", ")}` 
         );
       }
 
@@ -636,27 +675,79 @@ export default function Page() {
       }
 
       if (rowsWithWorkerId.length) {
-        const payload = rowsWithWorkerId.map(({ row, workerId }) => {
-          const workUnits = parseNumber(row.workUnits);
-          const amount = getPaymentAmount(row);
+        const workerProfilePayload = new Map<
+          number,
+          Pick<DailyWorkerRow, "phone" | "resident_number">
+        >();
 
-          return {
-            id: row.sourceRecordId ?? undefined,
-            daily_worker_id: workerId,
-            site_id: parseNumber(selectedSiteId),
-            company_id: parseNumber(selectedCompanyId),
-            target_month: selectedMonth,
-            name: normalizeText(row.name),
-            resident_number: normalizeText(row.residentId),
-            phone: normalizeText(row.phone),
-            job_type: normalizeText(row.trade),
-            unit_price: parseNumber(row.unitPrice),
-            total_work_units: workUnits,
-            gross_amount: amount,
-            worked_days_count: workUnits > 0 ? Math.ceil(workUnits) : 0,
-            work_entries: workUnits > 0 ? [{ units: workUnits }] : [],
-          };
+        rowsWithWorkerId.forEach(({ row, workerId }) => {
+          if (!workerId) {
+            return;
+          }
+
+          workerProfilePayload.set(workerId, {
+            phone: row.phone.trim() || null,
+            resident_number: row.residentId.trim() || null,
+          });
         });
+
+        const workerProfileUpdates = Array.from(workerProfilePayload.entries());
+
+        if (workerProfileUpdates.length) {
+          const updateResults = await Promise.all(
+            workerProfileUpdates.map(([workerId, profile]) =>
+              supabase.from("daily_workers").update(profile).eq("id", workerId),
+            ),
+          );
+
+          const updateError = updateResults.find((result) => result.error)?.error;
+
+          if (updateError) {
+            throw new Error(updateError.message);
+          }
+
+          setDailyWorkers((currentWorkers) =>
+            currentWorkers.map((worker) => {
+              const nextProfile = workerProfilePayload.get(worker.id);
+
+              if (!nextProfile) {
+                return worker;
+              }
+
+              return {
+                ...worker,
+                ...nextProfile,
+              };
+            }),
+          );
+        }
+      }
+
+      if (rowsWithWorkerId.length) {
+        const payload: DailyWorkerMonthlyRecordSavePayload[] = rowsWithWorkerId.map(
+          ({ row, workerId }) => {
+            const workUnits = parseNumber(row.workUnits);
+            const amount = getPaymentAmount(row);
+
+            return {
+              id: row.sourceRecordId ?? undefined,
+              daily_worker_id: workerId!,
+              site_id: parseNumber(selectedSiteId),
+              target_month: selectedMonth,
+              work_entries:
+                workUnits > 0
+                  ? [
+                      {
+                        units: workUnits,
+                      },
+                    ]
+                  : [],
+              total_work_units: workUnits,
+              gross_amount: amount,
+              worked_days_count: workUnits > 0 ? Math.ceil(workUnits) : 0,
+            };
+          },
+        );
 
         const { error } = await supabase
           .from("daily_worker_monthly_records")
@@ -668,11 +759,11 @@ export default function Page() {
       }
 
       await reloadMonthlyRecords();
-      window.alert("\uC800\uC7A5 \uC644\uB8CC");
+      setSaveSuccessMessage("저장 완료");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "\uC800\uC7A5 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.";
+      const message = getFriendlySaveErrorMessage(error);
       setSaveError(message);
-      window.alert(message);
+      setSaveSuccessMessage("");
     } finally {
       setIsSaving(false);
     }
@@ -797,6 +888,11 @@ export default function Page() {
               {saveError ? (
                 <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                   {saveError}
+                </p>
+              ) : null}
+              {saveSuccessMessage ? (
+                <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  {saveSuccessMessage}
                 </p>
               ) : null}
             </section>
