@@ -618,8 +618,6 @@ export default function Page() {
   const [selectedTradeFilter, setSelectedTradeFilter] = useState(ALL_TRADES_LABEL);
   const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth);
   const [rows, setRows] = useState<LaborRow[]>([createEmptyRow("manual-1")]);
-  const [companyNameInput, setCompanyNameInput] = useState("");
-  const [siteNameInput, setSiteNameInput] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRecordsLoading, setIsRecordsLoading] = useState(false);
@@ -719,18 +717,10 @@ export default function Page() {
     () => availableSites.find((site) => String(site.id) === selectedSiteId) ?? null,
     [availableSites, selectedSiteId],
   );
-  const resolvedCompanyName = companyNameInput.trim() || selectedCompany?.name || "-";
-  const resolvedSiteName = siteNameInput.trim() || selectedSite?.name || "-";
+  const resolvedCompanyName = selectedCompany?.name || "-";
+  const resolvedSiteName = selectedSite?.name || "-";
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
-
-  useEffect(() => {
-    setCompanyNameInput(selectedCompany?.name ?? "");
-  }, [selectedCompany?.id, selectedCompany?.name]);
-
-  useEffect(() => {
-    setSiteNameInput(selectedSite?.name ?? "");
-  }, [selectedSite?.id, selectedSite?.name]);
 
   useEffect(() => {
     let active = true;
@@ -1960,16 +1950,9 @@ export default function Page() {
                     </option>
                   ))}
                 </select>
-                <input
-                  type="text"
-                  className="mt-1.5 h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
-                  value={companyNameInput}
-                  onChange={(event) => setCompanyNameInput(event.target.value)}
-                  placeholder="회사명 직접 입력"
-                />
               </label>
               <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
-                <span className="mb-1 block font-medium text-stone-700">공사명 / 현장명</span>
+                <span className="mb-1 block font-medium text-stone-700">현장명</span>
                 <select
                   className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
                   value={selectedSiteId}
@@ -1983,13 +1966,6 @@ export default function Page() {
                     </option>
                   ))}
                 </select>
-                <input
-                  type="text"
-                  className="mt-1.5 h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
-                  value={siteNameInput}
-                  onChange={(event) => setSiteNameInput(event.target.value)}
-                  placeholder="현장명 직접 입력"
-                />
               </label>
               <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">직종 필터</span>
@@ -2059,14 +2035,9 @@ export default function Page() {
                 className="inline-flex h-10 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-[15px] font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
               >
                 {isSaving ? "저장 중..." : "저장"}
-              </button>
-            </div>
-
-            {selectedCompany ? (
-              <div className="border-b border-stone-300 bg-stone-50 px-2 py-1.5 text-[15px] text-stone-600">
-                사업자번호 {selectedCompany.business_number || "-"} / 주소 {selectedCompany.address || "-"}
+                </button>
               </div>
-            ) : null}
+
             {loadError ? <p className="border-b border-red-200 bg-red-50 px-2 py-1.5 text-[15px] text-red-700">{loadError}</p> : null}
             {saveError ? <p className="border-b border-amber-200 bg-amber-50 px-2 py-1.5 text-[15px] text-amber-700">{saveError}</p> : null}
             {saveWarningMessage ? (
@@ -2101,12 +2072,12 @@ export default function Page() {
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{resolvedCompanyName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">공사명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{resolvedSiteName}</div>
-                  </div>
-                  <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-b-0 md:border-r">
                     <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">현장명</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{resolvedSiteName}</div>
+                  </div>
+                  <div className="grid grid-cols-[112px_minmax(0,1fr)] md:border-r">
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">기준월</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedMonth || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)]">
                     <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">기간</div>
