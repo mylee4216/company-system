@@ -1366,6 +1366,7 @@ export default function Page() {
           html,
           body {
             background: #ffffff;
+            font-size: 11px;
           }
 
           body * {
@@ -1394,6 +1395,7 @@ export default function Page() {
           .print-shell {
             border: 0 !important;
             box-shadow: none !important;
+            width: 100% !important;
           }
 
           .print-hidden {
@@ -1403,11 +1405,31 @@ export default function Page() {
           .print-sheet-section {
             break-inside: avoid-page;
             page-break-inside: avoid;
+            margin: 0 0 8mm;
+          }
+
+          .print-sheet-meta {
+            margin-bottom: 5mm;
+          }
+
+          .print-sheet-table-section {
+            break-inside: auto;
+            page-break-inside: auto;
+            margin-bottom: 0;
+          }
+
+          .print-sheet-table-section .border-b,
+          .print-sheet-table-section .bg-stone-50 {
+            break-inside: avoid-page;
+            page-break-inside: avoid;
           }
 
           .print-sheet-table {
             width: 100% !important;
             min-width: 0 !important;
+            table-layout: fixed;
+            font-size: 10px;
+            line-height: 1.3;
           }
 
           .print-sheet-table thead {
@@ -1425,8 +1447,86 @@ export default function Page() {
             page-break-inside: avoid;
           }
 
+          .print-sheet-table th,
+          .print-sheet-table td {
+            padding: 4px 5px !important;
+            vertical-align: middle;
+            overflow: visible !important;
+          }
+
           .print-sheet-table tr > :last-child {
             display: none !important;
+          }
+
+          .print-sheet-table th:nth-child(1),
+          .print-sheet-table td:nth-child(1) {
+            width: 4%;
+          }
+
+          .print-sheet-table th:nth-child(2),
+          .print-sheet-table td:nth-child(2) {
+            width: 9%;
+          }
+
+          .print-sheet-table th:nth-child(3),
+          .print-sheet-table td:nth-child(3) {
+            width: 13%;
+          }
+
+          .print-sheet-table th:nth-child(4),
+          .print-sheet-table td:nth-child(4) {
+            width: 11%;
+          }
+
+          .print-sheet-table th:nth-child(5),
+          .print-sheet-table td:nth-child(5) {
+            width: 9%;
+          }
+
+          .print-sheet-table th:nth-child(6),
+          .print-sheet-table td:nth-child(6) {
+            width: 8%;
+          }
+
+          .print-sheet-table th:nth-child(7),
+          .print-sheet-table td:nth-child(7) {
+            width: 6%;
+          }
+
+          .print-sheet-table th:nth-child(8),
+          .print-sheet-table td:nth-child(8) {
+            width: 10%;
+          }
+
+          .print-sheet-table th:nth-child(9),
+          .print-sheet-table td:nth-child(9) {
+            width: 30%;
+          }
+
+          .print-cell-name,
+          .print-cell-trade,
+          .print-cell-note {
+            white-space: normal !important;
+            word-break: keep-all;
+            overflow-wrap: anywhere;
+          }
+
+          .print-cell-resident,
+          .print-cell-phone {
+            white-space: nowrap !important;
+            word-break: keep-all;
+            font-size: 9.4px;
+            letter-spacing: -0.01em;
+          }
+
+          .print-cell-number {
+            white-space: nowrap !important;
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+          }
+
+          .print-cell-note {
+            min-width: 0;
           }
 
           .print-sheet-table input {
@@ -1434,6 +1534,33 @@ export default function Page() {
             padding-left: 0 !important;
             padding-right: 0 !important;
             background: transparent !important;
+            min-height: 0 !important;
+            height: auto !important;
+            line-height: inherit !important;
+            color: inherit !important;
+            box-shadow: none !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+          }
+
+          .print-sheet-table .print-cell-name input,
+          .print-sheet-table .print-cell-trade input,
+          .print-sheet-table .print-cell-note input {
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+            word-break: keep-all;
+          }
+
+          .print-sheet-table .print-cell-resident input,
+          .print-sheet-table .print-cell-phone input,
+          .print-sheet-table .print-cell-number input {
+            white-space: nowrap !important;
+          }
+
+          .print-sheet-table-section tbody::before {
+            content: "";
+            display: table-row;
+            height: 1mm;
           }
         }
       `}</style>
@@ -1562,7 +1689,7 @@ export default function Page() {
               ) : null}
             </section>
 
-            <section className="print-sheet-section border border-stone-300">
+            <section className="print-sheet-section print-sheet-meta border border-stone-300">
               <div className="border-b border-stone-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700">
                 현장 정보
               </div>
@@ -1593,7 +1720,7 @@ export default function Page() {
               </div>
             </section>
 
-            <section className="print-sheet-section border border-stone-300">
+            <section className="print-sheet-section print-sheet-table-section border border-stone-300">
               <div className="flex flex-col gap-3 border-b border-stone-300 bg-stone-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-base font-semibold text-slate-900">노무비 입력표</h2>
@@ -1648,6 +1775,18 @@ export default function Page() {
 
               <div className="print-sheet-scroll overflow-x-auto">
                 <table className="print-sheet-table min-w-[1240px] w-full border-collapse text-sm">
+                  <colgroup>
+                    <col className="print-col-index" />
+                    <col className="print-col-name" />
+                    <col className="print-col-resident" />
+                    <col className="print-col-phone" />
+                    <col className="print-col-trade" />
+                    <col className="print-col-unit-price" />
+                    <col className="print-col-work-units" />
+                    <col className="print-col-amount" />
+                    <col className="print-col-note" />
+                    <col className="print-col-actions" />
+                  </colgroup>
                   <thead className="bg-[#f5f2ea] text-stone-700">
                     <tr className="border-b border-stone-400">
                       <th className="w-14 border-r border-stone-300 px-2 py-2 text-center font-semibold">번호</th>
@@ -1671,7 +1810,7 @@ export default function Page() {
                         <td className="border-r border-stone-300 px-2 py-1.5 text-center text-xs text-stone-700">
                           {index + 1}
                         </td>
-                        <td className="border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-name border-r border-stone-300 px-1.5 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:name`] = element;
@@ -1683,7 +1822,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-resident border-r border-stone-300 px-1.5 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
@@ -1696,7 +1835,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-phone border-r border-stone-300 px-1.5 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:phone`] = element;
@@ -1709,7 +1848,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-trade border-r border-stone-300 px-1.5 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:trade`] = element;
@@ -1721,7 +1860,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
@@ -1736,7 +1875,7 @@ export default function Page() {
                             className={sheetNumericClass}
                           />
                         </td>
-                        <td className="border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:workUnits`] = element;
@@ -1751,10 +1890,10 @@ export default function Page() {
                             className={sheetNumericClass}
                           />
                         </td>
-                        <td className="border-r border-stone-300 bg-stone-50 px-2 py-1 text-right text-sm font-medium tabular-nums text-slate-800">
+                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-1 text-right text-sm font-medium tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
-                        <td className="border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-note border-r border-stone-300 px-1.5 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:note`] = element;
