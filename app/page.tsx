@@ -211,6 +211,10 @@ function sanitizeDecimal(value: string) {
   return `${integerPart}.${decimalPart}`;
 }
 
+function isBlankDecimal(value: string | null | undefined) {
+  return !value || !sanitizeDecimal(value);
+}
+
 function parseNumber(value: string | number | null | undefined) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -886,7 +890,7 @@ export default function Page() {
 
         const nextDailyWorkEntries = { ...row.dailyWorkEntries };
 
-        if (!sanitizedValue || parseNumber(sanitizedValue) <= 0) {
+        if (isBlankDecimal(sanitizedValue)) {
           delete nextDailyWorkEntries[date];
         } else {
           nextDailyWorkEntries[date] = sanitizedValue;
@@ -896,6 +900,30 @@ export default function Page() {
           ...row,
           dailyWorkEntries: nextDailyWorkEntries,
         };
+      }),
+    );
+  };
+
+  const handleDailyWorkEntryBlur = (rowId: string, date: string) => {
+    setRows((currentRows) =>
+      currentRows.map((row) => {
+        if (row.id !== rowId) {
+          return row;
+        }
+
+        const currentValue = row.dailyWorkEntries[date];
+
+        if (isBlankDecimal(currentValue) || parseNumber(currentValue) <= 0) {
+          const nextDailyWorkEntries = { ...row.dailyWorkEntries };
+          delete nextDailyWorkEntries[date];
+
+          return {
+            ...row,
+            dailyWorkEntries: nextDailyWorkEntries,
+          };
+        }
+
+        return row;
       }),
     );
   };
@@ -2114,12 +2142,14 @@ export default function Page() {
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
                             }}
+                            type="text"
                             value={getNumericInputValue(row, "unitPrice")}
                             onChange={(event) => updateRow(row.id, "unitPrice", event.target.value)}
                             onFocus={(event) => handleNumericInputFocus(event, row.id, "unitPrice")}
                             onBlur={() => handleNumericInputBlur(row.id, "unitPrice")}
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "unitPrice")}
                             inputMode="decimal"
+                            autoComplete="off"
                             placeholder="0"
                             className={sheetNumericClass}
                           />
@@ -2130,12 +2160,14 @@ export default function Page() {
                               ref={(element) => {
                                 cellRefs.current[`${row.id}:workUnits`] = element;
                               }}
+                              type="text"
                               value={getNumericInputValue(row, "workUnits")}
                               onChange={(event) => updateRow(row.id, "workUnits", event.target.value)}
                               onFocus={(event) => handleNumericInputFocus(event, row.id, "workUnits")}
                               onBlur={() => handleNumericInputBlur(row.id, "workUnits")}
                               onKeyDown={(event) => handleCellKeyDown(event, row.id, "workUnits")}
                               inputMode="decimal"
+                              autoComplete="off"
                               placeholder="0"
                               readOnly={rowHasDailyEntries}
                               className={`${sheetNumericClass} ${rowHasDailyEntries ? "bg-stone-50 text-stone-500" : ""}`}
@@ -2195,9 +2227,12 @@ export default function Page() {
                                     <label key={`${row.id}:${date}`} className="grid grid-cols-[1fr_96px] items-center gap-2 text-sm">
                                       <span className="tabular-nums text-stone-600">{date}</span>
                                       <input
+                                        type="text"
                                         value={row.dailyWorkEntries[date] ?? ""}
                                         onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
+                                        onBlur={() => handleDailyWorkEntryBlur(row.id, date)}
                                         inputMode="decimal"
+                                        autoComplete="off"
                                         placeholder="0"
                                         className={sheetNumericClass}
                                       />
