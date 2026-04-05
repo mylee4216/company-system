@@ -128,6 +128,7 @@ const EXCEL_UPLOAD_HEADERS = ["번호", "성명", "주민번호", "전화번호"
 
 const ALL_TRADES_LABEL = "전체";
 const FALLBACK_TRADE = "미분류";
+const MAX_DAY_COLUMNS = 31;
 
 function createEmptyRow(id: string, trade = FALLBACK_TRADE): LaborRow {
   return {
@@ -696,6 +697,10 @@ export default function Page() {
   );
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
+  const monthDateSlots = useMemo(
+    () => Array.from({ length: MAX_DAY_COLUMNS }, (_, index) => monthDates[index] ?? null),
+    [monthDates],
+  );
 
   useEffect(() => {
     let active = true;
@@ -1585,10 +1590,10 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-9 w-full min-w-0 border-0 bg-transparent px-2 text-sm outline-none transition focus:bg-amber-50/70";
+    "h-9 w-full min-w-0 border-0 bg-transparent px-1.5 text-sm outline-none transition focus:bg-amber-50/70";
   const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right tabular-nums`;
   const dailyEntryInputClass =
-    "h-8 w-full min-w-[48px] border-0 bg-transparent px-1 text-center text-xs tabular-nums outline-none transition focus:bg-amber-50/70";
+    "h-8 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[13px] font-medium tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
     "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-xs font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
@@ -1619,7 +1624,7 @@ export default function Page() {
           html,
           body {
             background: #ffffff;
-            font-size: 11px;
+            font-size: 10.5px;
             width: 297mm;
           }
 
@@ -1671,7 +1676,7 @@ export default function Page() {
             width: 100% !important;
             min-width: 0 !important;
             table-layout: auto;
-            font-size: 9px;
+            font-size: 8.4px;
             line-height: 1.2;
           }
 
@@ -1692,7 +1697,7 @@ export default function Page() {
 
           .print-sheet-table th,
           .print-sheet-table td {
-            padding: 2px 3px !important;
+            padding: 2px 2px !important;
             vertical-align: middle;
             overflow: visible !important;
           }
@@ -1720,6 +1725,11 @@ export default function Page() {
             font-variant-numeric: tabular-nums;
           }
 
+          .print-cell-phone,
+          .print-cell-resident {
+            min-width: max-content !important;
+          }
+
           .print-cell-note,
           .print-meta-value,
           .print-summary-note {
@@ -1730,10 +1740,15 @@ export default function Page() {
 
           .print-cell-date,
           .print-day-header {
-            min-width: 14px !important;
-            width: 14px !important;
-            max-width: 14px !important;
+            min-width: 12px !important;
+            width: 12px !important;
+            max-width: 12px !important;
             text-align: center !important;
+          }
+
+          .print-day-header {
+            font-size: 8.2px !important;
+            font-weight: 700 !important;
           }
 
           .print-sheet-table input {
@@ -1750,13 +1765,27 @@ export default function Page() {
             text-overflow: clip !important;
             width: 100% !important;
             min-width: 0 !important;
-            max-width: 100% !important;
+            max-width: none !important;
+            white-space: nowrap !important;
+          }
+
+          .print-cell-phone input,
+          .print-cell-resident input {
+            width: max-content !important;
+            min-width: 100% !important;
+            font-size: 8.8px !important;
+            letter-spacing: -0.01em;
+          }
+
+          .print-cell-date input {
+            font-size: 8px !important;
+            font-weight: 600 !important;
           }
         }
       `}</style>
-      <main className="min-h-screen bg-[#e7e0d2] px-3 py-4 text-slate-900 sm:px-4 lg:px-6">
-        <div className="print-root mx-auto w-full max-w-[1880px]">
-          <section className="print-hidden print-interactive mb-3 border border-stone-400 bg-[#f7f2e7] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
+      <main className="min-h-screen bg-[#e7e0d2] px-2 py-3 text-slate-900 sm:px-3 sm:py-4 lg:px-4">
+        <div className="print-root mx-auto w-full max-w-[1980px]">
+          <section className="print-hidden print-interactive mb-2 border border-stone-400 bg-[#f7f2e7] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
             <div className="grid gap-0 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
               <label className="border-b border-r border-stone-300 px-3 py-2 text-sm">
                 <span className="mb-1 block font-medium text-stone-700">상호</span>
@@ -1877,7 +1906,7 @@ export default function Page() {
           </section>
 
           <section className="print-shell border border-stone-500 bg-white shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)]">
-            <header className="border-b-2 border-stone-700 px-4 py-4 sm:px-5">
+            <header className="border-b-2 border-stone-700 px-3 py-3 sm:px-4">
               <div className="mb-3 flex items-end justify-between gap-4">
                 <div className="min-w-0">
                   <p className="text-[11px] tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
@@ -1923,22 +1952,22 @@ export default function Page() {
             <div className="print-sheet-scroll overflow-x-auto">
               <table
                 className="print-sheet-table w-full border-collapse text-[13px]"
-                style={{ minWidth: `${1250 + (monthDates.length || 1) * 48}px` }}
+                style={{ minWidth: `${1116 + MAX_DAY_COLUMNS * 42}px` }}
               >
                 <colgroup>
-                  <col style={{ width: "56px" }} />
-                  <col style={{ width: "124px" }} />
-                  <col style={{ width: "148px" }} />
-                  <col style={{ width: "152px" }} />
-                  <col style={{ width: "168px" }} />
-                  {(monthDates.length ? monthDates : ["placeholder"]).map((date) => (
-                    <col key={`col-${date}`} style={{ width: "48px" }} />
+                  <col style={{ width: "52px" }} />
+                  <col style={{ width: "112px" }} />
+                  <col style={{ width: "132px" }} />
+                  <col style={{ width: "172px" }} />
+                  <col style={{ width: "184px" }} />
+                  {monthDateSlots.map((date, index) => (
+                    <col key={`col-${date ?? `slot-${index + 1}`}`} style={{ width: "42px" }} />
                   ))}
-                  <col style={{ width: "96px" }} />
-                  <col style={{ width: "118px" }} />
-                  <col style={{ width: "140px" }} />
-                  <col style={{ width: "220px" }} />
-                  <col style={{ width: "74px" }} />
+                  <col style={{ width: "92px" }} />
+                  <col style={{ width: "112px" }} />
+                  <col style={{ width: "132px" }} />
+                  <col style={{ width: "130px" }} />
+                  <col style={{ width: "70px" }} />
                 </colgroup>
                 <thead className="bg-[#f3ede1] text-stone-700">
                   <tr className="border-b border-stone-400">
@@ -1947,7 +1976,7 @@ export default function Page() {
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">성명</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">전화번호</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">주민번호</th>
-                    <th colSpan={monthDates.length || 1} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">일자별 공수</th>
+                    <th colSpan={MAX_DAY_COLUMNS} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">일자별 공수</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">총 공수</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">단가</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">지급액</th>
@@ -1955,15 +1984,14 @@ export default function Page() {
                     <th rowSpan={2} className="print-col-actions px-2 py-2 text-center font-semibold">관리</th>
                   </tr>
                   <tr className="border-b border-stone-400">
-                    {monthDates.length ? (
-                      monthDates.map((date) => (
-                        <th key={date} className="print-day-header border-r border-stone-300 px-1 py-1 text-center text-[11px] font-medium">
-                          {Number(date.slice(-2))}
-                        </th>
-                      ))
-                    ) : (
-                      <th className="border-r border-stone-300 px-2 py-1 text-center text-[11px] font-medium">-</th>
-                    )}
+                    {monthDateSlots.map((date, index) => (
+                      <th
+                        key={date ?? `day-slot-${index + 1}`}
+                        className="print-day-header border-r border-stone-300 px-0.5 py-1 text-center text-[13px] font-semibold text-stone-800"
+                      >
+                        {index + 1}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -2024,8 +2052,8 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        {monthDates.length ? (
-                          monthDates.map((date) => (
+                        {monthDateSlots.map((date, index) =>
+                          date ? (
                             <td key={`${row.id}:${date}`} className="print-cell-date border-r border-stone-300 px-0.5 py-1">
                               <input
                                 ref={(element) => {
@@ -2042,9 +2070,17 @@ export default function Page() {
                                 className={dailyEntryInputClass}
                               />
                             </td>
-                          ))
-                        ) : (
-                          <td className="border-r border-stone-300 px-1 py-1 text-center text-xs text-stone-400">-</td>
+                          ) : (
+                            <td
+                              key={`${row.id}:empty-day-${index + 1}`}
+                              className="print-cell-date border-r border-stone-300 bg-stone-50/70 px-0.5 py-1"
+                            >
+                              <div
+                                aria-hidden="true"
+                                className="h-8 w-full rounded-sm bg-stone-100/80"
+                              />
+                            </td>
+                          ),
                         )}
                         <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
                           <div className="space-y-0.5">
@@ -2110,7 +2146,7 @@ export default function Page() {
                 </tbody>
                 <tfoot className="bg-[#f3ede1]">
                   <tr className="border-t-2 border-stone-500">
-                    <td colSpan={5 + (monthDates.length || 1)} className="border-r border-stone-300 px-2 py-2 text-right text-sm font-semibold text-stone-700">
+                    <td colSpan={5 + MAX_DAY_COLUMNS} className="border-r border-stone-300 px-2 py-2 text-right text-sm font-semibold text-stone-700">
                       합계
                     </td>
                     <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
@@ -2127,7 +2163,7 @@ export default function Page() {
               </table>
             </div>
 
-            <footer className="border-t border-stone-400 px-4 py-3">
+            <footer className="border-t border-stone-400 px-3 py-3">
               <div className="grid gap-0 border border-stone-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
                 <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 md:border-b-0">하단 요약</div>
                 <div className="border-b border-r border-stone-300 px-3 py-2 text-sm md:border-b-0">
