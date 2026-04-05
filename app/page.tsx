@@ -1883,11 +1883,11 @@ export default function Page() {
     "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[12.5px] leading-[1.3] outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
     "screen-daily-entry-input block w-full min-w-[32px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center font-semibold tabular-nums outline-none transition focus:bg-amber-50/70";
-  const workUnitsCellStyle = {
+  const workUnitsDisplayCellStyle = {
     verticalAlign: "middle",
-    padding: "0.08rem 0.12rem",
+    padding: 0,
   } as const;
-  const workUnitsInputStyle = {
+  const workUnitsDisplayStyle = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1895,8 +1895,7 @@ export default function Page() {
     height: "100%",
     lineHeight: 1,
     textAlign: "center",
-    padding: 0,
-    fontSize: "12px",
+    fontSize: "15px",
   } as const;
   const deleteButtonClass =
     "inline-flex h-8 min-w-[48px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
@@ -2871,10 +2870,7 @@ export default function Page() {
                             />
                           </td>
                         ))}
-                        <td
-                          className="print-cell-number border-r border-stone-300 px-1 py-2 align-middle text-center"
-                          style={workUnitsCellStyle}
-                        >
+                        <td className="print-cell-number border-r border-stone-300 px-1 py-2 align-middle text-center">
                           <div className="flex flex-col items-center justify-center gap-0.5">
                             <input
                               ref={(element) => {
@@ -2891,7 +2887,6 @@ export default function Page() {
                               placeholder="0"
                               readOnly={rowHasDailyEntries}
                               className={`${sheetNumericClass} ${rowHasDailyEntries ? "text-stone-500" : ""}`}
-                              style={workUnitsInputStyle}
                             />
                             {rowHasDailyEntries ? <p className="text-center text-[13.5px] leading-[1.25] text-stone-400">일자합계</p> : null}
                           </div>
@@ -2956,8 +2951,11 @@ export default function Page() {
                     <td colSpan={5 + monthDates.length} className="print-summary-label border-r border-stone-300 px-2 py-3 text-right text-[17px] font-semibold leading-[1.3] text-stone-700">
                       합계
                     </td>
-                    <td className="print-summary-value border-r border-stone-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
-                      {totalWorkUnits.toLocaleString("ko-KR")}
+                    <td
+                      className="print-summary-value border-r border-stone-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900"
+                      style={workUnitsDisplayCellStyle}
+                    >
+                      <span style={workUnitsDisplayStyle}>{totalWorkUnits.toLocaleString("ko-KR")}</span>
                     </td>
                     <td className="print-note-summary border-r border-stone-300 px-2 py-2"></td>
                     <td className="print-summary-value border-r border-stone-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
@@ -2980,7 +2978,10 @@ export default function Page() {
               <div className="print-footer-grid grid gap-0 border border-stone-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
                 <div className="print-summary-label border-b border-r border-stone-300 bg-stone-100 px-3 py-3 text-[17px] font-medium leading-[1.35] text-stone-700 md:border-b-0">하단 요약</div>
                 <div className="print-summary-value border-b border-r border-stone-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
-                  총 공수 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
+                  총 공수{" "}
+                  <span className="whitespace-nowrap float-right font-semibold tabular-nums" style={workUnitsDisplayStyle}>
+                    {totalWorkUnits.toLocaleString("ko-KR")}
+                  </span>
                 </div>
                 <div className="print-summary-value border-b border-r border-stone-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
                   총 지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
