@@ -1772,7 +1772,7 @@ export default function Page() {
     "h-10 w-full min-w-0 border-0 bg-transparent px-1.5 text-[13px] leading-[1.2] outline-none transition focus:bg-amber-50/70";
   const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right text-[13px] tabular-nums`;
   const sheetResidentInputClass =
-    "min-h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2 text-[12px] leading-[1.2] tracking-[-0.02em] [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+    "min-h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2 text-[12px] leading-[1.25] tracking-[-0.02em] whitespace-pre-wrap break-keep [overflow-wrap:normal] [word-break:keep-all] [hyphens:manual] outline-none transition focus:bg-amber-50/70";
   const sheetNoteTextareaClass =
     "min-h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2 text-[12px] leading-[1.25] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
   const sheetCategoryInputClass =
@@ -1809,7 +1809,10 @@ export default function Page() {
           }
 
           .print-cell-resident textarea {
-            word-break: break-all;
+            white-space: pre-wrap;
+            word-break: keep-all;
+            overflow-wrap: normal;
+            hyphens: manual;
           }
 
           .print-interactive,
@@ -1915,7 +1918,7 @@ export default function Page() {
           }
 
           .print-col-note {
-            width: 7mm !important;
+            width: 0 !important;
           }
 
           .print-col-category {
@@ -1952,8 +1955,17 @@ export default function Page() {
           }
 
           .print-cell-actions,
-          .print-col-actions {
+          .print-col-actions,
+          .print-cell-note,
+          .print-col-note,
+          .print-note-header,
+          .print-note-summary,
+          .print-footer-guide {
             display: none !important;
+          }
+
+          .print-footer-grid {
+            grid-template-columns: 1.05fr 0.9fr 1fr !important;
           }
 
           .print-kicker {
@@ -2042,9 +2054,10 @@ export default function Page() {
           .print-cell-phone input,
           .print-cell-resident input,
           .print-cell-resident textarea {
-            white-space: nowrap !important;
+            white-space: pre-wrap !important;
             word-break: keep-all !important;
             overflow-wrap: normal !important;
+            hyphens: manual !important;
             letter-spacing: -0.02em !important;
           }
 
@@ -2088,6 +2101,13 @@ export default function Page() {
             width: 100% !important;
             min-width: 0 !important;
             line-height: 1.15 !important;
+          }
+
+          .print-cell-resident textarea {
+            white-space: pre-wrap !important;
+            word-break: keep-all !important;
+            overflow-wrap: normal !important;
+            hyphens: manual !important;
           }
 
           .print-cell-note input,
@@ -2298,7 +2318,7 @@ export default function Page() {
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">총 공수</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">단가</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">지급액</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">비고</th>
+                    <th rowSpan={2} className="print-note-header border-r border-stone-300 px-2 py-2 text-center font-semibold">비고</th>
                     <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">구분</th>
                     <th rowSpan={2} className="print-col-actions px-2 py-2 text-center font-semibold">관리</th>
                   </tr>
@@ -2474,7 +2494,7 @@ export default function Page() {
                     <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
                       {totalWorkUnits.toLocaleString("ko-KR")}
                     </td>
-                    <td className="border-r border-stone-300 px-2 py-2"></td>
+                    <td className="print-note-summary border-r border-stone-300 px-2 py-2"></td>
                     <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
@@ -2492,7 +2512,7 @@ export default function Page() {
             </datalist>
 
             <footer className="border-t border-stone-400 px-3 py-3">
-              <div className="grid gap-0 border border-stone-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
+              <div className="print-footer-grid grid gap-0 border border-stone-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
                 <div className="print-summary-label border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-[15px] font-medium text-stone-700 md:border-b-0">하단 요약</div>
                 <div className="print-summary-value border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
                   총 공수 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
@@ -2500,7 +2520,7 @@ export default function Page() {
                 <div className="print-summary-value border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
                   총 지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
                 </div>
-                <div className="print-summary-note px-3 py-2 text-[15px] text-stone-600">
+                <div className="print-footer-guide print-summary-note px-3 py-2 text-[15px] text-stone-600">
                   <span className="mb-1 block font-medium text-stone-700">입력 안내</span>
                   <span className="block leading-5">Enter는 아래 행, Tab은 다음 칸으로 이동합니다. 날짜 칸도 동일하게 이동합니다.</span>
                 </div>
