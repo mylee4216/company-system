@@ -130,16 +130,16 @@ const ALL_TRADES_LABEL = "전체";
 const MAX_DAY_COLUMNS = 31;
 const TABLE_COLUMN_WIDTHS = {
   index: 52,
-  trade: 108,
-  name: 116,
-  phone: 144,
-  resident: 156,
+  trade: 96,
+  name: 108,
+  phone: 156,
+  resident: 176,
   day: 34,
-  total: 74,
-  unitPrice: 84,
-  payment: 106,
-  note: 94,
-  actions: 62,
+  total: 70,
+  unitPrice: 98,
+  payment: 102,
+  note: 132,
+  actions: 56,
 } as const;
 const TABLE_MIN_WIDTH =
   TABLE_COLUMN_WIDTHS.index +
@@ -628,7 +628,7 @@ export default function Page() {
   const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
   const [focusedNumericCell, setFocusedNumericCell] = useState<FocusedNumericCell | null>(null);
 
-  const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const cellRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
   const dailyCellRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingFocusRef = useRef<{ rowId: string; field: EditableField } | null>(null);
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1161,7 +1161,7 @@ export default function Page() {
   };
 
   const handleCellKeyDown = (
-    event: KeyboardEvent<HTMLInputElement>,
+    event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
     rowId: string,
     field: EditableField,
   ) => {
@@ -1604,8 +1604,12 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-10 w-full min-w-0 border-0 bg-transparent px-1.5 text-[14px] leading-5 outline-none transition focus:bg-amber-50/70";
-  const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right tabular-nums`;
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-[13px] leading-[1.25] outline-none transition focus:bg-amber-50/70";
+  const sheetNumericClass = `${sheetInputClass} whitespace-nowrap px-1.5 text-right text-[13px] tabular-nums`;
+  const sheetResidentTextareaClass =
+    "min-h-[2.9rem] w-full min-w-0 resize-none border-0 bg-transparent px-1 py-1 text-[13px] leading-[1.15] tracking-[-0.02em] [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+  const sheetNoteTextareaClass =
+    "min-h-[2.9rem] w-full min-w-0 resize-none border-0 bg-transparent px-1 py-1 text-[13px] leading-[1.2] [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
     "h-9 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[13px] font-medium tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
@@ -1626,6 +1630,11 @@ export default function Page() {
             position: static !important;
             inset: auto !important;
             pointer-events: auto !important;
+          }
+
+          .print-cell-note textarea,
+          .print-cell-resident textarea {
+            resize: none;
           }
 
           .print-interactive,
@@ -1711,7 +1720,7 @@ export default function Page() {
           }
 
           .print-col-resident {
-            width: 27mm !important;
+            width: 28mm !important;
           }
 
           .print-col-day {
@@ -1723,7 +1732,7 @@ export default function Page() {
           }
 
           .print-col-unit-price {
-            width: 16mm !important;
+            width: 17mm !important;
           }
 
           .print-col-payment {
@@ -1731,7 +1740,7 @@ export default function Page() {
           }
 
           .print-col-note {
-            width: 18mm !important;
+            width: 10mm !important;
           }
 
           .print-col-actions {
@@ -1849,7 +1858,8 @@ export default function Page() {
           .print-cell-phone,
           .print-cell-resident,
           .print-cell-phone input,
-          .print-cell-resident input {
+          .print-cell-resident input,
+          .print-cell-resident textarea {
             white-space: nowrap !important;
             word-break: keep-all !important;
             overflow-wrap: normal !important;
@@ -1864,7 +1874,8 @@ export default function Page() {
             font-size: 7.8px !important;
           }
 
-          .print-sheet-table input {
+          .print-sheet-table input,
+          .print-sheet-table textarea {
             display: block !important;
             border-color: transparent !important;
             padding-left: 0 !important;
@@ -1889,15 +1900,17 @@ export default function Page() {
           .print-cell-trade input,
           .print-cell-name input,
           .print-cell-phone input,
-          .print-cell-resident input {
+          .print-cell-resident input,
+          .print-cell-resident textarea {
             width: 100% !important;
             min-width: 0 !important;
             line-height: 1.15 !important;
           }
 
-          .print-cell-note input {
-            white-space: normal !important;
-            line-height: 1.2 !important;
+          .print-cell-note input,
+          .print-cell-note textarea {
+            color: transparent !important;
+            caret-color: transparent !important;
           }
 
           .print-cell-date input {
@@ -1908,11 +1921,11 @@ export default function Page() {
           }
         }
       `}</style>
-      <main className="min-h-screen bg-[#e7e0d2] px-1.5 py-2 text-slate-900 sm:px-2 sm:py-3 lg:px-3">
-        <div className="print-root mx-auto w-full max-w-[2160px]">
+      <main className="min-h-screen bg-[#e7e0d2] px-0.5 py-1 text-slate-900 sm:px-1 sm:py-2 lg:px-1.5">
+        <div className="print-root mx-auto w-full max-w-none">
           <section className="print-hidden print-interactive mb-1.5 border border-stone-400 bg-[#f7f2e7] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
             <div className="grid gap-0 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
-              <label className="border-b border-r border-stone-300 px-3 py-2 text-[15px]">
+              <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">상호</span>
                 <select
                   className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
@@ -1928,7 +1941,7 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="border-b border-r border-stone-300 px-3 py-2 text-[15px]">
+              <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">공사명 / 현장명</span>
                 <select
                   className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
@@ -1944,7 +1957,7 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="border-b border-r border-stone-300 px-3 py-2 text-[15px]">
+              <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">직종 필터</span>
                 <select
                   className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
@@ -1958,7 +1971,7 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="border-b border-stone-300 px-3 py-2 text-[15px] md:border-r xl:border-r-0">
+              <label className="border-b border-stone-300 px-2 py-1.5 text-[15px] md:border-r xl:border-r-0">
                 <span className="mb-1 block font-medium text-stone-700">기준월</span>
                 <input
                   type="month"
@@ -1969,7 +1982,7 @@ export default function Page() {
               </label>
             </div>
 
-            <div className="flex flex-wrap gap-2 border-b border-stone-300 px-3 py-2">
+            <div className="flex flex-wrap gap-2 border-b border-stone-300 px-2 py-1.5">
               <input
                 ref={excelFileInputRef}
                 type="file"
@@ -2016,17 +2029,17 @@ export default function Page() {
             </div>
 
             {selectedCompany ? (
-              <div className="border-b border-stone-300 bg-stone-50 px-3 py-2 text-[15px] text-stone-600">
+              <div className="border-b border-stone-300 bg-stone-50 px-2 py-1.5 text-[15px] text-stone-600">
                 사업자번호 {selectedCompany.business_number || "-"} / 주소 {selectedCompany.address || "-"}
               </div>
             ) : null}
-            {loadError ? <p className="border-b border-red-200 bg-red-50 px-3 py-2 text-[15px] text-red-700">{loadError}</p> : null}
-            {saveError ? <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-[15px] text-amber-700">{saveError}</p> : null}
+            {loadError ? <p className="border-b border-red-200 bg-red-50 px-2 py-1.5 text-[15px] text-red-700">{loadError}</p> : null}
+            {saveError ? <p className="border-b border-amber-200 bg-amber-50 px-2 py-1.5 text-[15px] text-amber-700">{saveError}</p> : null}
             {saveWarningMessage ? (
-              <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-[15px] text-amber-700">{saveWarningMessage}</p>
+              <p className="border-b border-amber-200 bg-amber-50 px-2 py-1.5 text-[15px] text-amber-700">{saveWarningMessage}</p>
             ) : null}
             {saveSuccessMessage ? (
-              <p className="bg-emerald-50 px-3 py-2 text-[15px] text-emerald-700">{saveSuccessMessage}</p>
+              <p className="bg-emerald-50 px-2 py-1.5 text-[15px] text-emerald-700">{saveSuccessMessage}</p>
             ) : null}
           </section>
 
@@ -2151,7 +2164,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-phone border-r border-stone-300 px-1 py-1">
+                        <td className="print-cell-phone border-r border-stone-300 px-0.5 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:phone`] = element;
@@ -2161,11 +2174,11 @@ export default function Page() {
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "phone")}
                             inputMode="numeric"
                             placeholder="010-0000-0000"
-                            className={sheetInputClass}
+                            className={`${sheetInputClass} whitespace-nowrap px-0.5 text-[12.5px] tracking-[-0.015em]`}
                           />
                         </td>
-                        <td className="print-cell-resident border-r border-stone-300 px-1 py-1">
-                          <input
+                        <td className="print-cell-resident border-r border-stone-300 px-0.5 py-0.5 align-top">
+                          <textarea
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
                             }}
@@ -2174,7 +2187,8 @@ export default function Page() {
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "residentId")}
                             inputMode="numeric"
                             placeholder="000000-0000000"
-                            className={sheetInputClass}
+                            rows={2}
+                            className={sheetResidentTextareaClass}
                           />
                         </td>
                         {monthDates.map((date) => (
@@ -2195,7 +2209,7 @@ export default function Page() {
                             />
                           </td>
                         ))}
-                        <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-number border-r border-stone-300 px-1 py-1">
                           <div className="space-y-0.5">
                             <input
                               ref={(element) => {
@@ -2216,7 +2230,7 @@ export default function Page() {
                             {rowHasDailyEntries ? <p className="text-[11px] text-stone-400">일자합계</p> : null}
                           </div>
                         </td>
-                        <td className="print-cell-number border-r border-stone-300 px-1.5 py-1">
+                        <td className="print-cell-number border-r border-stone-300 px-1 py-1">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
@@ -2230,14 +2244,14 @@ export default function Page() {
                             inputMode="decimal"
                             autoComplete="off"
                             placeholder="0"
-                            className={sheetNumericClass}
+                            className={`${sheetNumericClass} px-1 text-[12.5px]`}
                           />
                         </td>
                         <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-1 text-right font-medium tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
-                        <td className="print-cell-note border-r border-stone-300 px-1 py-1">
-                          <input
+                        <td className="print-cell-note border-r border-stone-300 px-0.5 py-0.5 align-top">
+                          <textarea
                             ref={(element) => {
                               cellRefs.current[`${row.id}:note`] = element;
                             }}
@@ -2245,7 +2259,8 @@ export default function Page() {
                             onChange={(event) => updateRow(row.id, "note", event.target.value)}
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "note")}
                             placeholder="비고"
-                            className={sheetInputClass}
+                            rows={2}
+                            className={sheetNoteTextareaClass}
                           />
                         </td>
                         <td className="print-cell-actions px-1 py-1">
