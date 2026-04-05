@@ -1882,7 +1882,7 @@ export default function Page() {
   const sheetCategoryInputClass =
     "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[12.5px] leading-[1.3] outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
-    "screen-daily-entry-input block h-10 w-full min-w-[32px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center text-[13.5px] font-semibold leading-10 tabular-nums outline-none transition focus:bg-amber-50/70";
+    "screen-daily-entry-input block w-full min-w-[32px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center font-semibold tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
     "inline-flex h-8 min-w-[48px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
@@ -2121,22 +2121,24 @@ export default function Page() {
 
           .screen-daily-entry-cell {
             text-align: center;
-            padding-top: 0.15rem !important;
-            padding-bottom: 0.15rem !important;
+            vertical-align: middle !important;
+            padding: 0.08rem 0.05rem !important;
           }
 
-          .screen-daily-entry-input {
-            margin: 0 auto;
+          .screen-daily-entry-cell > .screen-daily-entry-input {
+            display: block !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-width: 28px !important;
+            min-height: 1.7rem !important;
+            margin: 0 auto !important;
+            padding: 0.14rem 0 !important;
             box-sizing: border-box;
             text-align: center !important;
             text-align-last: center;
             vertical-align: middle;
-            padding-top: 0.04rem !important;
-            padding-bottom: 0.04rem !important;
-            min-width: 28px !important;
-            min-height: 1.92rem !important;
-            font-size: 11.25px !important;
-            line-height: 1.78rem !important;
+            font-size: 10.1px !important;
+            line-height: 1 !important;
             letter-spacing: -0.01em !important;
           }
 
@@ -2470,6 +2472,12 @@ export default function Page() {
             text-align: center !important;
           }
 
+          .print-cell-date {
+            vertical-align: middle !important;
+            padding-top: 0.08rem !important;
+            padding-bottom: 0.08rem !important;
+          }
+
           .print-day-header {
             font-size: 7.2px !important;
             font-weight: 700 !important;
@@ -2554,8 +2562,16 @@ export default function Page() {
           }
 
           .print-cell-date input {
+            display: block !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 1.02rem !important;
+            margin: 0 auto !important;
+            padding: 0.08rem 0 !important;
             font-size: 7.1px !important;
             font-weight: 600 !important;
+            line-height: 1 !important;
+            text-align: center !important;
             padding-left: 0 !important;
             padding-right: 0 !important;
           }
