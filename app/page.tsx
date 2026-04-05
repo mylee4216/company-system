@@ -281,6 +281,14 @@ function getPaymentAmount(row: LaborRow) {
   return parseNumber(row.unitPrice) * getEffectiveWorkUnits(row);
 }
 
+function getDisplayedWorkUnits(row: LaborRow) {
+  if (hasDailyWorkEntries(row.dailyWorkEntries)) {
+    return String(getDailyWorkEntriesTotal(row.dailyWorkEntries));
+  }
+
+  return row.workUnits;
+}
+
 function getDefaultMonth() {
   return new Date().toISOString().slice(0, 7);
 }
@@ -884,13 +892,8 @@ export default function Page() {
           nextDailyWorkEntries[date] = sanitizedValue;
         }
 
-        const nextWorkUnits = hasDailyWorkEntries(nextDailyWorkEntries)
-          ? String(getDailyWorkEntriesTotal(nextDailyWorkEntries))
-          : "";
-
         return {
           ...row,
-          workUnits: nextWorkUnits,
           dailyWorkEntries: nextDailyWorkEntries,
         };
       }),
@@ -901,7 +904,11 @@ export default function Page() {
     focusedNumericCell?.rowId === rowId && focusedNumericCell.field === field;
 
   const getNumericInputValue = (row: LaborRow, field: NumericField) => {
-    const rawValue = row[field];
+    const rawValue = field === "workUnits" ? getDisplayedWorkUnits(row) : row[field];
+
+    if (field === "workUnits" && hasDailyWorkEntries(row.dailyWorkEntries)) {
+      return formatDecimalForDisplay(rawValue);
+    }
 
     if (isFocusedNumericCell(row.id, field)) {
       return rawValue;
@@ -1319,7 +1326,7 @@ export default function Page() {
       row.phone,
       row.trade,
       parseNumber(row.unitPrice),
-      parseNumber(row.workUnits),
+      getEffectiveWorkUnits(row),
       getPaymentAmount(row),
       row.note,
     ]);
