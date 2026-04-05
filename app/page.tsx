@@ -102,6 +102,10 @@ type FocusedNumericCell = {
   rowId: string;
   field: NumericField;
 };
+type FocusedDailyWorkCell = {
+  rowId: string;
+  date: string;
+};
 
 type UploadedSheetRow = {
   "번호"?: string | number;
@@ -295,6 +299,25 @@ function formatDecimalForDisplay(value: string) {
   }
 
   return `${formattedIntegerPart}.${decimalPart}`;
+}
+
+function formatWorkUnitsWithFixedDecimal(value: string | number | null | undefined) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value.toFixed(1) : "";
+  }
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const sanitized = sanitizeDecimal(value);
+
+  if (!sanitized || sanitized === ".") {
+    return "";
+  }
+
+  const parsed = Number(sanitized);
+  return Number.isFinite(parsed) ? parsed.toFixed(1) : "";
 }
 
 function formatCurrency(value: number) {
@@ -736,6 +759,7 @@ export default function Page() {
   const [saveWarningMessage, setSaveWarningMessage] = useState("");
   const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
   const [focusedNumericCell, setFocusedNumericCell] = useState<FocusedNumericCell | null>(null);
+  const [focusedDailyWorkCell, setFocusedDailyWorkCell] = useState<FocusedDailyWorkCell | null>(null);
 
   const cellRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null>>({});
   const dailyCellRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -1077,6 +1101,14 @@ export default function Page() {
   };
 
   const handleDailyWorkEntryBlur = (rowId: string, date: string) => {
+    setFocusedDailyWorkCell((currentCell) => {
+      if (currentCell?.rowId === rowId && currentCell.date === date) {
+        return null;
+      }
+
+      return currentCell;
+    });
+
     setRows((currentRows) =>
       currentRows.map((row) => {
         if (row.id !== rowId) {
@@ -1100,15 +1132,24 @@ export default function Page() {
     );
   };
 
+  const isFocusedDailyWorkEntry = (rowId: string, date: string) =>
+    focusedDailyWorkCell?.rowId === rowId && focusedDailyWorkCell.date === date;
+
+  const getDailyWorkEntryInputValue = (row: LaborRow, date: string) => {
+    const rawValue = row.dailyWorkEntries[date] ?? "";
+
+    if (isFocusedDailyWorkEntry(row.id, date)) {
+      return rawValue;
+    }
+
+    return formatWorkUnitsWithFixedDecimal(rawValue);
+  };
+
   const isFocusedNumericCell = (rowId: string, field: NumericField) =>
     focusedNumericCell?.rowId === rowId && focusedNumericCell.field === field;
 
   const getNumericInputValue = (row: LaborRow, field: NumericField) => {
     const rawValue = field === "workUnits" ? getDisplayedWorkUnits(row) : row[field];
-
-    if (field === "workUnits" && hasDailyWorkEntries(row.dailyWorkEntries)) {
-      return formatDecimalForDisplay(rawValue);
-    }
 
     if (isFocusedNumericCell(row.id, field)) {
       return rawValue;
@@ -1116,6 +1157,10 @@ export default function Page() {
 
     if (field === "unitPrice") {
       return formatIntegerWithCommas(rawValue);
+    }
+
+    if (field === "workUnits") {
+      return formatWorkUnitsWithFixedDecimal(rawValue);
     }
 
     return formatDecimalForDisplay(rawValue);
@@ -2456,8 +2501,9 @@ export default function Page() {
                                 dailyCellRefs.current[`${row.id}:${date}`] = element;
                               }}
                               type="text"
-                              value={row.dailyWorkEntries[date] ?? ""}
+                              value={getDailyWorkEntryInputValue(row, date)}
                               onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
+                              onFocus={() => setFocusedDailyWorkCell({ rowId: row.id, date })}
                               onBlur={() => handleDailyWorkEntryBlur(row.id, date)}
                               onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, date)}
                               inputMode="decimal"
