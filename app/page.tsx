@@ -618,6 +618,8 @@ export default function Page() {
   const [selectedTradeFilter, setSelectedTradeFilter] = useState(ALL_TRADES_LABEL);
   const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth);
   const [rows, setRows] = useState<LaborRow[]>([createEmptyRow("manual-1")]);
+  const [companyNameInput, setCompanyNameInput] = useState("");
+  const [siteNameInput, setSiteNameInput] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRecordsLoading, setIsRecordsLoading] = useState(false);
@@ -717,8 +719,18 @@ export default function Page() {
     () => availableSites.find((site) => String(site.id) === selectedSiteId) ?? null,
     [availableSites, selectedSiteId],
   );
+  const resolvedCompanyName = companyNameInput.trim() || selectedCompany?.name || "-";
+  const resolvedSiteName = siteNameInput.trim() || selectedSite?.name || "-";
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
+
+  useEffect(() => {
+    setCompanyNameInput(selectedCompany?.name ?? "");
+  }, [selectedCompany?.id, selectedCompany?.name]);
+
+  useEffect(() => {
+    setSiteNameInput(selectedSite?.name ?? "");
+  }, [selectedSite?.id, selectedSite?.name]);
 
   useEffect(() => {
     let active = true;
@@ -1606,14 +1618,14 @@ export default function Page() {
   const sheetInputClass =
     "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-[13px] leading-[1.25] outline-none transition focus:bg-amber-50/70";
   const sheetNumericClass = `${sheetInputClass} whitespace-nowrap px-1.5 text-right text-[13px] tabular-nums`;
-  const sheetResidentTextareaClass =
-    "min-h-[2.9rem] w-full min-w-0 resize-none border-0 bg-transparent px-1 py-1 text-[13px] leading-[1.15] tracking-[-0.02em] [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+  const sheetResidentInputClass =
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1 py-0 text-[12.5px] leading-[1.2] tracking-[-0.02em] whitespace-nowrap outline-none transition focus:bg-amber-50/70";
   const sheetNoteTextareaClass =
     "min-h-[2.9rem] w-full min-w-0 resize-none border-0 bg-transparent px-1 py-1 text-[13px] leading-[1.2] [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
     "h-9 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[13px] font-medium tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
-    "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-[13px] font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100";
+    "inline-flex h-8 min-w-[48px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
   return (
     <>
@@ -1911,6 +1923,14 @@ export default function Page() {
           .print-cell-note textarea {
             color: transparent !important;
             caret-color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
+            text-shadow: none !important;
+          }
+
+          .print-cell-note input::placeholder,
+          .print-cell-note textarea::placeholder {
+            color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
           }
 
           .print-cell-date input {
@@ -1940,6 +1960,13 @@ export default function Page() {
                     </option>
                   ))}
                 </select>
+                <input
+                  type="text"
+                  className="mt-1.5 h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
+                  value={companyNameInput}
+                  onChange={(event) => setCompanyNameInput(event.target.value)}
+                  placeholder="회사명 직접 입력"
+                />
               </label>
               <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">공사명 / 현장명</span>
@@ -1956,6 +1983,13 @@ export default function Page() {
                     </option>
                   ))}
                 </select>
+                <input
+                  type="text"
+                  className="mt-1.5 h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
+                  value={siteNameInput}
+                  onChange={(event) => setSiteNameInput(event.target.value)}
+                  placeholder="현장명 직접 입력"
+                />
               </label>
               <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">직종 필터</span>
@@ -2064,15 +2098,15 @@ export default function Page() {
                 <div className="grid grid-cols-1 border-stone-300 md:grid-cols-2">
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-r">
                     <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">상호</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedCompany?.name || "-"}</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{resolvedCompanyName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300">
                     <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">공사명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedSite?.name || "-"}</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{resolvedSiteName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-b-0 md:border-r">
                     <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">현장명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedSite?.client_name || selectedSite?.name || "-"}</div>
+                    <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{resolvedSiteName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)]">
                     <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">기간</div>
@@ -2177,8 +2211,8 @@ export default function Page() {
                             className={`${sheetInputClass} whitespace-nowrap px-0.5 text-[12.5px] tracking-[-0.015em]`}
                           />
                         </td>
-                        <td className="print-cell-resident border-r border-stone-300 px-0.5 py-0.5 align-top">
-                          <textarea
+                        <td className="print-cell-resident border-r border-stone-300 px-0.5 py-1 align-middle">
+                          <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
                             }}
@@ -2187,8 +2221,7 @@ export default function Page() {
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "residentId")}
                             inputMode="numeric"
                             placeholder="000000-0000000"
-                            rows={2}
-                            className={sheetResidentTextareaClass}
+                            className={sheetResidentInputClass}
                           />
                         </td>
                         {monthDates.map((date) => (
