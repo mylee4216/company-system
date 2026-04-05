@@ -127,10 +127,9 @@ const EDITABLE_FIELDS: EditableField[] = [
 const EXCEL_UPLOAD_HEADERS = ["번호", "성명", "주민번호", "전화번호", "직종", "단가", "공수", "지급액", "비고"] as const;
 
 const ALL_TRADES_LABEL = "전체";
-const FALLBACK_TRADE = "미분류";
 const MAX_DAY_COLUMNS = 31;
 
-function createEmptyRow(id: string, trade = FALLBACK_TRADE): LaborRow {
+function createEmptyRow(id: string, trade = ""): LaborRow {
   return {
     id,
     sourceRecordId: null,
@@ -441,7 +440,7 @@ function buildMonthlyRecordWorkEntries(row: LaborRow, workUnits: number, grossAm
 
 function getTradeLabel(jobType: string | null) {
   const normalized = jobType?.trim();
-  return normalized ? normalized : FALLBACK_TRADE;
+  return normalized ? normalized : "미분류";
 }
 
 function getRecordWorkerId(record: DailyWorkerMonthlyRecordRow) {
@@ -803,10 +802,8 @@ export default function Page() {
       return;
     }
 
-    const defaultTrade =
-      selectedTradeFilter !== ALL_TRADES_LABEL ? selectedTradeFilter : getTradeLabel(null);
-    setRows([createEmptyRow(`manual-${Date.now()}`, defaultTrade)]);
-  }, [baseStatementRows, selectedTradeFilter]);
+    setRows([createEmptyRow(`manual-${Date.now()}`)]);
+  }, [baseStatementRows]);
 
   const tradeOptions = useMemo(() => {
     const uniqueTrades = new Set<string>();
@@ -1007,13 +1004,14 @@ export default function Page() {
     pendingFocusRef.current = null;
   }, [rows, visibleRows]);
 
-  const addRow = (options?: { focusField?: EditableField; trade?: string }) => {
-    const trade =
-      options?.trade?.trim() ||
-      (selectedTradeFilter !== ALL_TRADES_LABEL ? selectedTradeFilter : tradeOptions[1] ?? FALLBACK_TRADE);
+  const addRow = (options?: { focusField?: EditableField }) => {
     const newRowId = `manual-${Date.now()}`;
 
-    setRows((currentRows) => [...currentRows, createEmptyRow(newRowId, trade)]);
+    if (selectedTradeFilter !== ALL_TRADES_LABEL) {
+      setSelectedTradeFilter(ALL_TRADES_LABEL);
+    }
+
+    setRows((currentRows) => [...currentRows, createEmptyRow(newRowId)]);
     setSaveSuccessMessage("");
     setSaveError("");
     setSaveWarningMessage("");
@@ -1057,8 +1055,7 @@ export default function Page() {
         return;
       }
 
-      const currentRow = visibleRows[currentIndex];
-      addRow({ focusField: field, trade: currentRow?.trade });
+      addRow({ focusField: field });
       return;
     }
 
@@ -1093,8 +1090,7 @@ export default function Page() {
       return;
     }
 
-    const currentRow = visibleRows[currentIndex];
-    addRow({ focusField: EDITABLE_FIELDS[0], trade: currentRow?.trade });
+    addRow({ focusField: EDITABLE_FIELDS[0] });
   };
 
   const moveDailyFocus = (
@@ -1117,8 +1113,7 @@ export default function Page() {
         return;
       }
 
-      const currentRow = visibleRows[currentRowIndex];
-      const newRowId = addRow({ trade: currentRow?.trade });
+      const newRowId = addRow();
       window.requestAnimationFrame(() => {
         focusDailyCell(newRowId, date);
       });
@@ -1554,7 +1549,7 @@ export default function Page() {
             name,
             residentId,
             phone,
-            trade: trade || FALLBACK_TRADE,
+            trade,
             unitPrice,
             workUnits,
             dailyWorkEntries: {},
@@ -1584,10 +1579,10 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-10 w-full min-w-0 border-0 bg-transparent px-1.5 text-[15px] outline-none transition focus:bg-amber-50/70";
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1.5 text-[14px] leading-5 outline-none transition focus:bg-amber-50/70";
   const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right tabular-nums`;
   const dailyEntryInputClass =
-    "h-9 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-sm font-medium tabular-nums outline-none transition focus:bg-amber-50/70";
+    "h-9 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[13px] font-medium tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
     "inline-flex h-7 items-center justify-center rounded border border-red-200 bg-red-50 px-2 py-0 text-[13px] font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
@@ -1618,7 +1613,7 @@ export default function Page() {
           html,
           body {
             background: #ffffff;
-            font-size: 10.5px;
+            font-size: 10px;
             width: 297mm;
           }
 
@@ -1670,8 +1665,8 @@ export default function Page() {
             width: 100% !important;
             min-width: 0 !important;
             table-layout: auto;
-            font-size: 8.4px;
-            line-height: 1.2;
+            font-size: 8.6px;
+            line-height: 1.24;
           }
 
           .print-sheet-table thead {
@@ -1694,11 +1689,32 @@ export default function Page() {
             padding: 2px 2px !important;
             vertical-align: middle;
             overflow: visible !important;
+            font-size: 8.6px !important;
           }
 
           .print-cell-actions,
           .print-col-actions {
             display: none !important;
+          }
+
+          .print-kicker {
+            font-size: 9px !important;
+          }
+
+          .print-title {
+            font-size: 18px !important;
+            line-height: 1.1 !important;
+          }
+
+          .print-top-summary,
+          .print-meta-label,
+          .print-meta-value,
+          .print-summary-label,
+          .print-summary-value,
+          .print-sheet-table thead th,
+          .print-sheet-table tfoot td {
+            font-size: 9px !important;
+            line-height: 1.22 !important;
           }
 
           .print-cell-name,
@@ -1710,8 +1726,8 @@ export default function Page() {
             white-space: nowrap !important;
             word-break: normal !important;
             overflow-wrap: normal !important;
-            overflow: hidden !important;
-            text-overflow: clip !important;
+            overflow: visible !important;
+            text-overflow: initial !important;
           }
 
           .print-cell-number {
@@ -1719,9 +1735,11 @@ export default function Page() {
             font-variant-numeric: tabular-nums;
           }
 
+          .print-cell-trade,
+          .print-cell-name,
           .print-cell-phone,
           .print-cell-resident {
-            min-width: max-content !important;
+            min-width: 0 !important;
           }
 
           .print-cell-note,
@@ -1756,19 +1774,28 @@ export default function Page() {
             color: inherit !important;
             box-shadow: none !important;
             overflow: visible !important;
-            text-overflow: clip !important;
+            text-overflow: initial !important;
             width: 100% !important;
             min-width: 0 !important;
             max-width: none !important;
             white-space: nowrap !important;
+            font-size: 8.6px !important;
+            letter-spacing: -0.01em;
           }
 
+          .print-cell-trade input,
+          .print-cell-name input,
           .print-cell-phone input,
           .print-cell-resident input {
-            width: max-content !important;
-            min-width: 100% !important;
+            width: 100% !important;
+            min-width: 0 !important;
             font-size: 8.8px !important;
             letter-spacing: -0.01em;
+          }
+
+          .print-cell-note input {
+            white-space: normal !important;
+            line-height: 1.22 !important;
           }
 
           .print-cell-date input {
@@ -1903,10 +1930,10 @@ export default function Page() {
             <header className="border-b-2 border-stone-700 px-3 py-3 sm:px-4">
               <div className="mb-3 flex items-end justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-xs tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
-                  <h1 className="mt-1 text-[30px] font-bold tracking-[0.15em] text-slate-900 sm:text-[34px]">노무비 명세서</h1>
+                  <p className="print-kicker text-xs tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
+                  <h1 className="print-title mt-1 text-[30px] font-bold tracking-[0.15em] text-slate-900 sm:text-[34px]">노무비 명세서</h1>
                 </div>
-                <div className="hidden min-w-[220px] border border-stone-400 text-[13px] sm:block">
+                <div className="print-top-summary hidden min-w-[220px] border border-stone-400 text-[13px] sm:block">
                   <div className="grid grid-cols-[68px_1fr]">
                     <div className="border-b border-r border-stone-300 bg-stone-100 px-2 py-1.5 font-medium">기준월</div>
                     <div className="border-b border-stone-300 px-2 py-1.5 text-right tabular-nums">{selectedMonth || "-"}</div>
@@ -1919,19 +1946,19 @@ export default function Page() {
               <div className="overflow-hidden border border-stone-400">
                 <div className="grid grid-cols-1 border-stone-300 md:grid-cols-2">
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-r">
-                    <div className="bg-stone-100 px-3 py-2 text-[15px] font-medium">상호</div>
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">상호</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedCompany?.name || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300">
-                    <div className="bg-stone-100 px-3 py-2 text-[15px] font-medium">공사명</div>
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">공사명</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedSite?.name || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-b-0 md:border-r">
-                    <div className="bg-stone-100 px-3 py-2 text-[15px] font-medium">현장명</div>
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">현장명</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{selectedSite?.client_name || selectedSite?.name || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)]">
-                    <div className="bg-stone-100 px-3 py-2 text-[15px] font-medium">기간</div>
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">기간</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">
                       {selectedMonth || "-"}
                       {selectedSite?.construction_start_date || selectedSite?.construction_end_date || selectedSite?.start_date || selectedSite?.end_date
@@ -1995,7 +2022,7 @@ export default function Page() {
 
                     return (
                       <tr key={row.id} className="border-b border-stone-300 align-middle odd:bg-white even:bg-stone-50/30">
-                        <td className="border-r border-stone-300 px-2 py-1.5 text-center text-sm">{index + 1}</td>
+                        <td className="border-r border-stone-300 px-2 py-1.5 text-center text-sm tabular-nums">{index + 1}</td>
                         <td className="print-cell-trade border-r border-stone-300 px-1 py-1">
                           <input
                             ref={(element) => {
@@ -2128,17 +2155,17 @@ export default function Page() {
                 </tbody>
                 <tfoot className="bg-[#f3ede1]">
                   <tr className="border-t-2 border-stone-500">
-                    <td colSpan={5 + MAX_DAY_COLUMNS} className="border-r border-stone-300 px-2 py-2 text-right text-[15px] font-semibold text-stone-700">
+                    <td colSpan={5 + MAX_DAY_COLUMNS} className="print-summary-label border-r border-stone-300 px-2 py-2 text-right text-[15px] font-semibold text-stone-700">
                       합계
                     </td>
-                    <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
                       {totalWorkUnits.toLocaleString("ko-KR")}
                     </td>
                     <td className="border-r border-stone-300 px-2 py-2"></td>
-                    <td className="border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
-                    <td className="border-r border-stone-300 px-2 py-2 text-[15px] text-stone-600">{visibleRows.length}명</td>
+                    <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-[15px] text-stone-600">{visibleRows.length}명</td>
                     <td className="print-col-actions px-2 py-2"></td>
                   </tr>
                 </tfoot>
@@ -2147,11 +2174,11 @@ export default function Page() {
 
             <footer className="border-t border-stone-400 px-3 py-3">
               <div className="grid gap-0 border border-stone-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
-                <div className="border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-[15px] font-medium text-stone-700 md:border-b-0">하단 요약</div>
-                <div className="border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
+                <div className="print-summary-label border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-[15px] font-medium text-stone-700 md:border-b-0">하단 요약</div>
+                <div className="print-summary-value border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
                   총 공수 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
                 </div>
-                <div className="border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
+                <div className="print-summary-value border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
                   총 지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
                 </div>
                 <div className="print-summary-note px-3 py-2 text-[15px] text-stone-600">
