@@ -1769,18 +1769,18 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-10 w-full min-w-0 border-0 bg-transparent px-1.5 text-[13px] leading-[1.2] outline-none transition focus:bg-amber-50/70";
-  const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right text-[13px] tabular-nums`;
+    "h-11 w-full min-w-0 border-0 bg-transparent px-1.5 text-[14.5px] leading-[1.35] outline-none transition focus:bg-amber-50/70";
+  const sheetNumericClass = `${sheetInputClass} whitespace-nowrap text-right text-[14.5px] tabular-nums`;
   const sheetResidentInputClass =
-    "min-h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2 text-[12px] leading-[1.25] tracking-[-0.02em] whitespace-pre-wrap break-keep [overflow-wrap:normal] [word-break:keep-all] [hyphens:manual] outline-none transition focus:bg-amber-50/70";
+    "min-h-11 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2.5 text-[13.5px] leading-[1.35] tracking-[-0.02em] whitespace-pre-wrap break-keep [overflow-wrap:normal] [word-break:keep-all] [hyphens:manual] outline-none transition focus:bg-amber-50/70";
   const sheetNoteTextareaClass =
-    "min-h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2 text-[12px] leading-[1.25] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+    "min-h-11 w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-2.5 text-[13.5px] leading-[1.35] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
   const sheetCategoryInputClass =
-    "h-10 w-full min-w-0 border-0 bg-transparent px-1.5 text-[12.5px] leading-[1.2] text-center outline-none transition focus:bg-amber-50/70";
+    "h-11 w-full min-w-0 border-0 bg-transparent px-1.5 text-[13.5px] leading-[1.35] text-center outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
-    "h-10 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[13px] font-medium leading-[1.2] tabular-nums outline-none transition focus:bg-amber-50/70";
+    "h-11 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[14px] font-medium leading-[1.3] tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
-    "inline-flex h-9 min-w-[56px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
+    "inline-flex h-10 min-w-[60px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[13.5px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
   return (
     <>
@@ -2134,32 +2134,32 @@ export default function Page() {
       `}</style>
       <main className="min-h-screen bg-[#e7e0d2] px-0 py-0.5 text-slate-900 sm:px-0.5 sm:py-1">
         <div className="print-root mx-auto w-full max-w-none">
-          <section className="print-hidden print-interactive mb-1 border border-stone-400 bg-[#f7f2e7] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
+          <section className="print-hidden print-interactive mb-1 border border-stone-400 bg-[#f7f2e7] text-[15px] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
             <div className="grid gap-0 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
-              <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
+              <label className="border-b border-r border-stone-300 px-2 py-2 text-[16px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-stone-700">회사명</span>
                 <input
                   type="text"
-                  className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
+                  className="h-11 w-full border border-stone-300 bg-white px-2.5 text-[16px] leading-[1.35] outline-none transition focus:border-stone-700"
                   value={companyNameInput}
                   onChange={(event) => setCompanyNameInput(event.target.value)}
                   placeholder="회사명 입력"
                 />
               </label>
-              <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
+              <label className="border-b border-r border-stone-300 px-2 py-2 text-[16px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-stone-700">현장명</span>
                 <input
                   type="text"
-                  className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
+                  className="h-11 w-full border border-stone-300 bg-white px-2.5 text-[16px] leading-[1.35] outline-none transition focus:border-stone-700"
                   value={siteNameInput}
                   onChange={(event) => setSiteNameInput(event.target.value)}
                   placeholder="현장명 입력"
                 />
               </label>
-              <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
+              <label className="border-b border-r border-stone-300 px-2 py-2 text-[16px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-stone-700">구분</span>
                 <select
-                  className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
+                  className="h-11 w-full border border-stone-300 bg-white px-2.5 text-[16px] leading-[1.35] outline-none transition focus:border-stone-700"
                   value={selectedCategoryFilter}
                   onChange={(event) => setSelectedCategoryFilter(event.target.value)}
                 >
@@ -2170,28 +2170,28 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="border-b border-stone-300 px-2 py-1.5 text-[15px] md:border-r xl:border-r-0">
+              <label className="border-b border-stone-300 px-2 py-2 text-[16px] leading-[1.35] md:border-r xl:border-r-0">
                 <span className="mb-1 block font-medium text-stone-700">기준월</span>
                 <input
                   type="month"
-                  className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
+                  className="h-11 w-full border border-stone-300 bg-white px-2.5 text-[16px] leading-[1.35] outline-none transition focus:border-stone-700"
                   value={selectedMonth}
                   onChange={(event) => setSelectedMonth(event.target.value)}
                 />
               </label>
             </div>
 
-            <div className="border-b border-stone-300 px-2 py-1.5 text-[13px] text-stone-600">
+            <div className="border-b border-stone-300 px-2 py-2 text-[14px] leading-[1.45] text-stone-600">
               기간: {monthPeriod.label}
             </div>
 
-            <div className="border-b border-stone-300 px-2 py-1.5 text-[13px] text-stone-600">
+            <div className="border-b border-stone-300 px-2 py-2 text-[14px] leading-[1.45] text-stone-600">
               {selectedSite
                 ? `등록된 현장과 연결됨: ${selectedCompany?.name ?? "-"} / ${selectedSite.name}`
                 : "저장 및 기존 내역 조회를 위해 회사명과 현장명을 등록된 이름과 동일하게 입력해 주세요."}
             </div>
 
-            <div className="flex flex-wrap gap-2 border-b border-stone-300 px-2 py-1.5">
+            <div className="flex flex-wrap gap-2 border-b border-stone-300 px-2 py-2">
               <input
                 ref={excelFileInputRef}
                 type="file"
@@ -2202,28 +2202,28 @@ export default function Page() {
               <button
                 type="button"
                 onClick={() => addRow()}
-                className="inline-flex h-10 items-center justify-center border border-stone-700 bg-white px-3 text-[15px] font-medium text-stone-800 transition hover:bg-stone-100"
+                className="inline-flex h-11 items-center justify-center border border-stone-700 bg-white px-3.5 text-[16px] leading-none font-medium text-stone-800 transition hover:bg-stone-100"
               >
                 행 추가
               </button>
               <button
                 type="button"
                 onClick={handleDownloadExcel}
-                className="inline-flex h-10 items-center justify-center border border-sky-700 bg-white px-3 text-[15px] font-medium text-sky-800 transition hover:bg-sky-50"
+                className="inline-flex h-11 items-center justify-center border border-sky-700 bg-white px-3.5 text-[16px] leading-none font-medium text-sky-800 transition hover:bg-sky-50"
               >
                 엑셀 다운로드
               </button>
               <button
                 type="button"
                 onClick={handleUploadButtonClick}
-                className="inline-flex h-10 items-center justify-center border border-violet-700 bg-white px-3 text-[15px] font-medium text-violet-800 transition hover:bg-violet-50"
+                className="inline-flex h-11 items-center justify-center border border-violet-700 bg-white px-3.5 text-[16px] leading-none font-medium text-violet-800 transition hover:bg-violet-50"
               >
                 엑셀 업로드
               </button>
               <button
                 type="button"
                 onClick={handlePrint}
-                className="inline-flex h-10 items-center justify-center border border-slate-700 bg-white px-3 text-[15px] font-medium text-slate-800 transition hover:bg-slate-100"
+                className="inline-flex h-11 items-center justify-center border border-slate-700 bg-white px-3.5 text-[16px] leading-none font-medium text-slate-800 transition hover:bg-slate-100"
               >
                 PDF 출력
               </button>
@@ -2231,19 +2231,19 @@ export default function Page() {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving || isLoading || isRecordsLoading}
-                className="inline-flex h-10 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-[15px] font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
+                className="inline-flex h-11 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-[16px] leading-none font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
               >
                 {isSaving ? "저장 중..." : "저장"}
                 </button>
               </div>
 
-            {loadError ? <p className="border-b border-red-200 bg-red-50 px-2 py-1.5 text-[15px] text-red-700">{loadError}</p> : null}
-            {saveError ? <p className="border-b border-amber-200 bg-amber-50 px-2 py-1.5 text-[15px] text-amber-700">{saveError}</p> : null}
+            {loadError ? <p className="border-b border-red-200 bg-red-50 px-2 py-2 text-[15px] leading-[1.45] text-red-700">{loadError}</p> : null}
+            {saveError ? <p className="border-b border-amber-200 bg-amber-50 px-2 py-2 text-[15px] leading-[1.45] text-amber-700">{saveError}</p> : null}
             {saveWarningMessage ? (
-              <p className="border-b border-amber-200 bg-amber-50 px-2 py-1.5 text-[15px] text-amber-700">{saveWarningMessage}</p>
+              <p className="border-b border-amber-200 bg-amber-50 px-2 py-2 text-[15px] leading-[1.45] text-amber-700">{saveWarningMessage}</p>
             ) : null}
             {saveSuccessMessage ? (
-              <p className="bg-emerald-50 px-2 py-1.5 text-[15px] text-emerald-700">{saveSuccessMessage}</p>
+              <p className="bg-emerald-50 px-2 py-2 text-[15px] leading-[1.45] text-emerald-700">{saveSuccessMessage}</p>
             ) : null}
           </section>
 
@@ -2288,7 +2288,7 @@ export default function Page() {
 
             <div className="print-sheet-scroll overflow-x-auto">
               <table
-                className="print-sheet-table w-full border-collapse text-[14px]"
+                className="print-sheet-table w-full border-collapse text-[15px] leading-[1.35]"
                 style={{ minWidth: `${tableMinWidth}px` }}
               >
                 <colgroup>
@@ -2309,24 +2309,24 @@ export default function Page() {
                 </colgroup>
                 <thead className="bg-[#f3ede1] text-stone-700">
                   <tr className="border-b border-stone-400">
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">번호</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">직종</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">성명</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">전화번호</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">주민번호</th>
-                    <th colSpan={monthDates.length} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">일자별 공수</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">총 공수</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">단가</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">지급액</th>
-                    <th rowSpan={2} className="print-note-header border-r border-stone-300 px-2 py-2 text-center font-semibold">비고</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2 text-center font-semibold">구분</th>
-                    <th rowSpan={2} className="print-col-actions px-2 py-2 text-center font-semibold">관리</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">번호</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">직종</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">성명</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">전화번호</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">주민번호</th>
+                    <th colSpan={monthDates.length} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">일자별 공수</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">총 공수</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">단가</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">지급액</th>
+                    <th rowSpan={2} className="print-note-header border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">비고</th>
+                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">구분</th>
+                    <th rowSpan={2} className="print-col-actions px-2 py-2.5 text-center text-[15px] font-semibold leading-[1.3]">관리</th>
                   </tr>
                   <tr className="border-b border-stone-400">
                     {monthDates.map((date, index) => (
                       <th
                         key={date}
-                        className="print-day-header border-r border-stone-300 px-0.5 py-1.5 text-center text-sm font-semibold text-stone-800"
+                        className="print-day-header border-r border-stone-300 px-0.5 py-2 text-center text-[14px] font-semibold leading-[1.2] text-stone-800"
                       >
                         {index + 1}
                       </th>
@@ -2340,7 +2340,7 @@ export default function Page() {
 
                     return (
                       <tr key={row.id} className="border-b border-stone-300 odd:bg-white even:bg-stone-50/30">
-                        <td className="border-r border-stone-300 px-2 py-2 text-center align-middle text-sm tabular-nums">{index + 1}</td>
+                        <td className="border-r border-stone-300 px-2 py-2.5 text-center align-middle text-[14px] leading-[1.3] tabular-nums">{index + 1}</td>
                         <td className="print-cell-trade border-r border-stone-300 px-1 py-1.5 align-middle">
                           <input
                             ref={(element) => {
@@ -2375,7 +2375,7 @@ export default function Page() {
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "phone")}
                             inputMode="numeric"
                             placeholder="010-0000-0000"
-                            className={`${sheetInputClass} whitespace-nowrap px-1 text-[12.5px] tracking-[-0.015em]`}
+                            className={`${sheetInputClass} whitespace-nowrap px-1 text-[13.5px] tracking-[-0.015em]`}
                           />
                         </td>
                         <td className="print-cell-resident border-r border-stone-300 px-0.5 py-1.5 align-middle">
@@ -2428,7 +2428,7 @@ export default function Page() {
                               readOnly={rowHasDailyEntries}
                               className={`${sheetNumericClass} ${rowHasDailyEntries ? "text-stone-500" : ""}`}
                             />
-                            {rowHasDailyEntries ? <p className="text-[11px] text-stone-400">일자합계</p> : null}
+                            {rowHasDailyEntries ? <p className="text-[12px] leading-[1.25] text-stone-400">일자합계</p> : null}
                           </div>
                         </td>
                         <td className="print-cell-number border-r border-stone-300 px-1 py-1.5 align-middle">
@@ -2445,10 +2445,10 @@ export default function Page() {
                             inputMode="decimal"
                             autoComplete="off"
                             placeholder="0"
-                            className={`${sheetNumericClass} px-1 text-[12.5px]`}
+                            className={`${sheetNumericClass} px-1 text-[13.5px]`}
                           />
                         </td>
-                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-1.5 align-middle text-right font-medium tabular-nums text-slate-800">
+                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-2 align-middle text-right text-[14.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
                         <td className="print-cell-note border-r border-stone-300 px-0.5 py-1 align-middle">
@@ -2488,18 +2488,18 @@ export default function Page() {
                 </tbody>
                 <tfoot className="bg-[#f3ede1]">
                   <tr className="border-t-2 border-stone-500">
-                    <td colSpan={5 + monthDates.length} className="print-summary-label border-r border-stone-300 px-2 py-2 text-right text-[15px] font-semibold text-stone-700">
+                    <td colSpan={5 + monthDates.length} className="print-summary-label border-r border-stone-300 px-2 py-2.5 text-right text-[16px] font-semibold leading-[1.3] text-stone-700">
                       합계
                     </td>
-                    <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-stone-300 px-2 py-2.5 text-right text-[15px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {totalWorkUnits.toLocaleString("ko-KR")}
                     </td>
                     <td className="print-note-summary border-r border-stone-300 px-2 py-2"></td>
-                    <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-stone-300 px-2 py-2.5 text-right text-[15px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
                     <td className="border-r border-stone-300 px-2 py-2"></td>
-                    <td className="print-summary-value border-r border-stone-300 px-2 py-2 text-[15px] text-stone-600">{visibleRows.length}명</td>
+                    <td className="print-summary-value border-r border-stone-300 px-2 py-2.5 text-[15px] leading-[1.3] text-stone-600">{visibleRows.length}명</td>
                     <td className="print-col-actions px-2 py-2"></td>
                   </tr>
                 </tfoot>
@@ -2513,19 +2513,19 @@ export default function Page() {
 
             <footer className="border-t border-stone-400 px-3 py-3">
               <div className="print-footer-grid grid gap-0 border border-stone-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
-                <div className="print-summary-label border-b border-r border-stone-300 bg-stone-100 px-3 py-2 text-[15px] font-medium text-stone-700 md:border-b-0">하단 요약</div>
-                <div className="print-summary-value border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
+                <div className="print-summary-label border-b border-r border-stone-300 bg-stone-100 px-3 py-2.5 text-[16px] font-medium leading-[1.35] text-stone-700 md:border-b-0">하단 요약</div>
+                <div className="print-summary-value border-b border-r border-stone-300 px-3 py-2.5 text-[16px] leading-[1.35] md:border-b-0">
                   총 공수 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{totalWorkUnits.toLocaleString("ko-KR")}</span>
                 </div>
-                <div className="print-summary-value border-b border-r border-stone-300 px-3 py-2 text-[15px] md:border-b-0">
+                <div className="print-summary-value border-b border-r border-stone-300 px-3 py-2.5 text-[16px] leading-[1.35] md:border-b-0">
                   총 지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
                 </div>
-                <div className="print-footer-guide print-summary-note px-3 py-2 text-[15px] text-stone-600">
+                <div className="print-footer-guide print-summary-note px-3 py-2.5 text-[15px] leading-[1.45] text-stone-600">
                   <span className="mb-1 block font-medium text-stone-700">입력 안내</span>
-                  <span className="block leading-5">Enter는 아래 행, Tab은 다음 칸으로 이동합니다. 날짜 칸도 동일하게 이동합니다.</span>
+                  <span className="block leading-6">Enter는 아래 행, Tab은 다음 칸으로 이동합니다. 날짜 칸도 동일하게 이동합니다.</span>
                 </div>
               </div>
-              <div className="print-hidden mt-2 text-[13px] leading-6 text-stone-500">
+              <div className="print-hidden mt-2 text-[14px] leading-7 text-stone-500">
                 <p>주민번호는 숫자만 입력하면 자동 포맷됩니다.</p>
                 <p>전화번호는 숫자만 입력하면 자동 포맷됩니다.</p>
                 <p>날짜 칸에 공수를 입력하면 총 공수와 지급액이 즉시 연동됩니다.</p>
