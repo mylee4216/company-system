@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
+import * as XLSX from "xlsx";
 
 import { supabase } from "@/lib/supabase";
 
@@ -960,6 +961,60 @@ export default function Page() {
     }
   };
 
+  const handleDownloadExcel = () => {
+    const exportRows = visibleRows.map((row, index) => [
+      index + 1,
+      row.name,
+      row.residentId,
+      row.phone,
+      row.trade,
+      parseNumber(row.unitPrice),
+      parseNumber(row.workUnits),
+      getPaymentAmount(row),
+      row.note,
+    ]);
+
+    const worksheetData = [
+      ["번호", "성명", "주민번호", "전화번호", "직종", "단가", "공수", "지급액", "비고"],
+      ...exportRows,
+      ["", "", "", "", "", "합계", totalWorkUnits, totalPaymentAmount, ""],
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    worksheet["!cols"] = [
+      { wch: 8 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 14 },
+      { wch: 24 },
+    ];
+
+    const lastRowIndex = worksheetData.length;
+    const numericCells = [`F2:F${lastRowIndex}`, `G2:H${lastRowIndex}`];
+    numericCells.forEach((range) => {
+      const decoded = XLSX.utils.decode_range(range);
+
+      for (let rowIndex = decoded.s.r; rowIndex <= decoded.e.r; rowIndex += 1) {
+        for (let colIndex = decoded.s.c; colIndex <= decoded.e.c; colIndex += 1) {
+          const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+          const cell = worksheet[cellAddress];
+
+          if (cell && typeof cell.v === "number") {
+            cell.z = "#,##0.00";
+          }
+        }
+      }
+    });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "노무비명세서");
+    XLSX.writeFile(workbook, `노무비명세서_${selectedMonth || getDefaultMonth()}.xlsx`);
+  };
+
   const sheetInputClass =
     "h-9 w-full border border-stone-200 bg-white px-2 text-sm outline-none transition focus:border-stone-700";
   const sheetNumericClass = `${sheetInputClass} text-right tabular-nums`;
@@ -1131,6 +1186,13 @@ export default function Page() {
                     className="inline-flex h-9 items-center justify-center border border-stone-700 bg-white px-3 text-sm font-medium text-stone-800 transition hover:bg-stone-100"
                   >
                     행 추가
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadExcel}
+                    className="inline-flex h-9 items-center justify-center border border-sky-700 bg-white px-3 text-sm font-medium text-sky-800 transition hover:bg-sky-50"
+                  >
+                    엑셀 다운로드
                   </button>
                   <button
                     type="button"
