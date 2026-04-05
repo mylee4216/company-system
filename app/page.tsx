@@ -132,14 +132,14 @@ const TABLE_COLUMN_WIDTHS = {
   index: 52,
   trade: 96,
   name: 108,
-  phone: 156,
-  resident: 176,
-  day: 34,
+  phone: 148,
+  resident: 136,
+  day: 33,
   total: 70,
-  unitPrice: 98,
-  payment: 102,
-  note: 132,
-  actions: 56,
+  unitPrice: 92,
+  payment: 98,
+  note: 144,
+  actions: 64,
 } as const;
 const TABLE_MIN_WIDTH =
   TABLE_COLUMN_WIDTHS.index +
@@ -306,6 +306,10 @@ function formatCurrency(value: number) {
   return Math.round(value).toLocaleString("ko-KR");
 }
 
+function normalizeLookupText(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
 function getPaymentAmount(row: LaborRow) {
   return parseNumber(row.unitPrice) * getEffectiveWorkUnits(row);
 }
@@ -401,7 +405,7 @@ function getWorkedDaysCount(row: LaborRow) {
   return workUnits > 0 ? Math.ceil(workUnits) : 0;
 }
 
-function getLastWorkedDate(entries: WorkEntry[] | null) {
+function getFirstWorkedDate(entries: WorkEntry[] | null) {
   if (!entries) {
     return "";
   }
@@ -410,7 +414,19 @@ function getLastWorkedDate(entries: WorkEntry[] | null) {
     .filter((entry) => parseNumber(entry.units ?? entry.work_days) > 0 && entry.date)
     .map((entry) => entry.date as string);
 
-  return workedDates.at(-1) ?? "";
+  return workedDates.sort((left, right) => left.localeCompare(right))[0] ?? "";
+}
+
+function getFirstWorkedDateFromDailyEntries(dailyWorkEntries: DailyWorkEntryMap) {
+  return Object.entries(dailyWorkEntries)
+    .filter(([, value]) => parseNumber(value) > 0)
+    .map(([date]) => date)
+    .sort((left, right) => left.localeCompare(right))[0] ?? "";
+}
+
+function getRowAutoNote(row: LaborRow) {
+  const firstWorkedDate = getFirstWorkedDateFromDailyEntries(row.dailyWorkEntries);
+  return firstWorkedDate ? `최초 작업일 ${formatDateDisplay(firstWorkedDate)}` : "";
 }
 
 function getMonthlyRecordSnapshot(entries: WorkEntry[] | null) {
@@ -436,7 +452,7 @@ function buildMonthlyRecordWorkEntries(row: LaborRow, workUnits: number, grossAm
     unit_price: parseNumber(row.unitPrice) || null,
     total_work_units: workUnits,
     gross_amount: grossAmount,
-    note: row.note.trim() || null,
+    note: getRowAutoNote(row) || null,
   } satisfies MonthlyRecordRowSnapshot;
 
   const datedEntries = Object.entries(row.dailyWorkEntries)
@@ -482,7 +498,7 @@ function getMonthlyRecordTextValue(
 
 function isFilledRow(row: LaborRow) {
   return (
-    [row.name, row.residentId, row.phone, row.trade, row.unitPrice, row.workUnits, row.note].some((value) =>
+    [row.name, row.residentId, row.phone, row.trade, row.unitPrice, row.workUnits].some((value) =>
       value.trim(),
     ) || hasDailyWorkEntries(row.dailyWorkEntries)
   );
@@ -613,6 +629,8 @@ export default function Page() {
   const [dailyWorkers, setDailyWorkers] = useState<DailyWorkerRow[]>([]);
   const [monthlyRecords, setMonthlyRecords] = useState<DailyWorkerMonthlyRecordRow[]>([]);
 
+  const [companyNameInput, setCompanyNameInput] = useState("");
+  const [siteNameInput, setSiteNameInput] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [selectedSiteId, setSelectedSiteId] = useState("");
   const [selectedTradeFilter, setSelectedTradeFilter] = useState(ALL_TRADES_LABEL);
@@ -681,44 +699,78 @@ export default function Page() {
       return;
     }
 
-    const hasSelectedCompany = companies.some((company) => String(company.id) === selectedCompanyId);
+    if (!companyNameInput.trim()) {
+      const defaultCompany = companies[0];
+      const defaultSite = sites.find((site) => site.company_id === defaultCompany.id) ?? sites[0];
 
-    if (!selectedCompanyId || !hasSelectedCompany) {
-      setSelectedCompanyId(String(companies[0].id));
+      setCompanyNameInput(defaultCompany.name);
+
+      if (!siteNameInput.trim() && defaultSite) {
+        setSiteNameInput(defaultSite.name);
+      }
     }
-  }, [companies, selectedCompanyId]);
+  }, [companies, companyNameInput, siteNameInput, sites]);
+
+  const matchedCompany = useMemo(() => {
+    const normalizedCompanyName = normalizeLookupText(companyNameInput);
+
+    if (!normalizedCompanyName) {
+      return null;
+    }
+
+    return (
+      companies.find((company) => normalizeLookupText(company.name) === normalizedCompanyName) ?? null
+    );
+  }, [companies, companyNameInput]);
+
+  const siteSearchPool = useMemo(
+    () => (matchedCompany ? sites.filter((site) => site.company_id === matchedCompany.id) : sites),
+    [matchedCompany, sites],
+  );
+
+  useEffect(() => {
+    if (!siteNameInput.trim()) {
+      const defaultSite = siteSearchPool[0];
+
+      if (defaultSite) {
+        setSiteNameInput(defaultSite.name);
+      }
+    }
+  }, [siteNameInput, siteSearchPool]);
+
+  const matchedSite = useMemo(() => {
+    const normalizedSiteName = normalizeLookupText(siteNameInput);
+
+    if (!normalizedSiteName) {
+      return null;
+    }
+
+    return siteSearchPool.find((site) => normalizeLookupText(site.name) === normalizedSiteName) ?? null;
+  }, [siteNameInput, siteSearchPool]);
+
+  useEffect(() => {
+    const nextCompanyId = matchedCompany?.id ?? matchedSite?.company_id ?? null;
+
+    if (selectedCompanyId !== (nextCompanyId ? String(nextCompanyId) : "")) {
+      setSelectedCompanyId(nextCompanyId ? String(nextCompanyId) : "");
+    }
+  }, [matchedCompany, matchedSite, selectedCompanyId]);
+
+  useEffect(() => {
+    const nextSiteId = matchedSite ? String(matchedSite.id) : "";
+
+    if (selectedSiteId !== nextSiteId) {
+      setSelectedSiteId(nextSiteId);
+    }
+  }, [matchedSite, selectedSiteId]);
 
   const selectedCompany = useMemo(
     () => companies.find((company) => String(company.id) === selectedCompanyId) ?? null,
     [companies, selectedCompanyId],
   );
-
-  const availableSites = useMemo(
-    () => sites.filter((site) => String(site.company_id) === selectedCompanyId),
-    [selectedCompanyId, sites],
-  );
-
-  useEffect(() => {
-    if (!availableSites.length) {
-      if (selectedSiteId) {
-        setSelectedSiteId("");
-      }
-      return;
-    }
-
-    const hasSelectedSite = availableSites.some((site) => String(site.id) === selectedSiteId);
-
-    if (!selectedSiteId || !hasSelectedSite) {
-      setSelectedSiteId(String(availableSites[0].id));
-    }
-  }, [availableSites, selectedSiteId]);
-
-  const selectedSite = useMemo(
-    () => availableSites.find((site) => String(site.id) === selectedSiteId) ?? null,
-    [availableSites, selectedSiteId],
-  );
-  const resolvedCompanyName = selectedCompany?.name || "-";
-  const resolvedSiteName = selectedSite?.name || "-";
+  const selectedSite = matchedSite;
+  const resolvedCompanyName = companyNameInput.trim() || selectedCompany?.name || "-";
+  const resolvedSiteName = siteNameInput.trim() || selectedSite?.name || "-";
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
 
@@ -787,8 +839,8 @@ export default function Page() {
         parseNumber(snapshot?.unit_price) ||
         parseNumber(worker?.daily_wage) ||
         (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
-      const lastWorkedDate = getLastWorkedDate(record.work_entries);
-      const note = snapshot?.note?.trim() || (lastWorkedDate ? `최종 작업일 ${formatDateDisplay(lastWorkedDate)}` : "");
+      const firstWorkedDate = getFirstWorkedDate(record.work_entries);
+      const note = firstWorkedDate ? `최초 작업일 ${formatDateDisplay(firstWorkedDate)}` : "";
       const name = snapshot?.name?.trim() || worker?.name || `근로자 #${workerId ?? "-"}`;
 
       return {
@@ -804,7 +856,7 @@ export default function Page() {
         trade: getTradeLabel(worker?.job_type ?? null),
         unitPrice: unitPrice ? String(unitPrice) : "",
         workUnits: totalWorkUnits ? String(totalWorkUnits) : "",
-        note: lastWorkedDate ? `최종 작업일 ${formatDateDisplay(lastWorkedDate)}` : "",
+        note,
         },
         name,
         residentId: formatResidentId(
@@ -1256,7 +1308,7 @@ export default function Page() {
 
   const handleSave = async () => {
     if (!selectedCompanyId || !selectedSiteId || !selectedMonth) {
-      setSaveError("상단에서 회사, 현장, 기준월을 모두 선택해 주세요.");
+      setSaveError("회사명, 현장명, 기준월을 확인해 주세요. 회사명과 현장명은 등록된 마스터와 일치해야 저장 및 조회가 가능합니다.");
       setSaveWarningMessage("");
       setSaveSuccessMessage("");
       return;
@@ -1440,7 +1492,7 @@ export default function Page() {
       parseNumber(row.unitPrice),
       getEffectiveWorkUnits(row),
       getPaymentAmount(row),
-      row.note,
+      getRowAutoNote(row),
     ]);
 
     const worksheetData = [
@@ -1606,16 +1658,16 @@ export default function Page() {
   };
 
   const sheetInputClass =
-    "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-[13px] leading-[1.25] outline-none transition focus:bg-amber-50/70";
+    "h-9 w-full min-w-0 border-0 bg-transparent px-1 text-[13px] leading-[1.25] outline-none transition focus:bg-amber-50/70";
   const sheetNumericClass = `${sheetInputClass} whitespace-nowrap px-1.5 text-right text-[13px] tabular-nums`;
   const sheetResidentInputClass =
-    "h-10 w-full min-w-0 border-0 bg-transparent px-1 py-0 text-[12.5px] leading-[1.2] tracking-[-0.02em] whitespace-nowrap outline-none transition focus:bg-amber-50/70";
+    "min-h-[2.7rem] w-full min-w-0 resize-none border-0 bg-transparent px-1 py-1 text-[12px] leading-[1.15] tracking-[-0.02em] [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
   const sheetNoteTextareaClass =
-    "min-h-[2.9rem] w-full min-w-0 resize-none border-0 bg-transparent px-1 py-1 text-[13px] leading-[1.2] [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+    "min-h-[2.7rem] w-full min-w-0 resize-none border-0 bg-transparent px-1 py-1 text-[12.5px] leading-[1.2] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
     "h-9 w-full min-w-[42px] border-0 bg-transparent px-0.5 text-center text-[13px] font-medium tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
-    "inline-flex h-8 min-w-[48px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
+    "inline-flex h-8 min-w-[56px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[12px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
   return (
     <>
@@ -1637,6 +1689,14 @@ export default function Page() {
           .print-cell-note textarea,
           .print-cell-resident textarea {
             resize: none;
+          }
+
+          .print-cell-phone input {
+            white-space: nowrap;
+          }
+
+          .print-cell-resident textarea {
+            word-break: break-all;
           }
 
           .print-interactive,
@@ -1701,8 +1761,8 @@ export default function Page() {
             width: 100% !important;
             min-width: 0 !important;
             table-layout: fixed;
-            font-size: 8.2px;
-            line-height: 1.18;
+            font-size: 8.4px;
+            line-height: 1.2;
           }
 
           .print-col-index {
@@ -1718,11 +1778,11 @@ export default function Page() {
           }
 
           .print-col-phone {
-            width: 24mm !important;
+            width: 25mm !important;
           }
 
           .print-col-resident {
-            width: 28mm !important;
+            width: 29mm !important;
           }
 
           .print-col-day {
@@ -1734,15 +1794,15 @@ export default function Page() {
           }
 
           .print-col-unit-price {
-            width: 17mm !important;
+            width: 16mm !important;
           }
 
           .print-col-payment {
-            width: 18mm !important;
+            width: 17mm !important;
           }
 
           .print-col-note {
-            width: 10mm !important;
+            width: 7mm !important;
           }
 
           .print-col-actions {
@@ -1769,8 +1829,8 @@ export default function Page() {
             padding: 1.4mm 0.8mm !important;
             vertical-align: middle;
             overflow: visible !important;
-            font-size: 8.2px !important;
-            line-height: 1.18 !important;
+            font-size: 8.4px !important;
+            line-height: 1.2 !important;
             box-sizing: border-box !important;
           }
 
@@ -1780,12 +1840,12 @@ export default function Page() {
           }
 
           .print-kicker {
-            font-size: 8px !important;
+            font-size: 8.2px !important;
             line-height: 1.1 !important;
           }
 
           .print-title {
-            font-size: 16px !important;
+            font-size: 15.5px !important;
             line-height: 1.1 !important;
           }
 
@@ -1796,7 +1856,7 @@ export default function Page() {
           .print-summary-value,
           .print-sheet-table thead th,
           .print-sheet-table tfoot td {
-            font-size: 8.7px !important;
+            font-size: 8.5px !important;
             line-height: 1.2 !important;
           }
 
@@ -1819,7 +1879,7 @@ export default function Page() {
           .print-cell-resident,
           .print-cell-number,
           .print-cell-note {
-            font-size: 8.2px !important;
+            font-size: 8.4px !important;
           }
 
           .print-cell-number {
@@ -1869,11 +1929,11 @@ export default function Page() {
           }
 
           .print-cell-phone input {
-            font-size: 7.9px !important;
+            font-size: 8px !important;
           }
 
           .print-cell-resident input {
-            font-size: 7.8px !important;
+            font-size: 7.9px !important;
           }
 
           .print-sheet-table input,
@@ -1894,7 +1954,7 @@ export default function Page() {
             min-width: 0 !important;
             max-width: none !important;
             white-space: nowrap !important;
-            font-size: 8.2px !important;
+            font-size: 8.4px !important;
             letter-spacing: -0.015em;
             box-sizing: border-box !important;
           }
@@ -1931,41 +1991,29 @@ export default function Page() {
           }
         }
       `}</style>
-      <main className="min-h-screen bg-[#e7e0d2] px-0.5 py-1 text-slate-900 sm:px-1 sm:py-2 lg:px-1.5">
+      <main className="min-h-screen bg-[#e7e0d2] px-0 py-0.5 text-slate-900 sm:px-0.5 sm:py-1">
         <div className="print-root mx-auto w-full max-w-none">
-          <section className="print-hidden print-interactive mb-1.5 border border-stone-400 bg-[#f7f2e7] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
+          <section className="print-hidden print-interactive mb-1 border border-stone-400 bg-[#f7f2e7] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
             <div className="grid gap-0 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
               <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
-                <span className="mb-1 block font-medium text-stone-700">상호</span>
-                <select
+                <span className="mb-1 block font-medium text-stone-700">회사명</span>
+                <input
+                  type="text"
                   className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
-                  value={selectedCompanyId}
-                  onChange={(event) => setSelectedCompanyId(event.target.value)}
-                  disabled={isLoading || !companies.length}
-                >
-                  {companies.length ? null : <option value="">회사 선택</option>}
-                  {companies.map((company) => (
-                    <option key={company.id} value={String(company.id)}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
+                  value={companyNameInput}
+                  onChange={(event) => setCompanyNameInput(event.target.value)}
+                  placeholder="회사명 입력"
+                />
               </label>
               <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">현장명</span>
-                <select
+                <input
+                  type="text"
                   className="h-10 w-full border border-stone-300 bg-white px-2 text-[15px] outline-none transition focus:border-stone-700"
-                  value={selectedSiteId}
-                  onChange={(event) => setSelectedSiteId(event.target.value)}
-                  disabled={isLoading || !availableSites.length}
-                >
-                  {availableSites.length ? null : <option value="">현장 선택</option>}
-                  {availableSites.map((site) => (
-                    <option key={site.id} value={String(site.id)}>
-                      {site.name}
-                    </option>
-                  ))}
-                </select>
+                  value={siteNameInput}
+                  onChange={(event) => setSiteNameInput(event.target.value)}
+                  placeholder="현장명 입력"
+                />
               </label>
               <label className="border-b border-r border-stone-300 px-2 py-1.5 text-[15px]">
                 <span className="mb-1 block font-medium text-stone-700">직종 필터</span>
@@ -1990,6 +2038,12 @@ export default function Page() {
                   onChange={(event) => setSelectedMonth(event.target.value)}
                 />
               </label>
+            </div>
+
+            <div className="border-b border-stone-300 px-2 py-1.5 text-[13px] text-stone-600">
+              {selectedSite
+                ? `등록된 현장과 연결됨: ${selectedCompany?.name ?? "-"} / ${selectedSite.name}`
+                : "저장 및 기존 내역 조회를 위해 회사명과 현장명을 등록된 이름과 동일하게 입력해 주세요."}
             </div>
 
             <div className="flex flex-wrap gap-2 border-b border-stone-300 px-2 py-1.5">
@@ -2068,7 +2122,7 @@ export default function Page() {
               <div className="overflow-hidden border border-stone-400">
                 <div className="grid grid-cols-1 border-stone-300 md:grid-cols-2">
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-r">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">상호</div>
+                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[15px] font-medium">회사명</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[15px] break-keep">{resolvedCompanyName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300">
@@ -2143,7 +2197,7 @@ export default function Page() {
                     const rowHasDailyEntries = hasDailyWorkEntries(row.dailyWorkEntries);
 
                     return (
-                      <tr key={row.id} className="border-b border-stone-300 align-middle odd:bg-white even:bg-stone-50/30">
+                      <tr key={row.id} className="border-b border-stone-300 align-top odd:bg-white even:bg-stone-50/30">
                         <td className="border-r border-stone-300 px-2 py-1.5 text-center text-sm tabular-nums">{index + 1}</td>
                         <td className="print-cell-trade border-r border-stone-300 px-1 py-1">
                           <input
@@ -2169,7 +2223,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-phone border-r border-stone-300 px-0.5 py-1">
+                        <td className="print-cell-phone border-r border-stone-300 px-1 py-1 align-middle">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:phone`] = element;
@@ -2182,8 +2236,8 @@ export default function Page() {
                             className={`${sheetInputClass} whitespace-nowrap px-0.5 text-[12.5px] tracking-[-0.015em]`}
                           />
                         </td>
-                        <td className="print-cell-resident border-r border-stone-300 px-0.5 py-1 align-middle">
-                          <input
+                        <td className="print-cell-resident border-r border-stone-300 px-0.5 py-1 align-top">
+                          <textarea
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
                             }}
@@ -2192,6 +2246,7 @@ export default function Page() {
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "residentId")}
                             inputMode="numeric"
                             placeholder="000000-0000000"
+                            rows={2}
                             className={sheetResidentInputClass}
                           />
                         </td>
@@ -2259,8 +2314,8 @@ export default function Page() {
                             ref={(element) => {
                               cellRefs.current[`${row.id}:note`] = element;
                             }}
-                            value={row.note}
-                            onChange={(event) => updateRow(row.id, "note", event.target.value)}
+                            value={getRowAutoNote(row)}
+                            readOnly
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "note")}
                             placeholder="비고"
                             rows={2}
