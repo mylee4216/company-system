@@ -1823,13 +1823,33 @@ export default function Page() {
   const sheetCategoryInputClass =
     "h-12 w-full min-w-0 border-0 bg-transparent px-1.5 text-center text-[16px] leading-[1.35] outline-none transition focus:bg-amber-50/70";
   const dailyEntryInputClass =
-    "h-12 w-full min-w-[36px] whitespace-nowrap border-0 bg-transparent px-0 text-center text-[15.5px] font-semibold leading-[1.2] tabular-nums outline-none transition focus:bg-amber-50/70";
+    "screen-daily-entry-input block h-12 w-full min-w-[36px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center text-[15.5px] font-semibold leading-[3rem] tabular-nums outline-none transition focus:bg-amber-50/70";
   const deleteButtonClass =
     "inline-flex h-10 min-w-[60px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-red-200 bg-red-50 px-2.5 py-0 text-[14px] font-medium leading-none text-red-700 transition hover:border-red-300 hover:bg-red-100";
 
   return (
     <>
       <style jsx global>{`
+        @media screen {
+          .screen-daily-entry-cell {
+            text-align: center;
+          }
+
+          .screen-daily-entry-input {
+            margin: 0 auto;
+            text-align: center !important;
+            text-align-last: center;
+            vertical-align: middle;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            line-height: 3rem !important;
+          }
+
+          .screen-daily-entry-input::placeholder {
+            text-align: center;
+          }
+        }
+
         @page {
           size: A4 landscape;
           margin: 7mm;
@@ -2495,7 +2515,7 @@ export default function Page() {
                           />
                         </td>
                         {monthDates.map((date) => (
-                          <td key={`${row.id}:${date}`} className="print-cell-date border-r border-stone-300 px-0.5 py-2 align-middle text-center">
+                          <td key={`${row.id}:${date}`} className="screen-daily-entry-cell print-cell-date border-r border-stone-300 px-0.5 py-2 align-middle text-center">
                             <input
                               ref={(element) => {
                                 dailyCellRefs.current[`${row.id}:${date}`] = element;
