@@ -129,3 +129,21 @@ create index if not exists employee_assignments_employee_id_idx
 create unique index if not exists employee_assignments_employee_current_key
   on public.employee_assignments (employee_id)
   where is_current = true;
+
+-- 7) workers 테이블 생성 (근로자 관리 페이지용)
+create table if not exists public.workers (
+  id bigint generated always as identity primary key,
+  name text not null,
+  phone text,
+  resident_number text,
+  job_type text,
+  category text check (category in ('직영', '용역', '기타') or category is null),
+  is_active boolean not null default true,
+  company_id bigint references public.companies(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists workers_name_idx on public.workers (name);
+create index if not exists workers_company_id_idx on public.workers (company_id);
+create index if not exists workers_is_active_idx on public.workers (is_active);
