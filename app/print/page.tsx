@@ -3,6 +3,7 @@
 import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { buildLaborDayGrid, FORM_DAY_COLUMN_COUNT, FORM_DEDUCTION_COLUMNS } from "@/lib/labor-layout";
 import { calculateInsurance, formatGongsu, getLaborRemark, parseSnapshotNote } from "@/lib/labor";
 import { supabase } from "@/lib/supabase";
 
@@ -208,6 +209,7 @@ function PrintPageContent() {
     const daysInMonth = new Date(year, month, 0).getDate();
     return Array.from({ length: daysInMonth }, (_, index) => `${targetMonth}-${String(index + 1).padStart(2, "0")}`);
   }, [targetMonth]);
+  const dayGrid = useMemo(() => buildLaborDayGrid(monthDates), [monthDates]);
 
   const statementRows = useMemo(() => {
     const workerMap = new Map(data.workers.map((worker) => [worker.id, worker]));
@@ -266,7 +268,6 @@ function PrintPageContent() {
           grossAmount: sum.grossAmount + row.grossAmount,
           national: sum.national + row.insurance.national,
           health: sum.health + row.insurance.health,
-          longTermCare: sum.longTermCare + row.insurance.longTermCare,
           employment: sum.employment + row.insurance.employment,
           incomeTax: sum.incomeTax + row.insurance.incomeTax,
           residentTax: sum.residentTax + row.insurance.residentTax,
@@ -278,7 +279,6 @@ function PrintPageContent() {
           grossAmount: 0,
           national: 0,
           health: 0,
-          longTermCare: 0,
           employment: 0,
           incomeTax: 0,
           residentTax: 0,
@@ -334,100 +334,103 @@ function PrintPageContent() {
         <div>기간: {monthPeriod}</div>
       </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", fontSize: "9px", marginBottom: "16px" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", fontSize: "8.5px", marginBottom: "16px" }}>
         <colgroup>
           <col style={{ width: "34px" }} />
-          <col style={{ width: "72px" }} />
-          <col style={{ width: "96px" }} />
-          <col style={{ width: "58px" }} />
-          <col style={{ width: "64px" }} />
-          {monthDates.map((date) => (
-            <col key={`col-${date}`} style={{ width: "24px" }} />
-          ))}
-          <col style={{ width: "52px" }} />
-          <col style={{ width: "70px" }} />
-          <col style={{ width: "56px" }} />
-          <col style={{ width: "56px" }} />
-          <col style={{ width: "56px" }} />
-          <col style={{ width: "56px" }} />
-          <col style={{ width: "56px" }} />
-          <col style={{ width: "56px" }} />
-          <col style={{ width: "66px" }} />
-          <col style={{ width: "72px" }} />
-          <col style={{ width: "92px" }} />
           <col style={{ width: "54px" }} />
+          <col style={{ width: "68px" }} />
+          <col style={{ width: "84px" }} />
+          <col style={{ width: "92px" }} />
+          <col style={{ width: "50px" }} />
+          {Array.from({ length: FORM_DAY_COLUMN_COUNT }, (_, index) => (
+            <col key={`col-day-${index + 1}`} style={{ width: "24px" }} />
+          ))}
+          <col style={{ width: "54px" }} />
+          <col style={{ width: "70px" }} />
+          {FORM_DEDUCTION_COLUMNS.map((column) => (
+            <col key={column.key} style={{ width: "54px" }} />
+          ))}
+          <col style={{ width: "72px" }} />
+          <col style={{ width: "84px" }} />
+          <col style={{ width: "50px" }} />
         </colgroup>
         <thead>
           <tr style={{ backgroundColor: "#eef4ff" }}>
-            <th colSpan={5} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
-            <th colSpan={monthDates.length} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
-            <th colSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>지급</th>
-            <th colSpan={6} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
-            <th colSpan={4} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>정산</th>
+            <th colSpan={6} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
+            <th colSpan={dayGrid.count} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
+            <th colSpan={2} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
+            <th colSpan={FORM_DEDUCTION_COLUMNS.length} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>차감<br />지급액</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>비고</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>구분</th>
           </tr>
+          <tr />
           <tr style={{ backgroundColor: "#f8fbff" }}>
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>번호</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>성명</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>주민번호</th>
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>직종</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>단가</th>
-            {monthDates.map((date) => (
-              <th key={date} style={{ border: "1px solid #000", padding: "4px 0", textAlign: "center" }}>
-                {Number(date.slice(-2))}
+            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>성명</th>
+            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>전화번호</th>
+            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>주민등록번호</th>
+            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>구분</th>
+            {dayGrid.top.map((cell, index) => (
+              <th key={`day-${index + 1}`} style={{ border: "1px solid #000", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}>
+                <div>{cell.label}</div>
+                <div style={{ marginTop: "2px", color: "#64748b" }}>{dayGrid.bottom[index]?.label || ""}</div>
               </th>
             ))}
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>총공수</th>
+            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로<br />일수</th>
+            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>총액</th>
+            {FORM_DEDUCTION_COLUMNS.map((column) => (
+              <th key={column.key} style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.1 }}>
+                {column.lines.map((line) => (
+                  <span key={line} style={{ display: "block" }}>{line}</span>
+                ))}
+              </th>
+            ))}
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>지급액</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>국민연금</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>건강보험</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>장기요양</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>고용보험</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>소득세</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>주민세</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>공제합계</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>실지급액</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>비고</th>
-            <th style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>구분</th>
+            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>비고</th>
+            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>구분</th>
           </tr>
         </thead>
         <tbody>
           {statementRows.length === 0 ? (
             <tr>
-              <td colSpan={5 + monthDates.length + 12} style={{ border: "1px solid #000", padding: "18px", textAlign: "center", color: "#666" }}>
+              <td colSpan={6 + dayGrid.count + 2 + FORM_DEDUCTION_COLUMNS.length + 4} style={{ border: "1px solid #000", padding: "18px", textAlign: "center", color: "#666" }}>
                 근무 내역이 없습니다.
               </td>
             </tr>
           ) : (
             statementRows.map((row, index) => (
               <Fragment key={row.id}>
-                <tr key={`${row.id}-main`} style={{ height: "36px" }}>
+                <tr style={{ height: "34px" }}>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{index + 1}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.name}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", whiteSpace: "nowrap" }}>{row.residentId}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.trade}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatAmount(row.unitPrice)}</td>
-                  {monthDates.map((date) => (
-                    <td key={`${row.id}-${date}`} rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
-                      {formatGongsu(row.dailyWorkEntries[date])}
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.name}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", whiteSpace: "nowrap" }}>{row.residentId}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.category}</td>
+                  {dayGrid.top.map((cell, dayIndex) => (
+                    <td key={`${row.id}:top:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
+                      {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
                     </td>
                   ))}
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{formatGongsu(row.totalWorkUnits) || "0.0"}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatAmount(row.grossAmount)}</td>
-                  <td colSpan={8} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", background: "#fafcff", lineHeight: 1.25 }}>
-                    공제합계 {formatAmount(row.insurance.totalDeduction)} / 실지급액 {formatAmount(row.insurance.netPay)}
-                  </td>
+                  {FORM_DEDUCTION_COLUMNS.map((column) => (
+                    <td key={`${row.id}:${column.key}`} rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>
+                      {formatAmount(row.insurance[column.key])}
+                    </td>
+                  ))}
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatAmount(row.insurance.netPay)}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", whiteSpace: "pre-line" }}>{row.note || ""}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.category}</td>
                 </tr>
-                <tr key={`${row.id}-detail`} style={{ height: "30px", backgroundColor: "#fcfdff" }}>
-                  <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(row.insurance.national)}</td>
-                  <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(row.insurance.health)}</td>
-                  <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(row.insurance.longTermCare)}</td>
-                  <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(row.insurance.employment)}</td>
-                  <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(row.insurance.incomeTax)}</td>
-                  <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(row.insurance.residentTax)}</td>
-                  <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px", fontWeight: 600 }}>{formatAmount(row.insurance.totalDeduction)}</td>
-                  <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px", fontWeight: 600 }}>{formatAmount(row.insurance.netPay)}</td>
+                <tr style={{ height: "30px", backgroundColor: "#fcfdff" }}>
+                  {dayGrid.bottom.map((cell, dayIndex) => (
+                    <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
+                      {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
+                    </td>
+                  ))}
                 </tr>
               </Fragment>
             ))
@@ -435,15 +438,14 @@ function PrintPageContent() {
         </tbody>
         <tfoot>
           <tr style={{ backgroundColor: "#eef4ff", fontWeight: 700 }}>
-            <td colSpan={5} style={{ border: "1px solid #000", textAlign: "center", padding: "6px 4px" }}>합계</td>
-            {monthDates.map((date) => (
-              <td key={`total-${date}`} style={{ border: "1px solid #000" }}></td>
+            <td colSpan={6} style={{ border: "1px solid #000", textAlign: "center", padding: "6px 4px" }}>합계</td>
+            {Array.from({ length: dayGrid.count }, (_, index) => (
+              <td key={`sum-day-${index + 1}`} style={{ border: "1px solid #000" }}></td>
             ))}
             <td style={{ border: "1px solid #000", textAlign: "center" }}>{formatGongsu(totals.totalWorkUnits) || "0.0"}</td>
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.grossAmount)}</td>
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.national)}</td>
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.health)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.longTermCare)}</td>
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.employment)}</td>
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.incomeTax)}</td>
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.residentTax)}</td>

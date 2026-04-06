@@ -1,8 +1,9 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
 import * as XLSX from "xlsx";
 
+import { buildLaborDayGrid, FORM_DAY_COLUMN_COUNT, FORM_DEDUCTION_COLUMNS } from "@/lib/labor-layout";
 import { buildSnapshotNote, calculateInsurance, formatGongsu, getLaborRemark, parseSnapshotNote } from "@/lib/labor";
 import { supabase } from "@/lib/supabase";
 
@@ -190,7 +191,6 @@ const TABLE_COLUMN_BASE_WIDTHS = {
   unitPrice: 108,
   payment: 98,
   deduction: 88,
-  deductionTotal: 98,
   netPay: 104,
   note: 144,
   category: 120,
@@ -900,6 +900,7 @@ export default function Page() {
   const resolvedSiteName = siteNameInput.trim() || selectedSite?.name || "-";
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
+  const dayGrid = useMemo(() => buildLaborDayGrid(monthDates), [monthDates]);
   const monthPeriod = useMemo(() => getMonthPeriod(selectedMonth), [selectedMonth]);
   const tableMinWidth = useMemo(
     () =>
@@ -908,17 +909,16 @@ export default function Page() {
       TABLE_COLUMN_WIDTHS.name +
       TABLE_COLUMN_WIDTHS.phone +
       TABLE_COLUMN_WIDTHS.resident +
-      TABLE_COLUMN_WIDTHS.day * monthDates.length +
+      TABLE_COLUMN_WIDTHS.category +
+      TABLE_COLUMN_WIDTHS.day * FORM_DAY_COLUMN_COUNT +
       TABLE_COLUMN_WIDTHS.total +
       TABLE_COLUMN_WIDTHS.unitPrice +
       TABLE_COLUMN_WIDTHS.payment +
-      TABLE_COLUMN_WIDTHS.deduction * 6 +
-      TABLE_COLUMN_WIDTHS.deductionTotal +
+      TABLE_COLUMN_WIDTHS.deduction * FORM_DEDUCTION_COLUMNS.length +
       TABLE_COLUMN_WIDTHS.netPay +
       TABLE_COLUMN_WIDTHS.note +
-      TABLE_COLUMN_WIDTHS.category +
       TABLE_COLUMN_WIDTHS.actions,
-    [monthDates.length],
+    [],
   );
 
   useEffect(() => {
@@ -2795,13 +2795,9 @@ export default function Page() {
                   <col className="print-col-total" style={{ width: `${TABLE_COLUMN_WIDTHS.total}px` }} />
                   <col className="print-col-unit-price" style={{ width: `${TABLE_COLUMN_WIDTHS.unitPrice}px` }} />
                   <col className="print-col-payment" style={{ width: `${TABLE_COLUMN_WIDTHS.payment}px` }} />
-                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
-                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
-                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
-                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
-                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
-                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
-                  <col className="print-col-deduction-total" style={{ width: `${TABLE_COLUMN_WIDTHS.deductionTotal}px` }} />
+                  {FORM_DEDUCTION_COLUMNS.map((column) => (
+                    <col key={`col-${column.key}`} className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
+                  ))}
                   <col className="print-col-net-pay" style={{ width: `${TABLE_COLUMN_WIDTHS.netPay}px` }} />
                   <col className="print-col-note" style={{ width: `${TABLE_COLUMN_WIDTHS.note}px` }} />
                   <col className="print-col-category" style={{ width: `${TABLE_COLUMN_WIDTHS.category}px` }} />
@@ -2809,40 +2805,39 @@ export default function Page() {
                 </colgroup>
                 <thead className="bg-blue-100 text-slate-700">
                   <tr className="border-b border-slate-300">
-                    <th colSpan={5} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">기본정보</th>
-                    <th colSpan={monthDates.length} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">일자별 공수</th>
-                    <th colSpan={3} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">지급</th>
-                    <th colSpan={7} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">공제</th>
-                    <th colSpan={4} className="px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">정산</th>
+                    <th colSpan={6} rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">기본정보</th>
+                    <th colSpan={dayGrid.count} rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">일자별 공수</th>
+                    <th colSpan={3} rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">노무비</th>
+                    <th colSpan={FORM_DEDUCTION_COLUMNS.length} rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">공제</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">차감지급액</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">비고</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">구분</th>
+                    <th rowSpan={2} className="px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">관리</th>
                   </tr>
                   <tr className="border-b border-slate-300">
-                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[15px] font-semibold leading-[1.2]">번호</th>
-                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[15px] font-semibold leading-[1.2]">직종</th>
-                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[15px] font-semibold leading-[1.2]">성명</th>
-                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[15px] font-semibold leading-[1.2]">전화번호</th>
-                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[15px] font-semibold leading-[1.2] whitespace-nowrap">주민번호</th>
-                    {monthDates.map((date, index) => (
-                      <th
-                        key={date}
-                        className="print-day-header border-r border-slate-300 px-0 py-2.5 text-center text-[14px] font-semibold leading-[1] text-slate-700"
-                      >
-                        {index + 1}
+                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">번호</th>
+                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">직종</th>
+                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">성명</th>
+                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15]">전화번호</th>
+                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15] whitespace-nowrap">주민등록번호</th>
+                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15]">구분</th>
+                    {dayGrid.top.map((cell, index) => (
+                      <th key={`day-head-${index + 1}`} className="print-day-header border-r border-slate-300 px-0 py-2.5 text-center text-[13px] font-semibold leading-[1.05] text-slate-700">
+                        <div>{cell.label}</div>
+                        <div className="mt-1 text-[12px] font-medium text-slate-500">{dayGrid.bottom[index]?.label || ""}</div>
                       </th>
                     ))}
-                    <th className="border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.15]">총공수</th>
+                    <th className="border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.15]">근로일수</th>
                     <th className="border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.15]">단가</th>
-                    <th className="border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.15]">지급액</th>
-                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">국민연금</th>
-                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">건강보험</th>
-                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">장기요양<br />보험</th>
-                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">고용보험</th>
-                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">소득세</th>
-                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">주민세</th>
-                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">공제합계</th>
-                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">실지급액</th>
-                    <th className="print-note-header border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">비고</th>
-                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">구분</th>
-                    <th className="print-col-actions px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">관리</th>
+                    <th className="border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.15]">총액</th>
+                    {FORM_DEDUCTION_COLUMNS.map((column) => (
+                      <th key={column.key} className="border-r border-slate-300 px-1 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">
+                        {column.lines.map((line) => (
+                          <span key={line} className="block">{line}</span>
+                        ))}
+                      </th>
+                    ))}
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">지급액</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2852,9 +2847,10 @@ export default function Page() {
                     const insurance = getRowInsurance(row);
 
                     return (
-                      <tr key={row.id} className="border-b border-slate-300 odd:bg-white even:bg-slate-50/30">
-                        <td className="border-r border-slate-300 px-2 py-2 align-middle text-center text-[16px] leading-[1.3] tabular-nums">{index + 1}</td>
-                        <td className="print-cell-trade border-r border-slate-300 px-1 py-2 align-middle text-center">
+                      <Fragment key={row.id}>
+                      <tr key={`${row.id}-top`} className="border-b border-slate-200 odd:bg-white even:bg-slate-50/20">
+                        <td rowSpan={2} className="border-r border-slate-300 px-2 py-2 align-middle text-center text-[16px] leading-[1.3] tabular-nums">{index + 1}</td>
+                        <td rowSpan={2} className="print-cell-trade border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:trade`] = element;
@@ -2866,7 +2862,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-name border-r border-slate-300 px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-name border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:name`] = element;
@@ -2878,7 +2874,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-phone border-r border-slate-300 px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-phone border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:phone`] = element;
@@ -2891,7 +2887,7 @@ export default function Page() {
                             className={`${sheetInputClass} whitespace-nowrap px-0.5 text-[16px] tracking-[-0.015em]`}
                           />
                         </td>
-                        <td className="print-cell-resident border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-resident border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
@@ -2904,26 +2900,41 @@ export default function Page() {
                             className={sheetResidentInputClass}
                           />
                         </td>
-                        {monthDates.map((date) => (
-                          <td key={`${row.id}:${date}`} className="screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-category border-r border-slate-300 px-1 py-2 align-middle text-center">
+                          <input
+                            ref={(element) => {
+                              cellRefs.current[`${row.id}:category`] = element;
+                            }}
+                            value={row.category}
+                            onChange={(event) => updateRow(row.id, "category", event.target.value)}
+                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "category")}
+                            placeholder="직영/용역/기타"
+                            list="labor-category-options"
+                            className={sheetCategoryInputClass}
+                          />
+                        </td>
+                        {dayGrid.top.map((cell, dayIndex) => (
+                          <td key={`${row.id}:top:${cell.date ?? dayIndex}`} className="screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                            {cell.date ? (
                             <input
                               ref={(element) => {
-                                dailyCellRefs.current[`${row.id}:${date}`] = element;
+                                dailyCellRefs.current[`${row.id}:${cell.date}`] = element;
                               }}
                               type="text"
-                              value={getDailyWorkEntryInputValue(row, date)}
-                              onChange={(event) => updateDailyWorkEntry(row.id, date, event.target.value)}
-                              onFocus={() => setFocusedDailyWorkCell({ rowId: row.id, date })}
-                              onBlur={() => handleDailyWorkEntryBlur(row.id, date)}
-                              onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, date)}
+                              value={getDailyWorkEntryInputValue(row, cell.date)}
+                              onChange={(event) => updateDailyWorkEntry(row.id, cell.date as string, event.target.value)}
+                              onFocus={() => setFocusedDailyWorkCell({ rowId: row.id, date: cell.date as string })}
+                              onBlur={() => handleDailyWorkEntryBlur(row.id, cell.date as string)}
+                              onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, cell.date as string)}
                               inputMode="decimal"
                               autoComplete="off"
-                              aria-label={`${getMonthDayLabel(date)} 공수`}
+                              aria-label={`${getMonthDayLabel(cell.date)} 공수`}
                               className={dailyEntryInputClass}
                             />
+                            ) : null}
                           </td>
                         ))}
-                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <div className="flex flex-col items-center justify-center gap-0.5">
                             <input
                               ref={(element) => {
@@ -2945,7 +2956,7 @@ export default function Page() {
                             {rowHasDailyEntries ? <p className="text-center text-[13.5px] leading-[1.25] text-stone-400">일자합계</p> : null}
                           </div>
                         </td>
-                        <td className="print-cell-unit-price print-cell-number border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-unit-price print-cell-number border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
@@ -2962,34 +2973,18 @@ export default function Page() {
                             className={`${sheetNumericClass} px-0.5 text-[16px]`}
                           />
                         </td>
-                        <td className="print-cell-number border-r border-slate-300 bg-blue-50 px-2 py-2 align-middle text-center text-[16.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 bg-blue-50 px-2 py-2 align-middle text-center text-[16.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
-                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
-                          {formatCurrency(insurance.national)}
-                        </td>
-                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
-                          {formatCurrency(insurance.health)}
-                        </td>
-                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
-                          {formatCurrency(insurance.longTermCare)}
-                        </td>
-                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
-                          {formatCurrency(insurance.employment)}
-                        </td>
-                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
-                          {formatCurrency(insurance.incomeTax)}
-                        </td>
-                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
-                          {formatCurrency(insurance.residentTax)}
-                        </td>
-                        <td className="print-cell-number border-r border-slate-300 bg-slate-50 px-1 py-2 align-middle text-center text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
-                          {formatCurrency(insurance.totalDeduction)}
-                        </td>
-                        <td className="print-cell-number border-r border-slate-300 bg-emerald-50 px-1 py-2 align-middle text-center text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                        {FORM_DEDUCTION_COLUMNS.map((column) => (
+                          <td key={`${row.id}:${column.key}`} rowSpan={2} className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
+                            {formatCurrency(insurance[column.key])}
+                          </td>
+                        ))}
+                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 bg-emerald-50 px-1 py-2 align-middle text-center text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(insurance.netPay)}
                         </td>
-                        <td className="print-cell-note border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-note border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                           <textarea
                             ref={(element) => {
                               cellRefs.current[`${row.id}:note`] = element;
@@ -3002,31 +2997,42 @@ export default function Page() {
                             className={sheetNoteTextareaClass}
                           />
                         </td>
-                        <td className="print-cell-category border-r border-slate-300 px-1 py-2 align-middle text-center">
-                          <input
-                            ref={(element) => {
-                              cellRefs.current[`${row.id}:category`] = element;
-                            }}
-                            value={row.category}
-                            onChange={(event) => updateRow(row.id, "category", event.target.value)}
-                            onKeyDown={(event) => handleCellKeyDown(event, row.id, "category")}
-                            placeholder="직영/용역/기타"
-                            list="labor-category-options"
-                            className={sheetCategoryInputClass}
-                          />
-                        </td>
-                        <td className="print-cell-actions px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-actions px-1 py-2 align-middle text-center">
                           <button type="button" aria-label="삭제" onClick={() => removeRowAtIndex(rowIndex)} className={deleteButtonClass}>
                             삭제
                           </button>
                         </td>
                       </tr>
+                      <tr key={`${row.id}-bottom`} className="border-b border-slate-300 bg-slate-50/20">
+                        {dayGrid.bottom.map((cell, dayIndex) => (
+                          <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} className="screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                            {cell.date ? (
+                              <input
+                                ref={(element) => {
+                                  dailyCellRefs.current[`${row.id}:${cell.date}`] = element;
+                                }}
+                                type="text"
+                                value={getDailyWorkEntryInputValue(row, cell.date)}
+                                onChange={(event) => updateDailyWorkEntry(row.id, cell.date as string, event.target.value)}
+                                onFocus={() => setFocusedDailyWorkCell({ rowId: row.id, date: cell.date as string })}
+                                onBlur={() => handleDailyWorkEntryBlur(row.id, cell.date as string)}
+                                onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, cell.date as string)}
+                                inputMode="decimal"
+                                autoComplete="off"
+                                aria-label={`${getMonthDayLabel(cell.date)} 공수`}
+                                className={dailyEntryInputClass}
+                              />
+                            ) : null}
+                          </td>
+                        ))}
+                      </tr>
+                      </Fragment>
                     );
                   })}
                 </tbody>
                 <tfoot className="bg-blue-100">
                   <tr className="border-t-2 border-blue-700">
-                    <td colSpan={5 + monthDates.length} className="print-summary-label border-r border-slate-300 px-2 py-3 text-right text-[17px] font-semibold leading-[1.3] text-slate-700">
+                    <td colSpan={6 + dayGrid.count} className="print-summary-label border-r border-slate-300 px-2 py-3 text-right text-[17px] font-semibold leading-[1.3] text-slate-700">
                       합계
                     </td>
                     <td
@@ -3035,13 +3041,11 @@ export default function Page() {
                     >
                       <span style={workUnitsDisplayStyle}>{formatGongsu(totalWorkUnits) || "0.0"}</span>
                     </td>
-                    <td className="border-r border-slate-300 px-2 py-2"></td>
                     <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
                     <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.national)}</td>
                     <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.health)}</td>
-                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.longTermCare)}</td>
                     <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.employment)}</td>
                     <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.incomeTax)}</td>
                     <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.residentTax)}</td>
