@@ -260,42 +260,6 @@ function PrintPageContent({}: PrintPageContentProps) {
   const targetMonth = searchParams.get('targetMonth') || '2024-04';
   const [year, month] = targetMonth.split('-');
 
-  // 날짜별 공수 계산
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month, 0).getDate();
-  };
-
-  const daysInMonth = getDaysInMonth(parseInt(year), parseInt(month));
-
-  // 근로자별 날짜별 공수 맵 생성
-  const workerDateMap = new Map<string, Map<string, number>>();
-  data.records.forEach(record => {
-    if (!workerDateMap.has(record.daily_worker_id)) {
-      workerDateMap.set(record.daily_worker_id, new Map());
-    }
-    // record.work_entries가 배열이라고 가정
-    record.work_entries?.forEach((entry: WorkEntry) => {
-      if (entry.date) {
-        workerDateMap.get(record.daily_worker_id)!.set(entry.date, entry.units || 0);
-      }
-    });
-  });
-
-  // 근로자별 총 공수 계산
-  const workerTotalHours = new Map<string, number>();
-  data.workers.forEach(worker => {
-    const total = Array.from({ length: daysInMonth }, (_, i) => {
-      const date = `${year}-${month.padStart(2, '0')}-${(i + 1).toString().padStart(2, '0')}`;
-      return workerDateMap.get(worker.id)?.get(date) || 0;
-    }).reduce((sum, hours) => sum + hours, 0);
-    workerTotalHours.set(worker.id, total);
-  });
-
-  // 합계 계산
-  const totalWorkers = data.workers.length;
-  const totalHours = Array.from(workerTotalHours.values()).reduce((sum, hours) => sum + hours, 0);
-  const totalPayment = data.workers.reduce((sum, worker) => sum + (workerTotalHours.get(worker.id) || 0) * worker.hourly_rate, 0);
-
   return (
     <div className="print-container" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', lineHeight: '1.4' }}>
       <style jsx>{`
@@ -314,155 +278,20 @@ function PrintPageContent({}: PrintPageContentProps) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <tbody>
             <tr>
-              <td style={{ border: '1px solid #000', padding: '4px', width: '15%', fontWeight: 'bold' }}>사업장명</td>
-              <td style={{ border: '1px solid #000', padding: '4px', width: '35%' }}>{data.company?.name}</td>
-              <td style={{ border: '1px solid #000', padding: '4px', width: '15%', fontWeight: 'bold' }}>현장명</td>
-              <td style={{ border: '1px solid #000', padding: '4px', width: '35%' }}>{data.site?.name}</td>
+              <td style={{ border: '1px solid #000', padding: '8px', width: '20%', fontWeight: 'bold', textAlign: 'center' }}>사업장명</td>
+              <td style={{ border: '1px solid #000', padding: '8px' }}>{data.company?.name}</td>
             </tr>
             <tr>
-              <td style={{ border: '1px solid #000', padding: '4px', fontWeight: 'bold' }}>사업자등록번호</td>
-              <td style={{ border: '1px solid #000', padding: '4px' }}>{data.company?.business_number}</td>
-              <td style={{ border: '1px solid #000', padding: '4px', fontWeight: 'bold' }}>의뢰처</td>
-              <td style={{ border: '1px solid #000', padding: '4px' }}>{data.site?.client_name}</td>
+              <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold', textAlign: 'center' }}>현장명</td>
+              <td style={{ border: '1px solid #000', padding: '8px' }}>{data.site?.name}</td>
             </tr>
             <tr>
-              <td style={{ border: '1px solid #000', padding: '4px', fontWeight: 'bold' }}>주소</td>
-              <td style={{ border: '1px solid #000', padding: '4px' }}>{data.company?.address}</td>
-              <td style={{ border: '1px solid #000', padding: '4px', fontWeight: 'bold' }}>계약형태</td>
-              <td style={{ border: '1px solid #000', padding: '4px' }}>{data.site?.contract_type}</td>
-            </tr>
-            <tr>
-              <td style={{ border: '1px solid #000', padding: '4px', fontWeight: 'bold' }}>대표자</td>
-              <td style={{ border: '1px solid #000', padding: '4px' }}>{data.company?.representative}</td>
-              <td style={{ border: '1px solid #000', padding: '4px', fontWeight: 'bold' }}>현장주소</td>
-              <td style={{ border: '1px solid #000', padding: '4px' }}>{data.site?.address}</td>
-            </tr>
-            <tr>
-              <td style={{ border: '1px solid #000', padding: '4px', fontWeight: 'bold' }}>대상년월</td>
-              <td style={{ border: '1px solid #000', padding: '4px' }} colSpan={3}>{year}년 {month}월</td>
+              <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold', textAlign: 'center' }}>기간</td>
+              <td style={{ border: '1px solid #000', padding: '8px' }}>{year}년 {month}월</td>
             </tr>
           </tbody>
         </table>
       </div>
-
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#f0f0f0' }}>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>순번</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>성명</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>주민등록번호</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>직종</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>시급</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} colSpan={daysInMonth}>일별 근무시간</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>총공수</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>총금액</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} colSpan={5}>공제금액</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>실지급액</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>서명</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }} rowSpan={2}>비고</th>
-          </tr>
-          <tr style={{ backgroundColor: '#f0f0f0' }}>
-            {Array.from({ length: daysInMonth }, (_, i) => (
-              <th key={i} style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', fontSize: '9px' }}>{i + 1}</th>
-            ))}
-            <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', fontSize: '9px' }}>국민연금</th>
-            <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', fontSize: '9px' }}>건강보험</th>
-            <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', fontSize: '9px' }}>고용보험</th>
-            <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', fontSize: '9px' }}>소득세</th>
-            <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', fontSize: '9px' }}>지방소득세</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.workers.map((worker, index) => {
-            const totalHours = workerTotalHours.get(worker.id) || 0;
-            const payment = totalHours * worker.hourly_rate;
-            const deductions = {
-              nationalPension: Math.round(payment * 0.045),
-              healthInsurance: Math.round(payment * 0.03545),
-              employmentInsurance: Math.round(payment * 0.008),
-              incomeTax: Math.round(payment * 0.066),
-              localIncomeTax: Math.round(payment * 0.0165),
-            };
-            const totalDeductions = Object.values(deductions).reduce((sum, deduction) => sum + deduction, 0);
-            const netPayment = payment - totalDeductions;
-
-            return (
-              <tr key={worker.id}>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'center' }}>{index + 1}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'center' }}>{worker.name}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', fontSize: '9px' }}>{worker.resident_number}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'center' }}>{worker.job_type}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right' }}>{worker.hourly_rate.toLocaleString()}</td>
-                {Array.from({ length: daysInMonth }, (_, i) => {
-                  const date = `${year}-${month.padStart(2, '0')}-${(i + 1).toString().padStart(2, '0')}`;
-                  const hours = workerDateMap.get(worker.id)?.get(date) || 0;
-                  return (
-                    <td key={i} style={{ border: '1px solid #000', padding: '2px', textAlign: 'center' }}>{hours || ''}</td>
-                  );
-                })}
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right' }}>{totalHours}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right' }}>{payment.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right' }}>{deductions.nationalPension.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right' }}>{deductions.healthInsurance.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right' }}>{deductions.employmentInsurance.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right' }}>{deductions.incomeTax.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right' }}>{deductions.localIncomeTax.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 'bold' }}>{netPayment.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'center' }}></td>
-                <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'center' }}></td>
-              </tr>
-            );
-          })}
-          <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }} colSpan={4}>합계</td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
-            {Array.from({ length: daysInMonth }, (_, i) => (
-              <td key={i} style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
-            ))}
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{totalHours}</td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{totalPayment.toLocaleString()}</td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{data.workers.reduce((sum, worker) => {
-              const totalHours = workerTotalHours.get(worker.id) || 0;
-              const payment = totalHours * worker.hourly_rate;
-              return sum + Math.round(payment * 0.045);
-            }, 0).toLocaleString()}</td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{data.workers.reduce((sum, worker) => {
-              const totalHours = workerTotalHours.get(worker.id) || 0;
-              const payment = totalHours * worker.hourly_rate;
-              return sum + Math.round(payment * 0.03545);
-            }, 0).toLocaleString()}</td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{data.workers.reduce((sum, worker) => {
-              const totalHours = workerTotalHours.get(worker.id) || 0;
-              const payment = totalHours * worker.hourly_rate;
-              return sum + Math.round(payment * 0.008);
-            }, 0).toLocaleString()}</td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{data.workers.reduce((sum, worker) => {
-              const totalHours = workerTotalHours.get(worker.id) || 0;
-              const payment = totalHours * worker.hourly_rate;
-              return sum + Math.round(payment * 0.066);
-            }, 0).toLocaleString()}</td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{data.workers.reduce((sum, worker) => {
-              const totalHours = workerTotalHours.get(worker.id) || 0;
-              const payment = totalHours * worker.hourly_rate;
-              return sum + Math.round(payment * 0.0165);
-            }, 0).toLocaleString()}</td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{data.workers.reduce((sum, worker) => {
-              const totalHours = workerTotalHours.get(worker.id) || 0;
-              const payment = totalHours * worker.hourly_rate;
-              const deductions = Object.values({
-                nationalPension: Math.round(payment * 0.045),
-                healthInsurance: Math.round(payment * 0.03545),
-                employmentInsurance: Math.round(payment * 0.008),
-                incomeTax: Math.round(payment * 0.066),
-                localIncomeTax: Math.round(payment * 0.0165),
-              }).reduce((sum, deduction) => sum + deduction, 0);
-              return sum + (payment - deductions);
-            }, 0).toLocaleString()}</td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
-          </tr>
-        </tbody>
-      </table>
 
       <div style={{ marginTop: '20px', textAlign: 'center' }} className="no-print">
         <button onClick={() => window.print()} style={{ padding: '10px 20px', fontSize: '14px' }}>
