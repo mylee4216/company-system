@@ -94,10 +94,18 @@ type LaborRow = {
   dailyWorkEntries: DailyWorkEntryMap;
   note: string;
   category: string;
+  // Deduction fields
+  nationalPension?: string;
+  healthInsurance?: string;
+  longTermCareInsurance?: string;
+  employmentInsurance?: string;
+  incomeTax?: string;
+  localIncomeTax?: string;
+  otherDeductions?: string;
 };
 
-type EditableField = "name" | "residentId" | "phone" | "trade" | "unitPrice" | "workUnits" | "note" | "category";
-type NumericField = "unitPrice" | "workUnits";
+type EditableField = "name" | "residentId" | "phone" | "trade" | "unitPrice" | "workUnits" | "note" | "category" | "nationalPension" | "healthInsurance" | "longTermCareInsurance" | "employmentInsurance" | "incomeTax" | "localIncomeTax" | "otherDeductions";
+type NumericField = "unitPrice" | "workUnits" | "nationalPension" | "healthInsurance" | "longTermCareInsurance" | "employmentInsurance" | "incomeTax" | "localIncomeTax" | "otherDeductions";
 type FocusedNumericCell = {
   rowId: string;
   field: NumericField;
@@ -203,6 +211,13 @@ function createEmptyRow(id: string, trade = ""): LaborRow {
     dailyWorkEntries: {},
     note: "",
     category: "",
+    nationalPension: "",
+    healthInsurance: "",
+    longTermCareInsurance: "",
+    employmentInsurance: "",
+    incomeTax: "",
+    localIncomeTax: "",
+    otherDeductions: "",
   };
 }
 
@@ -367,6 +382,23 @@ function normalizeLookupText(value: string) {
 
 function getPaymentAmount(row: LaborRow) {
   return parseNumber(row.unitPrice) * getEffectiveWorkUnits(row);
+}
+
+function getTotalDeductions(row: LaborRow) {
+  const deductions = [
+    parseNumber(row.nationalPension),
+    parseNumber(row.healthInsurance),
+    parseNumber(row.longTermCareInsurance),
+    parseNumber(row.employmentInsurance),
+    parseNumber(row.incomeTax),
+    parseNumber(row.localIncomeTax),
+    parseNumber(row.otherDeductions),
+  ];
+  return deductions.reduce((sum, val) => sum + val, 0);
+}
+
+function getNetPayment(row: LaborRow) {
+  return getPaymentAmount(row) - getTotalDeductions(row);
 }
 
 function getDisplayedWorkUnits(row: LaborRow) {
@@ -1117,7 +1149,11 @@ export default function Page() {
           return { ...row, phone: formatPhoneNumber(value) };
         }
 
-        if (field === "unitPrice" || field === "workUnits") {
+        // Numeric fields: unitPrice, workUnits, and all deduction fields
+        if (field === "unitPrice" || field === "workUnits" || 
+            field === "nationalPension" || field === "healthInsurance" || 
+            field === "longTermCareInsurance" || field === "employmentInsurance" || 
+            field === "incomeTax" || field === "localIncomeTax" || field === "otherDeductions") {
           return { ...row, [field]: sanitizeDecimal(value) };
         }
 
@@ -1872,17 +1908,26 @@ export default function Page() {
     }
   };
 
+  // Portal style colors and components
+  const sectionHeaderClass = "text-lg font-semibold text-slate-900 mb-4";
+  const sectionCardClass = "rounded-lg border border-slate-200 bg-white p-5 shadow-sm mb-6";
+  const formGroupClass = "mb-4";
+  const labelClass = "block text-sm font-medium text-slate-700 mb-2";
+  const inputClass = "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
+  const buttonPrimaryClass = "inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed";
+  const buttonSecondaryClass = "inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:bg-slate-100 disabled:cursor-not-allowed";
+
   const sheetInputClass =
-    "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[13px] leading-[1.3] outline-none transition focus:bg-amber-50/70";
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[13px] leading-[1.3] outline-none transition focus:bg-blue-50/50";
   const sheetNumericClass = `${sheetInputClass} whitespace-nowrap tabular-nums`;
   const sheetResidentInputClass =
-    "block h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.15] tracking-[-0.02em] whitespace-normal [overflow-wrap:break-word] [word-break:normal] [hyphens:manual] outline-none transition focus:bg-amber-50/70";
+    "block h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.15] tracking-[-0.02em] whitespace-normal [overflow-wrap:break-word] [word-break:normal] [hyphens:manual] outline-none transition focus:bg-blue-50/50";
   const sheetNoteTextareaClass =
-    "block h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.2] text-stone-600 [overflow-wrap:anywhere] outline-none transition focus:bg-amber-50/70";
+    "block h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.2] text-slate-600 [overflow-wrap:anywhere] outline-none transition focus:bg-blue-50/50";
   const sheetCategoryInputClass =
-    "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[12.5px] leading-[1.3] outline-none transition focus:bg-amber-50/70";
+    "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[12.5px] leading-[1.3] outline-none transition focus:bg-blue-50/50";
   const dailyEntryInputClass =
-    "screen-daily-entry-input block w-full min-w-[32px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center font-semibold tabular-nums outline-none transition focus:bg-amber-50/70";
+    "screen-daily-entry-input block w-full min-w-[32px] whitespace-nowrap border-0 bg-transparent px-0 py-0 text-center font-semibold tabular-nums outline-none transition focus:bg-blue-50/50";
   const workUnitsDisplayCellStyle = {
     verticalAlign: "middle",
     padding: 0,
@@ -1923,12 +1968,12 @@ export default function Page() {
 
   if (authStatus !== "authenticated") {
     return (
-      <main className="min-h-screen bg-stone-100 px-3 py-7 text-stone-900">
+      <main className="min-h-screen bg-slate-50 px-3 py-7 text-slate-900">
         <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-sm items-center justify-center">
-          <section className="w-full rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+          <section className="w-full rounded-xl border border-slate-300 bg-white p-5 shadow-sm">
             <div className="space-y-2">
-              <h1 className="text-lg font-semibold tracking-[-0.02em] text-stone-900">접근 비밀번호</h1>
-              <p className="text-[13px] leading-5 text-stone-500">
+              <h1 className="text-lg font-semibold tracking-[-0.02em] text-slate-900">접근 비밀번호</h1>
+              <p className="text-[13px] leading-5 text-slate-600">
                 내부 사용 화면입니다. 비밀번호를 입력해야 계속 진행할 수 있습니다.
               </p>
             </div>
@@ -1945,17 +1990,17 @@ export default function Page() {
                 onKeyDown={handlePasswordKeyDown}
                 placeholder="비밀번호 입력"
                 autoComplete="current-password"
-                className="h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-[14px] outline-none transition focus:border-stone-500"
+                className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-[14px] outline-none transition focus:border-blue-700 focus:ring-1 focus:ring-blue-500"
               />
               <button
                 type="button"
                 onClick={handlePasswordSubmit}
-                className="h-10 w-full rounded-lg bg-stone-900 text-[13px] font-medium text-white transition hover:bg-stone-800"
+                className="h-10 w-full rounded-lg bg-blue-700 text-[13px] font-medium text-white transition hover:bg-blue-600"
               >
                 확인
               </button>
               {authStatus === "checking" ? (
-                <p className="text-[12px] text-stone-400">접근 상태를 확인하는 중입니다.</p>
+                <p className="text-[12px] text-slate-400">접근 상태를 확인하는 중입니다.</p>
               ) : null}
               {authError ? <p className="text-[12px] text-red-600">{authError}</p> : null}
             </div>
@@ -2591,34 +2636,34 @@ export default function Page() {
           }
         }
       `}</style>
-      <main className="screen-app min-h-screen bg-[#e7e0d2] px-0 py-0.5 text-slate-900 sm:px-0.5 sm:py-1">
+      <main className="screen-app min-h-screen bg-slate-50 px-0 py-0.5 text-slate-900 sm:px-0.5 sm:py-1">
         <div className="print-root mx-auto w-full max-w-none">
-          <section className="screen-control-panel print-hidden print-interactive mb-1 border border-stone-400 bg-[#f7f2e7] text-[16px] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
+          <section className="screen-control-panel print-hidden print-interactive mb-1 border border-slate-300 bg-blue-50 text-[16px] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
             <div className="grid gap-0 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
-              <label className="screen-control-field border-b border-r border-stone-300 px-2 py-2 text-[17px] leading-[1.35]">
-                <span className="mb-1 block font-medium text-stone-700">회사명</span>
+              <label className="screen-control-field border-b border-r border-slate-300 px-2 py-2 text-[17px] leading-[1.35]">
+                <span className="mb-1 block font-medium text-slate-700">회사명</span>
                 <input
                   type="text"
-                  className="screen-control-input h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
+                  className="screen-control-input h-12 w-full border border-slate-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={companyNameInput}
                   onChange={(event) => setCompanyNameInput(event.target.value)}
                   placeholder="회사명 입력"
                 />
               </label>
-              <label className="screen-control-field border-b border-r border-stone-300 px-2 py-2 text-[17px] leading-[1.35]">
-                <span className="mb-1 block font-medium text-stone-700">현장명</span>
+              <label className="screen-control-field border-b border-r border-slate-300 px-2 py-2 text-[17px] leading-[1.35]">
+                <span className="mb-1 block font-medium text-slate-700">현장명</span>
                 <input
                   type="text"
-                  className="screen-control-input h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
+                  className="screen-control-input h-12 w-full border border-slate-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={siteNameInput}
                   onChange={(event) => setSiteNameInput(event.target.value)}
                   placeholder="현장명 입력"
                 />
               </label>
-              <label className="screen-control-field border-b border-r border-stone-300 px-2 py-2 text-[17px] leading-[1.35]">
-                <span className="mb-1 block font-medium text-stone-700">구분</span>
+              <label className="screen-control-field border-b border-r border-slate-300 px-2 py-2 text-[17px] leading-[1.35]">
+                <span className="mb-1 block font-medium text-slate-700">구분</span>
                 <select
-                  className="screen-control-input h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
+                  className="screen-control-input h-12 w-full border border-slate-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={selectedCategoryFilter}
                   onChange={(event) => setSelectedCategoryFilter(event.target.value)}
                 >
@@ -2629,28 +2674,28 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="screen-control-field border-b border-stone-300 px-2 py-2 text-[17px] leading-[1.35] md:border-r xl:border-r-0">
-                <span className="mb-1 block font-medium text-stone-700">기준월</span>
+              <label className="screen-control-field border-b border-slate-300 px-2 py-2 text-[17px] leading-[1.35] md:border-r xl:border-r-0">
+                <span className="mb-1 block font-medium text-slate-700">기준월</span>
                 <input
                   type="month"
-                  className="screen-control-input h-12 w-full border border-stone-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-stone-700"
+                  className="screen-control-input h-12 w-full border border-slate-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={selectedMonth}
                   onChange={(event) => setSelectedMonth(event.target.value)}
                 />
               </label>
             </div>
 
-            <div className="screen-status-message border-b border-stone-300 px-2 py-2 text-[15px] leading-[1.45] text-stone-600">
+            <div className="screen-status-message border-b border-slate-300 px-2 py-2 text-[15px] leading-[1.45] text-slate-600">
               기간: {monthPeriod.label}
             </div>
 
-            <div className="screen-status-message border-b border-stone-300 px-2 py-2 text-[15px] leading-[1.45] text-stone-600">
+            <div className="screen-status-message border-b border-slate-300 px-2 py-2 text-[15px] leading-[1.45] text-slate-600">
               {selectedSite
                 ? `등록된 현장과 연결됨: ${selectedCompany?.name ?? "-"} / ${selectedSite.name}`
                 : "저장 및 기존 내역 조회를 위해 회사명과 현장명을 등록된 이름과 동일하게 입력해 주세요."}
             </div>
 
-            <div className="screen-control-actions flex flex-wrap gap-2 border-b border-stone-300 px-2 py-2">
+            <div className="screen-control-actions flex flex-wrap gap-2 border-b border-slate-300 px-2 py-2">
               <input
                 ref={excelFileInputRef}
                 type="file"
@@ -2661,28 +2706,28 @@ export default function Page() {
               <button
                 type="button"
                 onClick={() => addRow()}
-                className="screen-control-button inline-flex h-12 items-center justify-center border border-stone-700 bg-white px-3.5 text-[17px] leading-none font-medium text-stone-800 transition hover:bg-stone-100"
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-blue-700 bg-white px-3.5 text-[17px] leading-none font-medium text-blue-700 transition hover:bg-blue-50"
               >
                 행 추가
               </button>
               <button
                 type="button"
                 onClick={handleDownloadExcel}
-                className="screen-control-button inline-flex h-12 items-center justify-center border border-sky-700 bg-white px-3.5 text-[17px] leading-none font-medium text-sky-800 transition hover:bg-sky-50"
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-blue-700 bg-white px-3.5 text-[17px] leading-none font-medium text-blue-700 transition hover:bg-blue-50"
               >
                 엑셀 다운로드
               </button>
               <button
                 type="button"
                 onClick={handleUploadButtonClick}
-                className="screen-control-button inline-flex h-12 items-center justify-center border border-violet-700 bg-white px-3.5 text-[17px] leading-none font-medium text-violet-800 transition hover:bg-violet-50"
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-blue-700 bg-white px-3.5 text-[17px] leading-none font-medium text-blue-700 transition hover:bg-blue-50"
               >
                 엑셀 업로드
               </button>
               <button
                 type="button"
                 onClick={handlePrint}
-                className="screen-control-button inline-flex h-12 items-center justify-center border border-slate-700 bg-white px-3.5 text-[17px] leading-none font-medium text-slate-800 transition hover:bg-slate-100"
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-blue-700 bg-white px-3.5 text-[17px] leading-none font-medium text-blue-700 transition hover:bg-blue-50"
               >
                 PDF 출력
               </button>
@@ -2697,48 +2742,48 @@ export default function Page() {
               </div>
 
             {loadError ? <p className="screen-feedback-message border-b border-red-200 bg-red-50 px-2 py-2 text-[16px] leading-[1.45] text-red-700">{loadError}</p> : null}
-            {saveError ? <p className="screen-feedback-message border-b border-amber-200 bg-amber-50 px-2 py-2 text-[16px] leading-[1.45] text-amber-700">{saveError}</p> : null}
+            {saveError ? <p className="screen-feedback-message border-b border-orange-200 bg-orange-50 px-2 py-2 text-[16px] leading-[1.45] text-orange-700">{saveError}</p> : null}
             {saveWarningMessage ? (
-              <p className="screen-feedback-message border-b border-amber-200 bg-amber-50 px-2 py-2 text-[16px] leading-[1.45] text-amber-700">{saveWarningMessage}</p>
+              <p className="screen-feedback-message border-b border-orange-200 bg-orange-50 px-2 py-2 text-[16px] leading-[1.45] text-orange-700">{saveWarningMessage}</p>
             ) : null}
             {saveSuccessMessage ? (
               <p className="screen-feedback-message bg-emerald-50 px-2 py-2 text-[16px] leading-[1.45] text-emerald-700">{saveSuccessMessage}</p>
             ) : null}
           </section>
 
-          <section className="print-shell border border-stone-500 bg-white shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)]">
-            <header className="border-b-2 border-stone-700 px-3 py-3 sm:px-4">
+          <section className="print-shell border border-slate-300 bg-white shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)]">
+            <header className="border-b-2 border-blue-700 px-3 py-3 sm:px-4">
               <div className="mb-3 flex items-end justify-between gap-4">
                 <div className="min-w-0">
                   <p className="print-kicker text-xs tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
                   <h1 className="print-title mt-1 text-[30px] font-bold tracking-[0.15em] text-slate-900 sm:text-[34px]">노무비 명세서</h1>
                 </div>
-                <div className="print-top-summary hidden min-w-[220px] border border-stone-400 text-[16px] leading-[1.35] sm:block">
+                <div className="print-top-summary hidden min-w-[220px] border border-blue-300 text-[16px] leading-[1.35] sm:block">
                   <div className="grid grid-cols-[68px_1fr]">
-                    <div className="border-b border-r border-stone-300 bg-stone-100 px-2.5 py-2 font-semibold">기준월</div>
-                    <div className="border-b border-stone-300 px-2.5 py-2 text-right font-medium tabular-nums">{selectedMonth || "-"}</div>
-                    <div className="border-r border-stone-300 bg-stone-100 px-2.5 py-2 font-semibold">인원수</div>
+                    <div className="border-b border-r border-blue-200 bg-blue-50 px-2.5 py-2 font-semibold">기준월</div>
+                    <div className="border-b border-blue-200 px-2.5 py-2 text-right font-medium tabular-nums">{selectedMonth || "-"}</div>
+                    <div className="border-r border-blue-200 bg-blue-50 px-2.5 py-2 font-semibold">인원수</div>
                     <div className="px-2.5 py-2 text-right font-medium tabular-nums">{visibleRows.length}명</div>
                   </div>
                 </div>
               </div>
 
-              <div className="overflow-hidden border border-stone-400">
-                <div className="grid grid-cols-1 border-stone-300 md:grid-cols-2">
-                  <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300 md:border-r">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">회사명</div>
+              <div className="overflow-hidden border border-slate-300">
+                <div className="grid grid-cols-1 border-slate-300 md:grid-cols-2">
+                  <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300 md:border-r">
+                    <div className="print-meta-label bg-blue-50 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">회사명</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{resolvedCompanyName}</div>
                   </div>
-                  <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-stone-300">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">현장명</div>
+                  <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300">
+                    <div className="print-meta-label bg-blue-50 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">현장명</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{resolvedSiteName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] md:border-r">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">기준월</div>
+                    <div className="print-meta-label bg-blue-50 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">기준월</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{selectedMonth || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)]">
-                    <div className="print-meta-label bg-stone-100 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">기간</div>
+                    <div className="print-meta-label bg-blue-50 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">기간</div>
                     <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{monthPeriod.label}</div>
                   </div>
                 </div>
@@ -2766,26 +2811,26 @@ export default function Page() {
                   <col className="print-col-category" style={{ width: `${TABLE_COLUMN_WIDTHS.category}px` }} />
                   <col className="print-col-actions" style={{ width: `${TABLE_COLUMN_WIDTHS.actions}px` }} />
                 </colgroup>
-                <thead className="bg-[#f3ede1] text-stone-700">
-                  <tr className="border-b border-stone-400">
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">번호</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">직종</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">성명</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">전화번호</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">주민번호</th>
-                    <th colSpan={monthDates.length} className="border-r border-stone-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">일자별 공수</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">총 공수</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">단가</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">지급액</th>
-                    <th rowSpan={2} className="print-note-header border-r border-stone-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">비고</th>
-                    <th rowSpan={2} className="border-r border-stone-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">구분</th>
+                <thead className="bg-blue-100 text-slate-700">
+                  <tr className="border-b border-slate-300">
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">번호</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">직종</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">성명</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">전화번호</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">주민번호</th>
+                    <th colSpan={monthDates.length} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">일자별 공수</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">총 공수</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">단가</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">지급액</th>
+                    <th rowSpan={2} className="print-note-header border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">비고</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">구분</th>
                     <th rowSpan={2} className="print-col-actions px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">관리</th>
                   </tr>
-                  <tr className="border-b border-stone-400">
+                  <tr className="border-b border-slate-300">
                     {monthDates.map((date, index) => (
                       <th
                         key={date}
-                        className="print-day-header border-r border-stone-300 px-0 py-2.5 text-center text-[15px] font-semibold leading-[1.15] text-stone-800"
+                        className="print-day-header border-r border-slate-300 px-0 py-2.5 text-center text-[15px] font-semibold leading-[1.15] text-slate-700"
                       >
                         {index + 1}
                       </th>
@@ -2798,9 +2843,9 @@ export default function Page() {
                     const rowHasDailyEntries = hasDailyWorkEntries(row.dailyWorkEntries);
 
                     return (
-                      <tr key={row.id} className="border-b border-stone-300 odd:bg-white even:bg-stone-50/30">
-                        <td className="border-r border-stone-300 px-2 py-2 align-middle text-center text-[16px] leading-[1.3] tabular-nums">{index + 1}</td>
-                        <td className="print-cell-trade border-r border-stone-300 px-1 py-2 align-middle text-center">
+                      <tr key={row.id} className="border-b border-slate-300 odd:bg-white even:bg-slate-50/30">
+                        <td className="border-r border-slate-300 px-2 py-2 align-middle text-center text-[16px] leading-[1.3] tabular-nums">{index + 1}</td>
+                        <td className="print-cell-trade border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:trade`] = element;
@@ -2812,7 +2857,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-name border-r border-stone-300 px-1 py-2 align-middle text-center">
+                        <td className="print-cell-name border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:name`] = element;
@@ -2824,7 +2869,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-phone border-r border-stone-300 px-1 py-2 align-middle text-center">
+                        <td className="print-cell-phone border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:phone`] = element;
@@ -2837,7 +2882,7 @@ export default function Page() {
                             className={`${sheetInputClass} whitespace-nowrap px-0.5 text-[16px] tracking-[-0.015em]`}
                           />
                         </td>
-                        <td className="print-cell-resident border-r border-stone-300 px-0.5 py-2 align-middle text-center">
+                        <td className="print-cell-resident border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                           <textarea
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
@@ -2852,7 +2897,7 @@ export default function Page() {
                           />
                         </td>
                         {monthDates.map((date) => (
-                          <td key={`${row.id}:${date}`} className="screen-daily-entry-cell print-cell-date border-r border-stone-300 px-0.5 py-2 align-middle text-center">
+                          <td key={`${row.id}:${date}`} className="screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                             <input
                               ref={(element) => {
                                 dailyCellRefs.current[`${row.id}:${date}`] = element;
@@ -2870,7 +2915,7 @@ export default function Page() {
                             />
                           </td>
                         ))}
-                        <td className="print-cell-number border-r border-stone-300 px-1 py-2 align-middle text-center">
+                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <div className="flex flex-col items-center justify-center gap-0.5">
                             <input
                               ref={(element) => {
@@ -2892,7 +2937,7 @@ export default function Page() {
                             {rowHasDailyEntries ? <p className="text-center text-[13.5px] leading-[1.25] text-stone-400">일자합계</p> : null}
                           </div>
                         </td>
-                        <td className="print-cell-unit-price print-cell-number border-r border-stone-300 px-0.5 py-2 align-middle text-center">
+                        <td className="print-cell-unit-price print-cell-number border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
@@ -2909,10 +2954,10 @@ export default function Page() {
                             className={`${sheetNumericClass} px-0.5 text-[16px]`}
                           />
                         </td>
-                        <td className="print-cell-number border-r border-stone-300 bg-stone-50 px-2 py-2 align-middle text-center text-[16.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                        <td className="print-cell-number border-r border-slate-300 bg-blue-50 px-2 py-2 align-middle text-center text-[16.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
-                        <td className="print-cell-note border-r border-stone-300 px-0.5 py-2 align-middle text-center">
+                        <td className="print-cell-note border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                           <textarea
                             ref={(element) => {
                               cellRefs.current[`${row.id}:note`] = element;
@@ -2925,7 +2970,7 @@ export default function Page() {
                             className={sheetNoteTextareaClass}
                           />
                         </td>
-                        <td className="print-cell-category border-r border-stone-300 px-1 py-2 align-middle text-center">
+                        <td className="print-cell-category border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:category`] = element;
@@ -2947,23 +2992,23 @@ export default function Page() {
                     );
                   })}
                 </tbody>
-                <tfoot className="bg-[#f3ede1]">
-                  <tr className="border-t-2 border-stone-500">
-                    <td colSpan={5 + monthDates.length} className="print-summary-label border-r border-stone-300 px-2 py-3 text-right text-[17px] font-semibold leading-[1.3] text-stone-700">
+                <tfoot className="bg-blue-100">
+                  <tr className="border-t-2 border-blue-700">
+                    <td colSpan={5 + monthDates.length} className="print-summary-label border-r border-slate-300 px-2 py-3 text-right text-[17px] font-semibold leading-[1.3] text-slate-700">
                       합계
                     </td>
                     <td
-                      className="print-summary-value border-r border-stone-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900"
+                      className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900"
                       style={workUnitsDisplayCellStyle}
                     >
                       <span style={workUnitsDisplayStyle}>{totalWorkUnits.toLocaleString("ko-KR")}</span>
                     </td>
-                    <td className="print-note-summary border-r border-stone-300 px-2 py-2"></td>
-                    <td className="print-summary-value border-r border-stone-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-note-summary border-r border-slate-300 px-2 py-2"></td>
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
-                    <td className="border-r border-stone-300 px-2 py-2"></td>
-                    <td className="print-summary-value border-r border-stone-300 px-2 py-3 text-center text-[16px] leading-[1.3] text-stone-600">{visibleRows.length}명</td>
+                    <td className="border-r border-slate-300 px-2 py-2"></td>
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] leading-[1.3] text-slate-600">{visibleRows.length}명</td>
                     <td className="print-col-actions px-2 py-2"></td>
                   </tr>
                 </tfoot>
@@ -2975,24 +3020,24 @@ export default function Page() {
               <option value="기타" />
             </datalist>
 
-            <footer className="border-t border-stone-400 px-3 py-3">
-              <div className="print-footer-grid grid gap-0 border border-stone-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
-                <div className="print-summary-label border-b border-r border-stone-300 bg-stone-100 px-3 py-3 text-[17px] font-medium leading-[1.35] text-stone-700 md:border-b-0">하단 요약</div>
-                <div className="print-summary-value border-b border-r border-stone-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
+            <footer className="border-t border-slate-300 px-3 py-3">
+              <div className="print-footer-grid grid gap-0 border border-slate-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
+                <div className="print-summary-label border-b border-r border-slate-300 bg-blue-50 px-3 py-3 text-[17px] font-medium leading-[1.35] text-slate-700 md:border-b-0">하단 요약</div>
+                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
                   총 공수{" "}
                   <span className="whitespace-nowrap float-right font-semibold tabular-nums" style={workUnitsDisplayStyle}>
                     {totalWorkUnits.toLocaleString("ko-KR")}
                   </span>
                 </div>
-                <div className="print-summary-value border-b border-r border-stone-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
+                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
                   총 지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
                 </div>
-                <div className="print-footer-guide print-summary-note px-3 py-3 text-[16px] leading-[1.45] text-stone-600">
-                  <span className="mb-1 block font-medium text-stone-700">입력 안내</span>
+                <div className="print-footer-guide print-summary-note px-3 py-3 text-[16px] leading-[1.45] text-slate-600">
+                  <span className="mb-1 block font-medium text-slate-700">입력 안내</span>
                   <span className="block leading-6">Enter는 아래 행, Tab은 다음 칸으로 이동합니다. 날짜 칸도 동일하게 이동합니다.</span>
                 </div>
               </div>
-              <div className="print-hidden mt-2 text-[15px] leading-7 text-stone-500">
+              <div className="print-hidden mt-2 text-[15px] leading-7 text-slate-500">
                 <p>주민번호는 숫자만 입력하면 자동 포맷됩니다.</p>
                 <p>전화번호는 숫자만 입력하면 자동 포맷됩니다.</p>
                 <p>날짜 칸에 공수를 입력하면 총 공수와 지급액이 즉시 연동됩니다.</p>
