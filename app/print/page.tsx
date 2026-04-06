@@ -185,7 +185,13 @@ function PrintPageContent({}: PrintPageContentProps) {
           throw new Error(`기록 조회 실패: ${recordsError.message}`);
         }
 
-        console.log('Loaded data:', { company, site, workers: workers?.length, records: records?.length });
+        console.log('Loaded data:', { 
+          company, 
+          site, 
+          workers: workers?.length, 
+          records: records?.length,
+          recordsData: records 
+        });
 
         setData({
           company,
@@ -260,12 +266,10 @@ function PrintPageContent({}: PrintPageContentProps) {
   const targetMonth = searchParams.get('targetMonth') || '2024-04';
   const [year, month] = targetMonth.split('-');
 
-  // 근로자별 기록 매핑
-  const workerRecordsMap = new Map<string, DailyWorkerMonthlyRecord>();
-  data.records.forEach(record => {
-    if (record.daily_worker_id) {
-      workerRecordsMap.set(record.daily_worker_id, record);
-    }
+  // 근로자 정보를 ID로 찾기 위한 맵
+  const workerMap = new Map<string, DailyWorker>();
+  data.workers.forEach(worker => {
+    workerMap.set(worker.id, worker);
   });
 
   // 날짜별 공수 계산을 위한 날짜 목록
@@ -332,34 +336,44 @@ function PrintPageContent({}: PrintPageContentProps) {
           </tr>
         </thead>
         <tbody>
-          {data.workers.map((worker, index) => {
-            const record = workerRecordsMap.get(worker.id);
-            const totalWorkUnits = record?.total_work_units || 0;
-            const paymentAmount = totalWorkUnits * worker.hourly_rate;
+          {data.records.length === 0 ? (
+            <tr>
+              <td colSpan={5 + monthDates.length + 5} style={{ border: '1px solid #000', padding: '20px', textAlign: 'center', fontSize: '12px', color: '#666' }}>
+                근무내역이 없습니다
+              </td>
+            </tr>
+          ) : (
+            data.records.map((record, index) => {
+              const worker = workerMap.get(record.daily_worker_id);
+              if (!worker) return null;
 
-            return (
-              <tr key={worker.id}>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{index + 1}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{worker.name}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: '9px' }}>{worker.resident_number}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{worker.job_type}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{worker.hourly_rate.toLocaleString()}</td>
-                {monthDates.map(date => {
-                  const workEntry = record?.work_entries?.find(entry => entry.date === date);
-                  const units = workEntry?.units || 0;
-                  return (
-                    <td key={date} style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>
-                      {units > 0 ? units : ''}
-                    </td>
-                  );
-                })}
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{totalWorkUnits}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{paymentAmount.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
-              </tr>
-            );
-          })}
+              const totalWorkUnits = record.total_work_units || 0;
+              const paymentAmount = totalWorkUnits * worker.hourly_rate;
+
+              return (
+                <tr key={record.id}>
+                  <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{index + 1}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{worker.name}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: '9px' }}>{worker.resident_number}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{worker.job_type}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{worker.hourly_rate.toLocaleString()}</td>
+                  {monthDates.map(date => {
+                    const workEntry = record.work_entries?.find(entry => entry.date === date);
+                    const units = workEntry?.units || 0;
+                    return (
+                      <td key={date} style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>
+                        {units > 0 ? units : ''}
+                      </td>
+                    );
+                  })}
+                  <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{totalWorkUnits}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{paymentAmount.toLocaleString()}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
+                  <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
+                </tr>
+              );
+            })
+          )}
           {/* 합계 행 */}
           <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }} colSpan={5}>합계</td>
@@ -370,14 +384,15 @@ function PrintPageContent({}: PrintPageContentProps) {
               {data.records.reduce((sum, record) => sum + (record.total_work_units || 0), 0)}
             </td>
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>
-              {data.workers.reduce((sum, worker) => {
-                const record = workerRecordsMap.get(worker.id);
-                const totalWorkUnits = record?.total_work_units || 0;
+              {data.records.reduce((sum, record) => {
+                const worker = workerMap.get(record.daily_worker_id);
+                if (!worker) return sum;
+                const totalWorkUnits = record.total_work_units || 0;
                 return sum + (totalWorkUnits * worker.hourly_rate);
               }, 0).toLocaleString()}
             </td>
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}></td>
-            <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{data.workers.length}명</td>
+            <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{data.records.length}명</td>
           </tr>
         </tbody>
       </table>
