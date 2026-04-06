@@ -8,6 +8,7 @@ export type DayGridCell = {
 export const FORM_DEDUCTION_COLUMNS = [
   { key: "national", label: "국민연금", lines: ["국민", "연금"] },
   { key: "health", label: "건강보험", lines: ["건강", "보험"] },
+  { key: "longTermCare", label: "장기요양", lines: ["장기요양", "보험"] },
   { key: "employment", label: "고용보험", lines: ["고용", "보험"] },
   { key: "incomeTax", label: "소득세", lines: ["소득세"] },
   { key: "residentTax", label: "주민세", lines: ["주민세"] },

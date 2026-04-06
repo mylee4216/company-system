@@ -182,22 +182,38 @@ function runOnNextFrame(callback: () => void): void {
 }
 const TABLE_COLUMN_BASE_WIDTHS = {
   index: 52,
-  trade: 96,
-  name: 108,
-  phone: 162,
-  resident: 150,
-  day: 28,
-  total: 70,
-  unitPrice: 108,
+  trade: 92,
+  name: 104,
+  phone: 156,
+  resident: 168,
+  day: 38,
+  total: 76,
+  unitPrice: 96,
   payment: 98,
-  deduction: 88,
-  netPay: 104,
-  note: 144,
-  category: 120,
+  deduction: 78,
+  netPay: 108,
+  note: 150,
+  category: 88,
   actions: 64,
 } as const;
 const TABLE_COLUMN_WIDTHS = Object.fromEntries(
-  Object.entries(TABLE_COLUMN_BASE_WIDTHS).map(([key, value]) => [key, Math.max(20, Math.round(value * SCREEN_UI_SCALE))]),
+  Object.entries(TABLE_COLUMN_BASE_WIDTHS).map(([key, value]) => {
+    const scaledWidth = Math.round(value * SCREEN_UI_SCALE);
+
+    if (key === "day") {
+      return [key, Math.max(26, scaledWidth)];
+    }
+
+    if (key === "resident") {
+      return [key, Math.max(118, scaledWidth)];
+    }
+
+    if (key === "deduction") {
+      return [key, Math.max(56, scaledWidth)];
+    }
+
+    return [key, Math.max(20, scaledWidth)];
+  }),
 ) as typeof TABLE_COLUMN_BASE_WIDTHS;
 
 function createEmptyRow(id: string, trade = ""): LaborRow {
@@ -2086,6 +2102,7 @@ export default function Page() {
           .print-sheet-table {
             font-size: 12.5px !important;
             line-height: 1.2 !important;
+            table-layout: fixed !important;
           }
 
           .print-sheet-table thead th {
@@ -2781,7 +2798,7 @@ export default function Page() {
             <div className="print-sheet-scroll overflow-x-auto">
               <table
                 className="print-sheet-table w-full border-collapse text-[16.5px] leading-[1.4]"
-                style={{ minWidth: `${tableMinWidth}px` }}
+                style={{ minWidth: `${tableMinWidth}px`, tableLayout: "fixed" }}
               >
                 <colgroup>
                   <col className="print-col-index" style={{ width: `${TABLE_COLUMN_WIDTHS.index}px` }} />
@@ -2789,8 +2806,9 @@ export default function Page() {
                   <col className="print-col-name" style={{ width: `${TABLE_COLUMN_WIDTHS.name}px` }} />
                   <col className="print-col-phone" style={{ width: `${TABLE_COLUMN_WIDTHS.phone}px` }} />
                   <col className="print-col-resident" style={{ width: `${TABLE_COLUMN_WIDTHS.resident}px` }} />
-                  {monthDates.map((date, index) => (
-                    <col key={`col-${date ?? `slot-${index + 1}`}`} className="print-col-day" style={{ width: `${TABLE_COLUMN_WIDTHS.day}px` }} />
+                  <col className="print-col-category" style={{ width: `${TABLE_COLUMN_WIDTHS.category}px` }} />
+                  {dayGrid.top.map((cell, index) => (
+                    <col key={`col-${cell.date ?? `slot-${index + 1}`}`} className="print-col-day" style={{ width: `${TABLE_COLUMN_WIDTHS.day}px` }} />
                   ))}
                   <col className="print-col-total" style={{ width: `${TABLE_COLUMN_WIDTHS.total}px` }} />
                   <col className="print-col-unit-price" style={{ width: `${TABLE_COLUMN_WIDTHS.unitPrice}px` }} />
@@ -2800,21 +2818,20 @@ export default function Page() {
                   ))}
                   <col className="print-col-net-pay" style={{ width: `${TABLE_COLUMN_WIDTHS.netPay}px` }} />
                   <col className="print-col-note" style={{ width: `${TABLE_COLUMN_WIDTHS.note}px` }} />
-                  <col className="print-col-category" style={{ width: `${TABLE_COLUMN_WIDTHS.category}px` }} />
                   <col className="print-col-actions" style={{ width: `${TABLE_COLUMN_WIDTHS.actions}px` }} />
                 </colgroup>
                 <thead className="bg-blue-100 text-slate-700">
-                  <tr className="border-b border-slate-300">
-                    <th colSpan={6} rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">기본정보</th>
-                    <th colSpan={dayGrid.count} rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">일자별 공수</th>
-                    <th colSpan={3} rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">노무비</th>
-                    <th colSpan={FORM_DEDUCTION_COLUMNS.length} rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">공제</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">차감지급액</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">비고</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">구분</th>
-                    <th rowSpan={2} className="px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">관리</th>
+                  <tr className="border-b-2 border-slate-400 bg-blue-100/95">
+                    <th colSpan={5} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">기본정보</th>
+                    <th className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">구분</th>
+                    <th colSpan={dayGrid.count} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">일자별 공수</th>
+                    <th colSpan={3} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">노무비</th>
+                    <th colSpan={FORM_DEDUCTION_COLUMNS.length} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">공제</th>
+                    <th className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">차감지급액</th>
+                    <th className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">비고</th>
+                    <th className="px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">관리</th>
                   </tr>
-                  <tr className="border-b border-slate-300">
+                  <tr className="border-b border-slate-300 bg-blue-50/70">
                     <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">번호</th>
                     <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">직종</th>
                     <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">성명</th>
@@ -2838,6 +2855,8 @@ export default function Page() {
                       </th>
                     ))}
                     <th className="border-r border-slate-300 px-1 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">지급액</th>
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">비고</th>
+                    <th className="px-1 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2848,7 +2867,7 @@ export default function Page() {
 
                     return (
                       <Fragment key={row.id}>
-                      <tr key={`${row.id}-top`} className="border-b border-slate-200 odd:bg-white even:bg-slate-50/20">
+                      <tr className="border-b border-slate-200 bg-white">
                         <td rowSpan={2} className="border-r border-slate-300 px-2 py-2 align-middle text-center text-[16px] leading-[1.3] tabular-nums">{index + 1}</td>
                         <td rowSpan={2} className="print-cell-trade border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
@@ -3003,7 +3022,7 @@ export default function Page() {
                           </button>
                         </td>
                       </tr>
-                      <tr key={`${row.id}-bottom`} className="border-b border-slate-300 bg-slate-50/20">
+                      <tr className="border-b border-slate-300 bg-slate-50/45">
                         {dayGrid.bottom.map((cell, dayIndex) => (
                           <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} className="screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                             {cell.date ? (
@@ -3041,19 +3060,22 @@ export default function Page() {
                     >
                       <span style={workUnitsDisplayStyle}>{formatGongsu(totalWorkUnits) || "0.0"}</span>
                     </td>
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-500">
+                      -
+                    </td>
                     <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
-                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.national)}</td>
-                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.health)}</td>
-                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.employment)}</td>
-                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.incomeTax)}</td>
-                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.residentTax)}</td>
-                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.totalDeduction)}</td>
-                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.netPay)}</td>
+                    {FORM_DEDUCTION_COLUMNS.map((column) => (
+                      <td key={`total-${column.key}`} className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                        {formatCurrency(insuranceTotals[column.key])}
+                      </td>
+                    ))}
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                      {formatCurrency(insuranceTotals.netPay)}
+                    </td>
                     <td className="print-note-summary border-r border-slate-300 px-2 py-2"></td>
-                    <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] leading-[1.3] text-slate-600">{visibleRows.length}명</td>
-                    <td className="print-col-actions px-2 py-2"></td>
+                    <td className="print-col-actions px-2 py-2 text-center text-[14px] font-medium text-slate-500">-</td>
                   </tr>
                 </tfoot>
               </table>

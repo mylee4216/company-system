@@ -268,6 +268,7 @@ function PrintPageContent() {
           grossAmount: sum.grossAmount + row.grossAmount,
           national: sum.national + row.insurance.national,
           health: sum.health + row.insurance.health,
+          longTermCare: sum.longTermCare + row.insurance.longTermCare,
           employment: sum.employment + row.insurance.employment,
           incomeTax: sum.incomeTax + row.insurance.incomeTax,
           residentTax: sum.residentTax + row.insurance.residentTax,
@@ -279,6 +280,7 @@ function PrintPageContent() {
           grossAmount: 0,
           national: 0,
           health: 0,
+          longTermCare: 0,
           employment: 0,
           incomeTax: 0,
           residentTax: 0,
@@ -444,12 +446,11 @@ function PrintPageContent() {
             ))}
             <td style={{ border: "1px solid #000", textAlign: "center" }}>{formatGongsu(totals.totalWorkUnits) || "0.0"}</td>
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.grossAmount)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.national)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.health)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.employment)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.incomeTax)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.residentTax)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.totalDeduction)}</td>
+            {FORM_DEDUCTION_COLUMNS.map((column) => (
+              <td key={`sum-${column.key}`} style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>
+                {formatAmount(totals[column.key])}
+              </td>
+            ))}
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.netPay)}</td>
             <td style={{ border: "1px solid #000", textAlign: "center" }}>총계</td>
             <td style={{ border: "1px solid #000", textAlign: "center" }}>{`${statementRows.length}명`}</td>
