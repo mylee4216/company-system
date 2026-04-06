@@ -188,7 +188,11 @@ function getStoredRateConfig(): LaborRateConfig {
     return defaultRateConfig;
   }
 
-  return loadDefaultRateConfig(window.localStorage.getItem(RATE_CONFIG_STORAGE_KEY));
+  try {
+    return loadDefaultRateConfig(window.localStorage.getItem(LABOR_RATE_CONFIG_STORAGE_KEY));
+  } catch {
+    return defaultRateConfig;
+  }
 }
 
 function setStoredRateConfig(config: LaborRateConfig): void {
@@ -196,7 +200,11 @@ function setStoredRateConfig(config: LaborRateConfig): void {
     return;
   }
 
-  window.localStorage.setItem(RATE_CONFIG_STORAGE_KEY, serializeRateConfig(config));
+  try {
+    window.localStorage.setItem(LABOR_RATE_CONFIG_STORAGE_KEY, serializeRateConfig(config));
+  } catch {
+    // Ignore storage failures and keep the UI usable with in-memory state.
+  }
 }
 
 function runOnNextFrame(callback: () => void): void {

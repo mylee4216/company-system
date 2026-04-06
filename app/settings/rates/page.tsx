@@ -10,7 +10,11 @@ function getStoredRateConfig() {
     return defaultRateConfig;
   }
 
-  return loadDefaultRateConfig(window.localStorage.getItem(LABOR_RATE_CONFIG_STORAGE_KEY));
+  try {
+    return loadDefaultRateConfig(window.localStorage.getItem(LABOR_RATE_CONFIG_STORAGE_KEY));
+  } catch {
+    return defaultRateConfig;
+  }
 }
 
 export default function RatesSettingsPage() {
@@ -18,7 +22,11 @@ export default function RatesSettingsPage() {
   const rateFormulaRows = useMemo(() => getRateFormulaSummary(rateConfig), [rateConfig]);
 
   useEffect(() => {
-    window.localStorage.setItem(LABOR_RATE_CONFIG_STORAGE_KEY, serializeRateConfig(rateConfig));
+    try {
+      window.localStorage.setItem(LABOR_RATE_CONFIG_STORAGE_KEY, serializeRateConfig(rateConfig));
+    } catch {
+      // Ignore storage failures and keep the settings page interactive.
+    }
   }, [rateConfig]);
 
   const updateRateNumberField = (field: keyof LaborRateConfig, rawValue: string) => {
