@@ -2645,31 +2645,31 @@ export default function Page() {
       <main className="screen-app min-h-screen bg-slate-50 px-0 py-0.5 text-slate-900 sm:px-0.5 sm:py-1">
         <div className="print-root mx-auto w-full max-w-none">
           <section className="screen-control-panel print-hidden print-interactive mb-1 border border-slate-300 bg-blue-50 text-[16px] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
-            <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
-              <label className="screen-control-field border-b border-r border-slate-300 px-3 py-4 min-h-[120px] text-[17px] leading-[1.35]">
+            <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
+              <label className="screen-control-field border-b border-r border-slate-300 px-4 py-5 min-h-[140px] text-[17px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-slate-700">회사명</span>
                 <input
                   type="text"
-                  className="screen-control-input h-14 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
+                  className="screen-control-input h-16 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={companyNameInput}
                   onChange={(event) => setCompanyNameInput(event.target.value)}
                   placeholder="회사명 입력"
                 />
               </label>
-              <label className="screen-control-field border-b border-r border-slate-300 px-3 py-4 min-h-[120px] text-[17px] leading-[1.35]">
+              <label className="screen-control-field border-b border-r border-slate-300 px-4 py-5 min-h-[140px] text-[17px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-slate-700">현장명</span>
                 <input
                   type="text"
-                  className="screen-control-input h-14 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
+                  className="screen-control-input h-16 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={siteNameInput}
                   onChange={(event) => setSiteNameInput(event.target.value)}
                   placeholder="현장명 입력"
                 />
               </label>
-              <label className="screen-control-field border-b border-r border-slate-300 px-3 py-4 min-h-[120px] text-[17px] leading-[1.35]">
+              <label className="screen-control-field border-b border-r border-slate-300 px-4 py-5 min-h-[140px] text-[17px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-slate-700">구분</span>
                 <select
-                  className="screen-control-input h-14 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
+                  className="screen-control-input h-16 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={selectedCategoryFilter}
                   onChange={(event) => setSelectedCategoryFilter(event.target.value)}
                 >
@@ -2680,11 +2680,11 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="screen-control-field border-b border-slate-300 px-3 py-4 min-h-[120px] text-[17px] leading-[1.35] md:border-r xl:border-r-0">
+              <label className="screen-control-field border-b border-slate-300 px-4 py-5 min-h-[140px] text-[17px] leading-[1.35] md:border-r xl:border-r-0">
                 <span className="mb-1 block font-medium text-slate-700">기준월</span>
                 <input
                   type="month"
-                  className="screen-control-input h-14 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
+                  className="screen-control-input h-16 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={selectedMonth}
                   onChange={(event) => setSelectedMonth(event.target.value)}
                 />

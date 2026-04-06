@@ -33,6 +33,7 @@ interface DailyWorker {
   job_type?: string;
   company_id?: number;
   site_id?: number;
+  first_work_date?: string | null;
   hourly_rate: number;
 }
 
@@ -116,6 +117,58 @@ function getMonthlyRecordSnapshot(entries: WorkEntry[] | null) {
 function getMonthlyRecordTextValue(record: DailyWorkerMonthlyRecord, field: "resident_number" | "job_type" | "phone") {
   const value = record[field];
   return typeof value === "string" ? value : "";
+}
+
+const SNAPSHOT_META_PREFIX = "__ROW_META__";
+
+function parseSnapshotMetaNote(value: string | null | undefined) {
+  const normalized = value?.trim() ?? "";
+
+  if (!normalized) {
+    return { note: "", category: "" };
+  }
+
+  const markerIndex = normalized.indexOf(SNAPSHOT_META_PREFIX);
+
+  if (markerIndex < 0) {
+    return { note: normalized, category: "" };
+  }
+
+  const note = normalized.slice(0, markerIndex).trim();
+  const serializedMeta = normalized.slice(markerIndex + SNAPSHOT_META_PREFIX.length).trim();
+
+  try {
+    const parsed = JSON.parse(serializedMeta) as { category?: unknown };
+    return {
+      note,
+      category: typeof parsed.category === "string" ? parsed.category.trim() : "",
+    };
+  } catch {
+    return { note, category: "" };
+  }
+}
+
+function getPrintRemark(targetMonth: string, workerFirstWorkDate?: string | null, workEntries: WorkEntry[] = []) {
+  const normalizedFirstWorkDate = workerFirstWorkDate?.trim();
+
+  if (normalizedFirstWorkDate && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(normalizedFirstWorkDate)) {
+    if (normalizedFirstWorkDate.startsWith(`${targetMonth}-`)) {
+      return `최초근무일 ${normalizedFirstWorkDate}`;
+    }
+    return `전월최초근무일 ${normalizedFirstWorkDate}`;
+  }
+
+  const workedDates = workEntries
+    .filter((entry) => entry.date && entry.units !== undefined && entry.units > 0)
+    .map((entry) => entry.date as string)
+    .filter((date): date is string => Boolean(date) && date.startsWith(`${targetMonth}-`))
+    .sort((left, right) => left.localeCompare(right));
+
+  if (workedDates.length) {
+    return `최초근무일 ${workedDates[0]}`;
+  }
+
+  return "";
 }
 
 function PrintPageContent() {
@@ -279,6 +332,8 @@ function PrintPageContent() {
         const name = snapshot?.name?.trim() || worker?.name || (workerId ? `근로자 #${workerId}` : "");
         const residentId = snapshot?.resident_number?.trim() || record.resident_number || worker?.resident_number || "";
         const trade = snapshot?.job_type?.trim() || record.job_type || worker?.job_type || "";
+        const snapshotMeta = parseSnapshotMetaNote(snapshot?.note);
+        const remark = getPrintRemark(`${normalizedYear}-${normalizedMonth}`, worker?.first_work_date || null, record.work_entries);
 
         return {
           id: record.id,
@@ -289,8 +344,8 @@ function PrintPageContent() {
           dailyWorkEntries,
           totalWorkUnits,
           grossAmount,
-          note: snapshot?.note || "",
-          category: "",
+          note: remark,
+          category: snapshotMeta.category || "",
         };
       });
     } catch (err) {
