@@ -1970,16 +1970,16 @@ export default function Page() {
       <style jsx global>{`
         @media screen {
           .screen-app {
-            font-size: 11px;
+            font-size: 12px;
           }
 
           .screen-control-panel {
-            font-size: 11px !important;
+            font-size: 12px !important;
           }
 
           .screen-control-field {
             padding: 0.4rem 0.55rem !important;
-            font-size: 11.5px !important;
+            font-size: 12.5px !important;
             line-height: 1.25 !important;
           }
 
@@ -1987,14 +1987,14 @@ export default function Page() {
             height: 2.1rem !important;
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
-            font-size: 11.5px !important;
+            font-size: 12.5px !important;
             line-height: 1.25 !important;
           }
 
           .screen-status-message,
           .screen-feedback-message {
             padding: 0.4rem 0.55rem !important;
-            font-size: 11px !important;
+            font-size: 12px !important;
             line-height: 1.35 !important;
           }
 
@@ -2007,7 +2007,7 @@ export default function Page() {
             height: 2.1rem !important;
             padding-left: 0.7rem !important;
             padding-right: 0.7rem !important;
-            font-size: 11.5px !important;
+            font-size: 12.5px !important;
           }
 
           .print-shell {
@@ -2035,7 +2035,7 @@ export default function Page() {
 
           .print-top-summary {
             min-width: 148px !important;
-            font-size: 11px !important;
+            font-size: 12px !important;
             line-height: 1.25 !important;
           }
 
@@ -2044,31 +2044,31 @@ export default function Page() {
           .print-summary-label,
           .print-summary-value {
             padding: 0.35rem 0.55rem !important;
-            font-size: 11.5px !important;
+            font-size: 12.5px !important;
             line-height: 1.25 !important;
           }
 
           .print-sheet-table {
-            font-size: 11.5px !important;
+            font-size: 12.5px !important;
             line-height: 1.2 !important;
           }
 
           .print-sheet-table thead th {
             padding: 0.42rem 0.28rem !important;
-            font-size: 12.25px !important;
+            font-size: 13.5px !important;
             line-height: 1.15 !important;
           }
 
           .print-day-header {
             padding-top: 0.3rem !important;
             padding-bottom: 0.3rem !important;
-            font-size: 10.5px !important;
+            font-size: 11.5px !important;
           }
 
           .print-sheet-table tbody td,
           .print-sheet-table tfoot td {
             padding: 0.22rem 0.24rem !important;
-            font-size: 11.25px !important;
+            font-size: 12.5px !important;
             line-height: 1.15 !important;
           }
 
@@ -2095,14 +2095,14 @@ export default function Page() {
             height: 2rem !important;
             padding-left: 0.2rem !important;
             padding-right: 0.2rem !important;
-            font-size: 11.25px !important;
+            font-size: 12.5px !important;
             line-height: 1.15 !important;
           }
 
           .print-cell-phone input,
           .print-cell-unit-price input,
           .print-cell-number input {
-            font-size: 11.5px !important;
+            font-size: 12.75px !important;
           }
 
           .print-cell-resident textarea,
@@ -2112,7 +2112,7 @@ export default function Page() {
             padding-bottom: 0.28rem !important;
             padding-left: 0.2rem !important;
             padding-right: 0.2rem !important;
-            font-size: 10.75px !important;
+            font-size: 12px !important;
             line-height: 1.1 !important;
           }
 
@@ -2157,7 +2157,7 @@ export default function Page() {
           }
 
           .print-footer-guide {
-            font-size: 10.75px !important;
+            font-size: 11.5px !important;
             line-height: 1.35 !important;
           }
 
@@ -2167,7 +2167,7 @@ export default function Page() {
 
           .print-hidden {
             margin-top: 0.4rem !important;
-            font-size: 10.75px !important;
+            font-size: 11.5px !important;
             line-height: 1.45 !important;
           }
 
