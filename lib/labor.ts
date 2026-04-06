@@ -46,6 +46,23 @@ export type InsuranceBreakdown = {
   netPay: number;
 };
 
+export function formatGongsu(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  const parsed =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace(/,/g, "").trim());
+
+  if (!Number.isFinite(parsed) || parsed === 0) {
+    return "";
+  }
+
+  return parsed.toFixed(1);
+}
+
 const DEDUCTION_RATES = {
   nationalPension: 0.045,
   healthInsurance: 0.03545,

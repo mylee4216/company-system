@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
 import * as XLSX from "xlsx";
 
-import { buildSnapshotNote, calculateInsurance, getLaborRemark, parseSnapshotNote } from "@/lib/labor";
+import { buildSnapshotNote, calculateInsurance, formatGongsu, getLaborRemark, parseSnapshotNote } from "@/lib/labor";
 import { supabase } from "@/lib/supabase";
 
 type CompanyRow = {
@@ -357,22 +357,7 @@ function formatDecimalForDisplay(value: string) {
 }
 
 function formatWorkUnitsWithFixedDecimal(value: string | number | null | undefined) {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value.toFixed(1) : "";
-  }
-
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  const sanitized = sanitizeDecimal(value);
-
-  if (!sanitized || sanitized === ".") {
-    return "";
-  }
-
-  const parsed = Number(sanitized);
-  return Number.isFinite(parsed) ? parsed.toFixed(1) : "";
+  return formatGongsu(value);
 }
 
 function formatCurrency(value: number) {
@@ -1926,7 +1911,7 @@ export default function Page() {
     "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[13px] leading-[1.3] outline-none transition focus:bg-blue-50/50";
   const sheetNumericClass = `${sheetInputClass} whitespace-nowrap tabular-nums`;
   const sheetResidentInputClass =
-    "block h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.15] tracking-[-0.02em] whitespace-normal [overflow-wrap:break-word] [word-break:normal] [hyphens:manual] outline-none transition focus:bg-blue-50/50";
+    "block h-10 w-full min-w-[126px] border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.15] tracking-[-0.02em] whitespace-nowrap tabular-nums outline-none transition focus:bg-blue-50/50";
   const sheetNoteTextareaClass =
     "block h-10 w-full min-w-0 resize-none border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.2] text-slate-600 [overflow-wrap:anywhere] outline-none transition focus:bg-blue-50/50";
   const sheetCategoryInputClass =
@@ -2824,36 +2809,40 @@ export default function Page() {
                 </colgroup>
                 <thead className="bg-blue-100 text-slate-700">
                   <tr className="border-b border-slate-300">
-                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">번호</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">직종</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">성명</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">전화번호</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">주민번호</th>
-                    <th colSpan={monthDates.length} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">일자별 공수</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">총 공수</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">단가</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">지급액</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">국민연금</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">건강보험</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">장기요양보험</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">고용보험</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">소득세</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">주민세</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">공제합계</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">실지급액</th>
-                    <th rowSpan={2} className="print-note-header border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">비고</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">구분</th>
-                    <th rowSpan={2} className="print-col-actions px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">관리</th>
+                    <th colSpan={5} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">기본정보</th>
+                    <th colSpan={monthDates.length} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">일자별 공수</th>
+                    <th colSpan={3} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">지급</th>
+                    <th colSpan={7} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">공제</th>
+                    <th colSpan={4} className="px-2 py-2 text-center text-[15px] font-semibold leading-[1.2]">정산</th>
                   </tr>
                   <tr className="border-b border-slate-300">
+                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[15px] font-semibold leading-[1.2]">번호</th>
+                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[15px] font-semibold leading-[1.2]">직종</th>
+                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[15px] font-semibold leading-[1.2]">성명</th>
+                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[15px] font-semibold leading-[1.2]">전화번호</th>
+                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[15px] font-semibold leading-[1.2] whitespace-nowrap">주민번호</th>
                     {monthDates.map((date, index) => (
                       <th
                         key={date}
-                        className="print-day-header border-r border-slate-300 px-0 py-2.5 text-center text-[15px] font-semibold leading-[1.15] text-slate-700"
+                        className="print-day-header border-r border-slate-300 px-0 py-2.5 text-center text-[14px] font-semibold leading-[1] text-slate-700"
                       >
                         {index + 1}
                       </th>
                     ))}
+                    <th className="border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.15]">총공수</th>
+                    <th className="border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.15]">단가</th>
+                    <th className="border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.15]">지급액</th>
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">국민연금</th>
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">건강보험</th>
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">장기요양<br />보험</th>
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">고용보험</th>
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">소득세</th>
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">주민세</th>
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">공제합계</th>
+                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[13px] font-semibold leading-[1.15]">실지급액</th>
+                    <th className="print-note-header border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">비고</th>
+                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">구분</th>
+                    <th className="print-col-actions px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2903,7 +2892,7 @@ export default function Page() {
                           />
                         </td>
                         <td className="print-cell-resident border-r border-slate-300 px-0.5 py-2 align-middle text-center">
-                          <textarea
+                          <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
                             }}
@@ -2912,7 +2901,6 @@ export default function Page() {
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "residentId")}
                             inputMode="numeric"
                             placeholder="000000-0000000"
-                            rows={2}
                             className={sheetResidentInputClass}
                           />
                         </td>
@@ -3045,7 +3033,7 @@ export default function Page() {
                       className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900"
                       style={workUnitsDisplayCellStyle}
                     >
-                      <span style={workUnitsDisplayStyle}>{totalWorkUnits.toLocaleString("ko-KR")}</span>
+                      <span style={workUnitsDisplayStyle}>{formatGongsu(totalWorkUnits) || "0.0"}</span>
                     </td>
                     <td className="border-r border-slate-300 px-2 py-2"></td>
                     <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
@@ -3078,7 +3066,7 @@ export default function Page() {
                 <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
                   총 공수{" "}
                   <span className="whitespace-nowrap float-right font-semibold tabular-nums" style={workUnitsDisplayStyle}>
-                    {totalWorkUnits.toLocaleString("ko-KR")}
+                    {formatGongsu(totalWorkUnits) || "0.0"}
                   </span>
                 </div>
                 <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
