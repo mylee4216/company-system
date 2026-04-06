@@ -260,6 +260,24 @@ function PrintPageContent({}: PrintPageContentProps) {
   const targetMonth = searchParams.get('targetMonth') || '2024-04';
   const [year, month] = targetMonth.split('-');
 
+  // 근로자별 기록 매핑
+  const workerRecordsMap = new Map<string, DailyWorkerMonthlyRecord>();
+  data.records.forEach(record => {
+    if (record.daily_worker_id) {
+      workerRecordsMap.set(record.daily_worker_id, record);
+    }
+  });
+
+  // 날짜별 공수 계산을 위한 날짜 목록
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month, 0).getDate();
+  };
+  const daysInMonth = getDaysInMonth(parseInt(year), parseInt(month));
+  const monthDates = Array.from({ length: daysInMonth }, (_, i) => {
+    const date = new Date(parseInt(year), parseInt(month) - 1, i + 1);
+    return date.toISOString().split('T')[0];
+  });
+
   return (
     <div className="print-container" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', lineHeight: '1.4' }}>
       <style jsx>{`
@@ -292,6 +310,77 @@ function PrintPageContent({}: PrintPageContentProps) {
           </tbody>
         </table>
       </div>
+
+      {/* 근로자 데이터 테이블 */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', marginBottom: '20px' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f0f0f0' }}>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>순번</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>성명</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>주민등록번호</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>직종</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>단가</th>
+            {monthDates.map(date => (
+              <th key={date} style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: '9px', fontWeight: 'bold' }}>
+                {new Date(date).getDate()}
+              </th>
+            ))}
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>총공수</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>지급액</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>비고</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>구분</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.workers.map((worker, index) => {
+            const record = workerRecordsMap.get(worker.id);
+            const totalWorkUnits = record?.total_work_units || 0;
+            const paymentAmount = totalWorkUnits * worker.hourly_rate;
+
+            return (
+              <tr key={worker.id}>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{index + 1}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{worker.name}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: '9px' }}>{worker.resident_number}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{worker.job_type}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{worker.hourly_rate.toLocaleString()}</td>
+                {monthDates.map(date => {
+                  const workEntry = record?.work_entries?.find(entry => entry.date === date);
+                  const units = workEntry?.units || 0;
+                  return (
+                    <td key={date} style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>
+                      {units > 0 ? units : ''}
+                    </td>
+                  );
+                })}
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{totalWorkUnits}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{paymentAmount.toLocaleString()}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}></td>
+              </tr>
+            );
+          })}
+          {/* 합계 행 */}
+          <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
+            <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }} colSpan={5}>합계</td>
+            {monthDates.map(() => (
+              <td key={`total-${Math.random()}`} style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}></td>
+            ))}
+            <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>
+              {data.records.reduce((sum, record) => sum + (record.total_work_units || 0), 0)}
+            </td>
+            <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>
+              {data.workers.reduce((sum, worker) => {
+                const record = workerRecordsMap.get(worker.id);
+                const totalWorkUnits = record?.total_work_units || 0;
+                return sum + (totalWorkUnits * worker.hourly_rate);
+              }, 0).toLocaleString()}
+            </td>
+            <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}></td>
+            <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{data.workers.length}명</td>
+          </tr>
+        </tbody>
+      </table>
 
       <div style={{ marginTop: '20px', textAlign: 'center' }} className="no-print">
         <button onClick={() => window.print()} style={{ padding: '10px 20px', fontSize: '14px' }}>
