@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
 import * as XLSX from "xlsx";
 
+import { buildSnapshotNote, getLaborRemark, parseSnapshotNote } from "@/lib/labor";
 import { supabase } from "@/lib/supabase";
 
 type CompanyRow = {
@@ -143,7 +144,6 @@ const EXCEL_UPLOAD_HEADERS = ["번호", "성명", "주민번호", "전화번호"
 
 const ALL_CATEGORIES_LABEL = "전체";
 const CATEGORY_FILTER_OPTIONS = [ALL_CATEGORIES_LABEL, "직영", "용역", "기타"] as const;
-const SNAPSHOT_META_PREFIX = "__ROW_META__";
 const MAX_DAY_COLUMNS = 31;
 const APP_PASSWORD = "leejuu1996!";
 const AUTH_STORAGE_KEY = "company-system-authenticated";
@@ -523,40 +523,6 @@ function getWorkedDaysCount(row: LaborRow) {
   return workUnits > 0 ? Math.ceil(workUnits) : 0;
 }
 
-function getFirstWorkedDate(entries: WorkEntry[] | null) {
-  if (!entries) {
-    return "";
-  }
-
-  const workedDates = entries
-    .filter((entry) => parseNumber(entry.units ?? entry.work_days) > 0 && entry.date)
-    .map((entry) => entry.date as string);
-
-  return workedDates.sort((left, right) => left.localeCompare(right))[0] ?? "";
-}
-
-function getFirstWorkedDateFromDailyEntries(dailyWorkEntries: DailyWorkEntryMap) {
-  return Object.entries(dailyWorkEntries)
-    .filter(([, value]) => parseNumber(value) > 0)
-    .map(([date]) => date)
-    .sort((left, right) => left.localeCompare(right))[0] ?? "";
-}
-
-function getRowAutoNote(row: LaborRow) {
-  const firstWorkedDate = getFirstWorkedDateFromDailyEntries(row.dailyWorkEntries);
-  return firstWorkedDate ? `최초 작업일 ${formatDateDisplay(firstWorkedDate)}` : "";
-}
-
-function getRowAutoNoteMultiline(row: LaborRow) {
-  const firstWorkedDate = getFirstWorkedDateFromDailyEntries(row.dailyWorkEntries);
-
-  if (!firstWorkedDate) {
-    return "";
-  }
-
-  return `최초 작업일\n${formatDateDisplay(firstWorkedDate)}`;
-}
-
 function getCategoryFilterValue(category: string | null | undefined) {
   const normalized = category?.trim() ?? "";
 
@@ -569,47 +535,6 @@ function getCategoryFilterValue(category: string | null | undefined) {
   }
 
   return "기타";
-}
-
-function parseSnapshotNote(value: string | null | undefined) {
-  const normalized = value?.trim() ?? "";
-
-  if (!normalized) {
-    return { note: "", category: "" };
-  }
-
-  const markerIndex = normalized.indexOf(SNAPSHOT_META_PREFIX);
-
-  if (markerIndex < 0) {
-    return { note: normalized, category: "" };
-  }
-
-  const note = normalized.slice(0, markerIndex).trim();
-  const serializedMeta = normalized.slice(markerIndex + SNAPSHOT_META_PREFIX.length).trim();
-
-  try {
-    const parsed = JSON.parse(serializedMeta) as { category?: unknown };
-    return {
-      note,
-      category: typeof parsed.category === "string" ? parsed.category.trim() : "",
-    };
-  } catch {
-    return { note: normalized, category: "" };
-  }
-}
-
-function buildSnapshotNote(row: LaborRow) {
-  const autoNote = getRowAutoNote(row);
-  const normalizedCategory = row.category.trim();
-
-  if (!normalizedCategory) {
-    return autoNote || null;
-  }
-
-  const serializedMeta = JSON.stringify({ category: normalizedCategory });
-  return autoNote
-    ? `${autoNote}\n${SNAPSHOT_META_PREFIX}${serializedMeta}`
-    : `${SNAPSHOT_META_PREFIX}${serializedMeta}`;
 }
 
 function getMonthlyRecordSnapshot(entries: WorkEntry[] | null) {
@@ -626,7 +551,21 @@ function getMonthlyRecordSnapshot(entries: WorkEntry[] | null) {
   return null;
 }
 
-function buildMonthlyRecordWorkEntries(row: LaborRow, workUnits: number, grossAmount: number): WorkEntry[] {
+function buildMonthlyRecordWorkEntries(
+  row: LaborRow,
+  workUnits: number,
+  grossAmount: number,
+  targetMonth: string,
+  workerFirstWorkDate?: string | null,
+): WorkEntry[] {
+  const remark = getLaborRemark(
+    targetMonth,
+    workerFirstWorkDate,
+    Object.entries(row.dailyWorkEntries).map(([date, units]) => ({
+      date,
+      units: parseNumber(units),
+    })),
+  ).text;
   const rowSnapshot = {
     name: row.name.trim() || null,
     resident_number: row.residentId.trim() || null,
@@ -635,7 +574,7 @@ function buildMonthlyRecordWorkEntries(row: LaborRow, workUnits: number, grossAm
     unit_price: parseNumber(row.unitPrice) || null,
     total_work_units: workUnits,
     gross_amount: grossAmount,
-    note: buildSnapshotNote(row),
+    note: buildSnapshotNote(remark, row.category),
   } satisfies MonthlyRecordRowSnapshot;
 
   const datedEntries = Object.entries(row.dailyWorkEntries)
@@ -964,6 +903,10 @@ export default function Page() {
     () => companies.find((company) => String(company.id) === selectedCompanyId) ?? null,
     [companies, selectedCompanyId],
   );
+  const dailyWorkerMap = useMemo(
+    () => new Map(dailyWorkers.map((worker) => [worker.id, worker])),
+    [dailyWorkers],
+  );
   const selectedSite = matchedSite;
   const resolvedCompanyName = companyNameInput.trim() || selectedCompany?.name || "-";
   const resolvedSiteName = siteNameInput.trim() || selectedSite?.name || "-";
@@ -1040,11 +983,9 @@ export default function Page() {
   }, [authStatus, selectedMonth, selectedSiteId]);
 
   const baseStatementRows = useMemo(() => {
-    const workerMap = new Map(dailyWorkers.map((worker) => [worker.id, worker]));
-
     return monthlyRecords.map((record) => {
       const workerId = getRecordWorkerId(record);
-      const worker = workerId ? workerMap.get(workerId) : undefined;
+      const worker = workerId ? dailyWorkerMap.get(workerId) : undefined;
       const snapshot = getMonthlyRecordSnapshot(record.work_entries);
       const parsedSnapshotNote = parseSnapshotNote(snapshot?.note);
       const dailyWorkEntries = getDailyWorkEntriesFromRecord(record.work_entries, selectedMonth);
@@ -1059,8 +1000,9 @@ export default function Page() {
         parseNumber(snapshot?.unit_price) ||
         parseNumber(worker?.daily_wage) ||
         (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
-      const firstWorkedDate = getFirstWorkedDate(record.work_entries);
-      const note = firstWorkedDate ? `최초 작업일 ${formatDateDisplay(firstWorkedDate)}` : "";
+      const note =
+        getLaborRemark(selectedMonth, worker?.first_work_date || null, record.work_entries ?? []).text ||
+        parsedSnapshotNote.note;
       const name = snapshot?.name?.trim() || worker?.name || `근로자 #${workerId ?? "-"}`;
 
       return {
@@ -1095,7 +1037,7 @@ export default function Page() {
         category: parsedSnapshotNote.category,
       } satisfies LaborRow;
     });
-  }, [dailyWorkers, monthlyRecords, selectedMonth]);
+  }, [dailyWorkerMap, monthlyRecords, selectedMonth]);
 
   useEffect(() => {
     if (baseStatementRows.length) {
@@ -1129,6 +1071,16 @@ export default function Page() {
     () => visibleRows.reduce((sum, row) => sum + getPaymentAmount(row), 0),
     [visibleRows],
   );
+
+  const getRowRemark = (row: LaborRow) =>
+    getLaborRemark(
+      selectedMonth,
+      row.sourceWorkerId ? dailyWorkerMap.get(row.sourceWorkerId)?.first_work_date ?? null : null,
+      Object.entries(row.dailyWorkEntries).map(([date, units]) => ({
+        date,
+        units: parseNumber(units),
+      })),
+    ).text;
 
   const updateRow = (rowId: string, field: keyof LaborRow, value: string) => {
     setSaveSuccessMessage("");
@@ -1677,7 +1629,13 @@ export default function Page() {
             site_id: siteId,
             target_month: selectedMonth,
             work_dates: workDates,
-            work_entries: buildMonthlyRecordWorkEntries(row, workUnits, grossAmount),
+            work_entries: buildMonthlyRecordWorkEntries(
+              row,
+              workUnits,
+              grossAmount,
+              selectedMonth,
+              row.sourceWorkerId ? dailyWorkerMap.get(row.sourceWorkerId)?.first_work_date ?? null : null,
+            ),
             total_work_units: workUnits,
             worked_days_count: getWorkedDaysCount(row),
             gross_amount: grossAmount,
@@ -1734,7 +1692,7 @@ export default function Page() {
       parseNumber(row.unitPrice),
       getEffectiveWorkUnits(row),
       getPaymentAmount(row),
-      getRowAutoNoteMultiline(row),
+      getRowRemark(row),
       row.category,
     ]);
 
@@ -2764,31 +2722,31 @@ export default function Page() {
                   <p className="print-kicker text-xs tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
                   <h1 className="print-title mt-1 text-[30px] font-bold tracking-[0.15em] text-slate-900 sm:text-[34px]">노무비 명세서</h1>
                 </div>
-                <div className="print-top-summary hidden min-w-[220px] border border-blue-300 text-[16px] leading-[1.35] sm:block">
-                  <div className="grid grid-cols-[68px_1fr]">
-                    <div className="border-r border-blue-200 bg-blue-50 px-2.5 py-2 font-semibold">인원수</div>
-                    <div className="px-2.5 py-2 text-right font-medium tabular-nums">{visibleRows.length}명</div>
+                <div className="print-top-summary hidden min-w-[220px] border border-blue-300 text-[16px] leading-[1.3] sm:block">
+                  <div className="grid min-h-[56px] grid-cols-[68px_1fr]">
+                    <div className="flex items-center border-r border-blue-200 bg-blue-50 px-2.5 py-2.5 font-semibold">인원수</div>
+                    <div className="flex items-center justify-end px-2.5 py-2.5 text-right font-medium tabular-nums">{visibleRows.length}명</div>
                   </div>
                 </div>
               </div>
 
               <div className="overflow-hidden border border-slate-300">
                 <div className="grid grid-cols-1 border-slate-300 md:grid-cols-2">
-                  <div className="flex items-center h-[80px] grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300 md:border-r">
-                    <div className="print-meta-label bg-blue-50 px-3 py-6 text-[16.5px] font-semibold leading-[1.6]">회사명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-6 text-[16.5px] leading-[1.6] break-keep">{resolvedCompanyName}</div>
+                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300 md:border-r">
+                    <div className="print-meta-label flex items-center bg-blue-50 px-3 py-3.5 text-[16.5px] font-semibold leading-[1.4]">회사명</div>
+                    <div className="print-meta-value flex min-w-0 items-center px-3 py-3.5 text-[16.5px] leading-[1.4] break-keep">{resolvedCompanyName}</div>
                   </div>
-                  <div className="flex items-center h-[80px] grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300">
-                    <div className="print-meta-label bg-blue-50 px-3 py-6 text-[16.5px] font-semibold leading-[1.6]">현장명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-6 text-[16.5px] leading-[1.6] break-keep">{resolvedSiteName}</div>
+                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300">
+                    <div className="print-meta-label flex items-center bg-blue-50 px-3 py-3.5 text-[16.5px] font-semibold leading-[1.4]">현장명</div>
+                    <div className="print-meta-value flex min-w-0 items-center px-3 py-3.5 text-[16.5px] leading-[1.4] break-keep">{resolvedSiteName}</div>
                   </div>
-                  <div className="flex items-center h-[80px] grid grid-cols-[112px_minmax(0,1fr)] md:border-r">
-                    <div className="print-meta-label bg-blue-50 px-3 py-6 text-[16.5px] font-semibold leading-[1.6]">기준월</div>
-                    <div className="print-meta-value min-w-0 px-3 py-6 text-[16.5px] leading-[1.6] break-keep">{selectedMonth || "-"}</div>
+                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)] md:border-r">
+                    <div className="print-meta-label flex items-center bg-blue-50 px-3 py-3.5 text-[16.5px] font-semibold leading-[1.4]">기준월</div>
+                    <div className="print-meta-value flex min-w-0 items-center px-3 py-3.5 text-[16.5px] leading-[1.4] break-keep">{selectedMonth || "-"}</div>
                   </div>
-                  <div className="flex items-center h-[80px] grid grid-cols-[112px_minmax(0,1fr)]">
-                    <div className="print-meta-label bg-blue-50 px-3 py-6 text-[16.5px] font-semibold leading-[1.6]">기간</div>
-                    <div className="print-meta-value min-w-0 px-3 py-6 text-[16.5px] leading-[1.6] break-keep">{monthPeriod.label}</div>
+                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)]">
+                    <div className="print-meta-label flex items-center bg-blue-50 px-3 py-3.5 text-[16.5px] font-semibold leading-[1.4]">기간</div>
+                    <div className="print-meta-value flex min-w-0 items-center px-3 py-3.5 text-[16.5px] leading-[1.4] break-keep">{monthPeriod.label}</div>
                   </div>
                 </div>
               </div>
@@ -2966,7 +2924,7 @@ export default function Page() {
                             ref={(element) => {
                               cellRefs.current[`${row.id}:note`] = element;
                             }}
-                            value={getRowAutoNoteMultiline(row)}
+                            value={getRowRemark(row)}
                             readOnly
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "note")}
                             placeholder="비고"
