@@ -17,15 +17,15 @@ export const FORM_DEDUCTION_COLUMNS = [
 
 export function buildLaborDayGrid(monthDates: string[]) {
   const top: DayGridCell[] = Array.from({ length: FORM_DAY_COLUMN_COUNT }, (_, index) => ({
-    date: monthDates[index] ?? null,
-    label: monthDates[index] ? String(index + 1) : "",
+    date: index < 15 ? monthDates[index] ?? null : null,
+    label: index < 15 && monthDates[index] ? String(index + 1) : "",
   }));
 
   const bottom: DayGridCell[] = Array.from({ length: FORM_DAY_COLUMN_COUNT }, (_, index) => {
-    const date = monthDates[index + FORM_DAY_COLUMN_COUNT] ?? null;
+    const date = monthDates[index + 15] ?? null;
     return {
       date,
-      label: date ? String(index + FORM_DAY_COLUMN_COUNT + 1) : "",
+      label: date ? String(index + 16) : "",
     };
   });
 

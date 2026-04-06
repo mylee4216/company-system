@@ -9,6 +9,7 @@ import {
   buildSnapshotNote,
   calculateInsurance,
   defaultRateConfig,
+  formatLaborRemarkLines,
   formatGongsu,
   getLaborRemark,
   loadDefaultRateConfig,
@@ -223,7 +224,7 @@ const TABLE_COLUMN_BASE_WIDTHS = {
   resident: 168,
   day: 38,
   total: 76,
-  unitPrice: 96,
+  unitPrice: 116,
   payment: 98,
   deduction: 78,
   netPay: 108,
@@ -1179,7 +1180,7 @@ export default function Page() {
         date,
         units: parseNumber(units),
       })),
-    ).text;
+    );
 
   const updateRow = (rowId: string, field: keyof LaborRow, value: string) => {
     setSaveSuccessMessage("");
@@ -2908,9 +2909,12 @@ export default function Page() {
                     <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15] whitespace-nowrap">주민등록번호</th>
                     <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15]">구분</th>
                     {dayGrid.top.map((cell, index) => (
-                      <th key={`day-head-${index + 1}`} className="print-day-header border-r border-slate-300 px-0 py-2.5 text-center text-[13px] font-semibold leading-[1.05] text-slate-700">
+                      <th
+                        key={`day-head-${index + 1}`}
+                        className={`print-day-header border-r border-slate-300 px-0 py-1.5 text-center text-[13px] font-semibold leading-[1.05] text-slate-700 ${index === 14 ? "border-r-2 border-r-slate-500" : ""}`}
+                      >
                         <div>{cell.label}</div>
-                        <div className="mt-1 text-[12px] font-medium text-slate-500">{dayGrid.bottom[index]?.label || ""}</div>
+                        <div className="mt-1 border-t border-slate-300 pt-1 text-[12px] font-medium text-slate-500">{dayGrid.bottom[index]?.label || ""}</div>
                       </th>
                     ))}
                     <th className="border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.15]">근로일수</th>
@@ -3002,7 +3006,7 @@ export default function Page() {
                           />
                         </td>
                         {dayGrid.top.map((cell, dayIndex) => (
-                          <td key={`${row.id}:top:${cell.date ?? dayIndex}`} className="screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                          <td key={`${row.id}:top:${cell.date ?? dayIndex}`} className={`screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center ${dayIndex === 14 ? "border-r-2 border-r-slate-500" : ""}`}>
                             {cell.date ? (
                             <input
                               ref={(element) => {
@@ -3077,7 +3081,7 @@ export default function Page() {
                             ref={(element) => {
                               cellRefs.current[`${row.id}:note`] = element;
                             }}
-                            value={getRowRemark(row)}
+                            value={formatLaborRemarkLines(getRowRemark(row)).text}
                             readOnly
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "note")}
                             placeholder="비고"
@@ -3093,7 +3097,7 @@ export default function Page() {
                       </tr>
                       <tr className="border-b border-slate-300 bg-slate-50/45">
                         {dayGrid.bottom.map((cell, dayIndex) => (
-                          <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} className="screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                          <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} className={`screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center ${dayIndex === 14 ? "border-r-2 border-r-slate-500" : ""}`}>
                             {cell.date ? (
                               <input
                                 ref={(element) => {
@@ -3124,7 +3128,7 @@ export default function Page() {
                       합계
                     </td>
                     <td
-                      className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900"
+                      className="print-summary-value border-r border-slate-300 px-2 py-3 text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900"
                       style={workUnitsDisplayCellStyle}
                     >
                       <span className="block text-right" style={workUnitsDisplayStyle}>{formatGongsu(totalWorkUnits) || "0.0"}</span>
@@ -3155,39 +3159,15 @@ export default function Page() {
               <option value="기타" />
             </datalist>
 
-            <footer className="border-t border-slate-300 px-3 py-3">
-                <div className="print-footer-grid grid gap-0 border border-slate-300 md:grid-cols-[1fr_0.9fr_0.95fr_0.95fr_0.95fr_1.1fr]">
-                <div className="print-summary-label border-b border-r border-slate-300 bg-blue-50 px-3 py-2 text-[16px] font-medium leading-[1.25] text-slate-700 md:border-b-0">하단 요약</div>
-                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-2 text-[16px] leading-[1.25] md:border-b-0">
-                  총 공수{" "}
-                  <span className="whitespace-nowrap float-right font-semibold tabular-nums text-right" style={workUnitsDisplayStyle}>
-                    {formatGongsu(totalWorkUnits) || "0.0"}
-                  </span>
-                </div>
-                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-2 text-[16px] leading-[1.25] md:border-b-0">
-                  총 지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
-                </div>
-                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-2 text-[16px] leading-[1.25] md:border-b-0">
-                  총 공제액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(insuranceTotals.totalDeduction)}</span>
-                </div>
-                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-2 text-[16px] leading-[1.25] md:border-b-0">
-                  총 실지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(insuranceTotals.netPay)}</span>
-                </div>
-                <div className="print-footer-guide print-summary-note px-3 py-2 text-[14px] leading-[1.35] text-slate-600">
-                  <span className="mb-1 block font-medium text-slate-700">입력 안내</span>
-                  <span className="block leading-6">Enter는 아래 행, Tab은 다음 칸으로 이동합니다. 날짜 칸도 동일하게 이동합니다.</span>
-                </div>
-              </div>
-              <div className="print-hidden mt-2 text-[15px] leading-7 text-slate-500">
-                <p>주민번호는 숫자만 입력하면 자동 포맷됩니다.</p>
-                <p>전화번호는 숫자만 입력하면 자동 포맷됩니다.</p>
-                <p>날짜 칸에 공수를 입력하면 총 공수와 지급액이 즉시 연동됩니다.</p>
-                <p>보험/세금 기준요율은 상단의 보험/세금 설정 버튼에서 별도 화면으로 관리합니다.</p>
-                {isLoading ? <p>기초 데이터를 불러오는 중입니다.</p> : null}
-                {isRecordsLoading ? <p>월별 저장 내역을 불러오는 중입니다.</p> : null}
-                {!isLoading && !baseStatementRows.length ? <p>선택한 조건에 기존 저장 데이터가 없어 새로 입력할 수 있습니다.</p> : null}
-              </div>
-            </footer>
+            <div className="print-hidden border-t border-slate-300 px-3 py-2 text-[14px] leading-6 text-slate-500">
+              <p>주민번호는 숫자만 입력하면 자동 포맷됩니다.</p>
+              <p>전화번호는 숫자만 입력하면 자동 포맷됩니다.</p>
+              <p>날짜 칸에 공수를 입력하면 총 공수와 지급액이 즉시 연동됩니다.</p>
+              <p>보험/세금 기준요율은 상단의 보험/세금 설정 버튼에서 별도 화면으로 관리합니다.</p>
+              {isLoading ? <p>기초 데이터를 불러오는 중입니다.</p> : null}
+              {isRecordsLoading ? <p>월별 저장 내역을 불러오는 중입니다.</p> : null}
+              {!isLoading && !baseStatementRows.length ? <p>선택한 조건에 기존 저장 데이터가 없어 새로 입력할 수 있습니다.</p> : null}
+            </div>
           </section>
         </div>
       </main>

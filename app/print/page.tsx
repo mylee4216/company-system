@@ -4,7 +4,7 @@ import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { buildLaborDayGrid, FORM_DAY_COLUMN_COUNT, FORM_DEDUCTION_COLUMNS } from "@/lib/labor-layout";
-import { calculateInsurance, formatGongsu, getLaborRemark, loadDefaultRateConfig, parseSnapshotNote } from "@/lib/labor";
+import { calculateInsurance, formatGongsu, formatLaborRemarkLines, getLaborRemark, loadDefaultRateConfig, parseSnapshotNote } from "@/lib/labor";
 import { supabase } from "@/lib/supabase";
 
 interface Company {
@@ -61,7 +61,6 @@ interface PrintRow {
   name: string;
   residentId: string;
   trade: string;
-  unitPrice: number;
   dailyWorkEntries: Record<string, string>;
   totalWorkUnits: number;
   grossAmount: number;
@@ -215,6 +214,7 @@ function PrintPageContent() {
     const daysInMonth = new Date(year, month, 0).getDate();
     return Array.from({ length: daysInMonth }, (_, index) => `${targetMonth}-${String(index + 1).padStart(2, "0")}`);
   }, [targetMonth]);
+
   const dayGrid = useMemo(() => buildLaborDayGrid(monthDates), [monthDates]);
 
   const statementRows = useMemo(() => {
@@ -234,19 +234,15 @@ function PrintPageContent() {
 
       const totalWorkUnits = record.total_work_units || snapshot?.total_work_units || 0;
       const grossAmount = record.gross_amount || snapshot?.gross_amount || 0;
-      const unitPrice =
-        snapshot?.unit_price ??
-        worker?.hourly_rate ??
-        (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
-      const note =
-        getLaborRemark(targetMonth, worker?.first_work_date || null, record.work_entries ?? []).text ||
-        snapshotMeta.note;
       const residentId =
         snapshot?.resident_number?.trim() ||
         getMonthlyRecordTextValue(record, "resident_number") ||
         worker?.resident_number ||
         "";
       const workedDays = getWorkedDaysCountFromEntries(record.work_entries, totalWorkUnits);
+      const note = formatLaborRemarkLines(
+        getLaborRemark(targetMonth, worker?.first_work_date || null, record.work_entries ?? []),
+      ).text;
 
       return {
         id: record.id,
@@ -257,7 +253,6 @@ function PrintPageContent() {
           getMonthlyRecordTextValue(record, "job_type") ||
           worker?.job_type ||
           "",
-        unitPrice: unitPrice || 0,
         dailyWorkEntries,
         totalWorkUnits,
         grossAmount,
@@ -356,7 +351,7 @@ function PrintPageContent() {
             <col key={`col-day-${index + 1}`} style={{ width: "24px" }} />
           ))}
           <col style={{ width: "54px" }} />
-          <col style={{ width: "70px" }} />
+          <col style={{ width: "84px" }} />
           {FORM_DEDUCTION_COLUMNS.map((column) => (
             <col key={column.key} style={{ width: "54px" }} />
           ))}
@@ -366,15 +361,14 @@ function PrintPageContent() {
         </colgroup>
         <thead>
           <tr style={{ backgroundColor: "#eef4ff" }}>
-            <th colSpan={6} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
-            <th colSpan={dayGrid.count} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
-            <th colSpan={2} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
-            <th colSpan={FORM_DEDUCTION_COLUMNS.length} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>차감<br />지급액</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>비고</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>구분</th>
+            <th colSpan={6} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
+            <th colSpan={dayGrid.count} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
+            <th colSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
+            <th colSpan={FORM_DEDUCTION_COLUMNS.length} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
+            <th style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>차감지급액</th>
+            <th style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>비고</th>
+            <th style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>구분</th>
           </tr>
-          <tr />
           <tr style={{ backgroundColor: "#f8fbff" }}>
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>번호</th>
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>직종</th>
@@ -383,12 +377,15 @@ function PrintPageContent() {
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>주민등록번호</th>
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>구분</th>
             {dayGrid.top.map((cell, index) => (
-              <th key={`day-${index + 1}`} style={{ border: "1px solid #000", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}>
+              <th
+                key={`day-${index + 1}`}
+                style={{ border: "1px solid #000", borderRightWidth: index === 14 ? "2px" : "1px", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}
+              >
                 <div>{cell.label}</div>
-                <div style={{ marginTop: "2px", color: "#64748b" }}>{dayGrid.bottom[index]?.label || ""}</div>
+                <div style={{ marginTop: "2px", paddingTop: "2px", borderTop: "1px solid #94a3b8", color: "#64748b" }}>{dayGrid.bottom[index]?.label || ""}</div>
               </th>
             ))}
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로<br />일수</th>
+            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로일수</th>
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>총액</th>
             {FORM_DEDUCTION_COLUMNS.map((column) => (
               <th key={column.key} style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.1 }}>
@@ -420,11 +417,11 @@ function PrintPageContent() {
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", whiteSpace: "nowrap" }}>{row.residentId}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.category}</td>
                   {dayGrid.top.map((cell, dayIndex) => (
-                    <td key={`${row.id}:top:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
+                    <td key={`${row.id}:top:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", borderRightWidth: dayIndex === 14 ? "2px" : "1px", textAlign: "center", verticalAlign: "middle" }}>
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
                     </td>
                   ))}
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{formatGongsu(row.totalWorkUnits) || "0.0"}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatGongsu(row.totalWorkUnits) || "0.0"}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatAmount(row.grossAmount)}</td>
                   {FORM_DEDUCTION_COLUMNS.map((column) => (
                     <td key={`${row.id}:${column.key}`} rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>
@@ -437,7 +434,7 @@ function PrintPageContent() {
                 </tr>
                 <tr style={{ height: "30px", backgroundColor: "#fcfdff" }}>
                   {dayGrid.bottom.map((cell, dayIndex) => (
-                    <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
+                    <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", borderRightWidth: dayIndex === 14 ? "2px" : "1px", textAlign: "center", verticalAlign: "middle" }}>
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
                     </td>
                   ))}
@@ -450,9 +447,9 @@ function PrintPageContent() {
           <tr style={{ backgroundColor: "#eef4ff", fontWeight: 700 }}>
             <td colSpan={6} style={{ border: "1px solid #000", textAlign: "center", padding: "6px 4px" }}>합계</td>
             {Array.from({ length: dayGrid.count }, (_, index) => (
-              <td key={`sum-day-${index + 1}`} style={{ border: "1px solid #000" }}></td>
+              <td key={`sum-day-${index + 1}`} style={{ border: "1px solid #000", borderRightWidth: index === 14 ? "2px" : "1px" }}></td>
             ))}
-            <td style={{ border: "1px solid #000", textAlign: "center" }}>{formatGongsu(totals.totalWorkUnits) || "0.0"}</td>
+            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatGongsu(totals.totalWorkUnits) || "0.0"}</td>
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.grossAmount)}</td>
             {FORM_DEDUCTION_COLUMNS.map((column) => (
               <td key={`sum-${column.key}`} style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>

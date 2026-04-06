@@ -17,6 +17,12 @@ export type LaborRemarkResult = {
   date: string;
 };
 
+export type LaborRemarkLines = {
+  title: string;
+  date: string;
+  text: string;
+};
+
 export type LaborDeductionBreakdown = {
   nationalPension: number;
   healthInsurance: number;
@@ -403,6 +409,24 @@ export function getLaborRemark(
   }
 
   return { text: "", source: "none", date: "" };
+}
+
+export function formatLaborRemarkLines(remark: LaborRemarkResult): LaborRemarkLines {
+  if (!remark.date) {
+    return {
+      title: "",
+      date: "",
+      text: "",
+    };
+  }
+
+  const title = remark.source === "previous_month" ? "전월첫근무일" : "최초근무일";
+
+  return {
+    title,
+    date: remark.date,
+    text: `${title}\n${remark.date}`,
+  };
 }
 
 export function calculateNationalPension(
