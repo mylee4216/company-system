@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 /**
  * 출력 전용 페이지 - 노무비명세표 양식
- * 
+ *
  * 특징:
  * - 입력 기능 없음 (출력/PDF만)
  * - URL 파라미터로 데이터 식별 (companyId, siteId, targetMonth)
@@ -58,15 +58,15 @@ type PrintLaborRow = {
   residentNumber: string;
   phone: string;
   jobType: string;
-  
+
   // 공수 정보
   dailyWorkEntries: Record<string, number | null>;
   totalWorkUnits: number;
-  
+
   // 금액 정보
   unitPrice: number;
   grossAmount: number;
-  
+
   // 공제 정보
   nationalPension: number;
   healthInsurance: number;
@@ -75,7 +75,7 @@ type PrintLaborRow = {
   incomeTax: number;
   localIncomeTax: number;
   otherDeductions: number;
-  
+
   // 최종 정산
   totalDeductions: number;
   netPayment: number;
@@ -91,7 +91,7 @@ type PrintPageState = {
   targetMonth: string;
 };
 
-export default function PrintPage() {
+function PrintPageContent() {
   const searchParams = useSearchParams();
   const companyId = searchParams.get("companyId");
   const siteId = searchParams.get("siteId");
@@ -205,6 +205,7 @@ export default function PrintPage() {
         }));
         return;
       }
+
       try {
         const parsedSiteId = parseInt(siteId);
         const parsedCompanyId = parseInt(companyId);
@@ -283,7 +284,7 @@ export default function PrintPage() {
             residentNumber: worker?.resident_number || "-",
             phone: worker?.phone || "-",
             jobType: worker?.job_type || "-",
-            
+
             // 공수 정보
             dailyWorkEntries: record.work_entries?.reduce((acc: Record<string, number | null>, entry: WorkEntry) => {
               if (entry.date) {
@@ -292,13 +293,13 @@ export default function PrintPage() {
               return acc;
             }, {}) || {},
             totalWorkUnits: record.total_work_units || 0,
-            
+
             // 금액 정보
-            unitPrice: record.work_entries?.length > 0 
+            unitPrice: record.work_entries?.length > 0
               ? (record.gross_amount / record.total_work_units) || 0
               : 0,
             grossAmount: record.gross_amount || 0,
-            
+
             // 공제 정보 (현재는 0으로 초기화, 나중에 확대)
             nationalPension: 0,
             healthInsurance: 0,
@@ -307,7 +308,7 @@ export default function PrintPage() {
             incomeTax: 0,
             localIncomeTax: 0,
             otherDeductions: 0,
-            
+
             // 최종 정산
             totalDeductions: 0,
             netPayment: record.gross_amount || 0,
@@ -623,5 +624,13 @@ export default function PrintPage() {
         </div>
       </main>
     </>
+  );
+}
+
+export default function PrintPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PrintPageContent />
+    </Suspense>
   );
 }
