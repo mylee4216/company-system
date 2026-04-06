@@ -64,11 +64,39 @@ interface LaborRow {
   category: string;
 }
 
+function getMonthLastDay(targetMonth: string) {
+  if (!/^[0-9]{4}-[0-9]{2}$/.test(targetMonth)) {
+    return 31;
+  }
+
+  const [year, month] = targetMonth.split("-").map(Number);
+  if (Number.isNaN(year) || Number.isNaN(month)) {
+    return 31;
+  }
+
+  return new Date(year, month, 0).getDate();
+}
+
+function getMonthPeriod(targetMonth: string) {
+  const lastDay = getMonthLastDay(targetMonth);
+  const startDate = `${targetMonth}-01`;
+  const endDate = `${targetMonth}-${String(lastDay).padStart(2, '0')}`;
+  return `${startDate} ~ ${endDate}`;
+}
+
 function PrintPageContent() {
   const searchParams = useSearchParams();
-  const year = searchParams?.get('year') || '2024';
-  const month = searchParams?.get('month') || '12';
+  const targetMonthParam = searchParams?.get('targetMonth');
+  const queryYear = searchParams?.get('year') || '2024';
+  const queryMonth = searchParams?.get('month') || '12';
+  const targetMonth = targetMonthParam || `${queryYear}-${queryMonth.padStart(2, '0')}`;
+  const [year, month] = targetMonth.split('-');
+  const normalizedYear = year || '2024';
+  const normalizedMonth = month?.padStart(2, '0') || '12';
   const siteId = searchParams?.get('siteId');
+  const monthPeriod = useMemo(() => getMonthPeriod(`${normalizedYear}-${normalizedMonth}`), [normalizedYear, normalizedMonth]);
+
+  console.log('Search params:', { targetMonth, normalizedYear, normalizedMonth, siteId });
 
   console.log('Search params:', { year, month, siteId });
 
@@ -148,13 +176,12 @@ function PrintPageContent() {
         }
 
         // 월별 기록 로드
-        const targetMonth = `${year}-${month.padStart(2, '0')}`;
-        console.log('Querying daily_worker_monthly_records with site_id:', parsedSiteId, 'target_month:', targetMonth);
+        console.log('Querying daily_worker_monthly_records with site_id:', parsedSiteId, 'target_month:', `${normalizedYear}-${normalizedMonth}`);
         const { data: records, error: recordsError } = await supabase
           .from('daily_worker_monthly_records')
           .select('*')
           .eq('site_id', parsedSiteId)
-          .eq('target_month', targetMonth);
+          .eq('target_month', `${normalizedYear}-${normalizedMonth}`);
 
         if (recordsError) {
           console.error('Records load error:', recordsError);
@@ -185,7 +212,7 @@ function PrintPageContent() {
     };
 
     loadData();
-  }, [searchParams, year, month, siteId]);
+  }, [targetMonth, siteId]);
 
   // 항상 최상단에서 Hook 호출
   const statementRows = useMemo(() => {
@@ -237,8 +264,8 @@ function PrintPageContent() {
   // 날짜별 공수 계산을 위한 날짜 목록
   const monthDates = useMemo(() => {
     try {
-      const parsedYear = parseInt(String(year));
-      const parsedMonth = parseInt(String(month));
+      const parsedYear = parseInt(String(normalizedYear));
+      const parsedMonth = parseInt(String(normalizedMonth));
       if (isNaN(parsedYear) || isNaN(parsedMonth)) {
         return Array.from({ length: 31 }, (_, i) => `2024-12-${String(i + 1).padStart(2, '0')}`);
       }
@@ -251,7 +278,7 @@ function PrintPageContent() {
       console.error('Error creating month dates:', err);
       return Array.from({ length: 31 }, (_, i) => `2024-12-${String(i + 1).padStart(2, '0')}`);
     }
-  }, [year, month]);
+  }, [normalizedYear, normalizedMonth]);
 
   console.log('Statement rows:', statementRows.length, statementRows[0]);
 
@@ -312,7 +339,7 @@ function PrintPageContent() {
             </tr>
             <tr>
               <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold', textAlign: 'center' }}>기간</td>
-              <td style={{ border: '1px solid #000', padding: '8px' }}>{year}년 {month}월</td>
+              <td style={{ border: '1px solid #000', padding: '8px' }}>{monthPeriod}</td>
             </tr>
           </tbody>
         </table>
