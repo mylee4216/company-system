@@ -4,13 +4,13 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type 
 import * as XLSX from "xlsx";
 
 import { buildLaborDayGrid, FORM_DAY_COLUMN_COUNT, FORM_DEDUCTION_COLUMNS } from "@/lib/labor-layout";
+import { LABOR_RATE_CONFIG_STORAGE_KEY } from "@/lib/labor-rate-ui";
 import {
   buildSnapshotNote,
   calculateInsurance,
   defaultRateConfig,
   formatGongsu,
   getLaborRemark,
-  getRateFormulaSummary,
   loadDefaultRateConfig,
   parseSnapshotNote,
   serializeRateConfig,
@@ -159,53 +159,8 @@ const CATEGORY_FILTER_OPTIONS = [ALL_CATEGORIES_LABEL, "직영", "용역", "기�
 const MAX_DAY_COLUMNS = 31;
 const APP_PASSWORD = "leejuu1996!";
 const AUTH_STORAGE_KEY = "company-system-authenticated";
-const RATE_CONFIG_STORAGE_KEY = "company-system-labor-rate-config";
 const SCREEN_UI_SCALE = 0.68;
 const isBrowser = () => typeof window !== "undefined";
-
-const RATE_TABLE_SECTIONS: Array<{
-  title: string;
-  fields: Array<{ key: keyof LaborRateConfig; label: string; suffix?: string; step?: string }>;
-}> = [
-  {
-    title: "소득세",
-    fields: [
-      { key: "incomeTaxRate1", label: "요율1", suffix: "%", step: "0.01" },
-      { key: "incomeTaxRate2", label: "요율2", suffix: "%", step: "0.01" },
-      { key: "incomeTaxNonTaxableBase", label: "비과세 기준액", suffix: "원", step: "1" },
-      { key: "residentTaxRate", label: "주민세 요율", suffix: "%", step: "0.01" },
-    ],
-  },
-  {
-    title: "건강보험",
-    fields: [{ key: "healthRate", label: "요율", suffix: "%", step: "0.001" }],
-  },
-  {
-    title: "노인장기요양보험",
-    fields: [{ key: "longTermCareRate", label: "요율", suffix: "%", step: "0.01" }],
-  },
-  {
-    title: "국민연금",
-    fields: [
-      { key: "pensionRate", label: "요율", suffix: "%", step: "0.01" },
-      { key: "pensionApplyMinDays", label: "적용 근무일수 기준", suffix: "일", step: "1" },
-      { key: "pensionNonTaxableBase", label: "비과세 기준액", suffix: "원", step: "1" },
-      { key: "pensionMinAmount", label: "하한액", suffix: "원", step: "1" },
-      { key: "pensionMaxAmount", label: "상한액", suffix: "원", step: "1" },
-    ],
-  },
-  {
-    title: "고용보험",
-    fields: [{ key: "employmentRate", label: "요율", suffix: "%", step: "0.01" }],
-  },
-];
-
-const RATE_OPTION_FIELDS: Array<{ key: keyof LaborRateConfig; label: string; description: string }> = [
-  { key: "truncateIncomeTaxUnderTen", label: "소득세 10원 미만 절사", description: "소득세 계산 후 10원 미만을 절사합니다." },
-  { key: "applyEmploymentForSenior65", label: "65세 이상 고용보험 적용", description: "주민번호로 65세 이상을 판별해 고용보험 적용 여부를 결정합니다." },
-  { key: "applyEmploymentForForeigners", label: "외국인 고용보험 적용", description: "외국인 등록번호 패턴인 경우 고용보험 적용 여부를 결정합니다." },
-  { key: "applyResidentTaxForForeigners", label: "외국인 지방소득세 적용", description: "외국인 등록번호 패턴인 경우 주민세 적용 여부를 결정합니다." },
-];
 
 function getStoredAuthStatus(): boolean {
   if (!isBrowser()) {
@@ -863,6 +818,20 @@ export default function Page() {
   }, [rateConfig]);
 
   useEffect(() => {
+    const syncRateConfig = () => {
+      setRateConfig(getStoredRateConfig());
+    };
+
+    window.addEventListener("focus", syncRateConfig);
+    window.addEventListener("storage", syncRateConfig);
+
+    return () => {
+      window.removeEventListener("focus", syncRateConfig);
+      window.removeEventListener("storage", syncRateConfig);
+    };
+  }, []);
+
+  useEffect(() => {
     if (authStatus !== "authenticated") {
       setIsLoading(false);
       return;
@@ -1145,28 +1114,6 @@ export default function Page() {
 
     return rows.filter((row) => getCategoryFilterValue(row.category) === selectedCategoryFilter);
   }, [rows, selectedCategoryFilter]);
-
-  const rateFormulaRows = useMemo(() => getRateFormulaSummary(rateConfig), [rateConfig]);
-
-  const updateRateNumberField = (field: keyof LaborRateConfig, rawValue: string) => {
-    const nextValue = rawValue.trim() === "" ? 0 : Number(rawValue);
-
-    if (!Number.isFinite(nextValue)) {
-      return;
-    }
-
-    setRateConfig((currentConfig) => ({
-      ...currentConfig,
-      [field]: nextValue,
-    }));
-  };
-
-  const updateRateToggleField = (field: keyof LaborRateConfig, checked: boolean) => {
-    setRateConfig((currentConfig) => ({
-      ...currentConfig,
-      [field]: checked,
-    }));
-  };
 
   const totalWorkUnits = useMemo(
     () => visibleRows.reduce((sum, row) => sum + getEffectiveWorkUnits(row), 0),
@@ -1908,6 +1855,10 @@ export default function Page() {
     window.open(`/print?${params.toString()}`, "_blank");
   };
 
+  const handleOpenRateSettings = () => {
+    window.open("/settings/rates", "_blank", "noopener,noreferrer");
+  };
+
   const handleExcelUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
@@ -2028,7 +1979,7 @@ export default function Page() {
 
   const sheetInputClass =
     "h-10 w-full min-w-0 border-0 bg-transparent px-1 text-center text-[13px] leading-[1.3] outline-none transition focus:bg-blue-50/50";
-  const sheetNumericClass = `${sheetInputClass} whitespace-nowrap tabular-nums`;
+  const sheetNumericClass = "h-10 w-full min-w-0 whitespace-nowrap border-0 bg-transparent px-1 text-right text-[13px] leading-[1.3] tabular-nums outline-none transition focus:bg-blue-50/50";
   const sheetResidentInputClass =
     "block h-10 w-full min-w-[126px] border-0 bg-transparent px-1 py-[7px] text-center text-[12.5px] leading-[1.15] tracking-[-0.02em] whitespace-nowrap tabular-nums outline-none transition focus:bg-blue-50/50";
   const sheetNoteTextareaClass =
@@ -2836,6 +2787,13 @@ export default function Page() {
               </button>
               <button
                 type="button"
+                onClick={handleOpenRateSettings}
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-slate-500 bg-white px-3.5 text-[17px] leading-none font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                보험/세금 설정
+              </button>
+              <button
+                type="button"
                 onClick={handlePrint}
                 className="screen-control-button inline-flex h-12 items-center justify-center border border-blue-700 bg-white px-3.5 text-[17px] leading-none font-medium text-blue-700 transition hover:bg-blue-50"
               >
@@ -3056,8 +3014,8 @@ export default function Page() {
                             ) : null}
                           </td>
                         ))}
-                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center">
-                          <div className="flex flex-col items-center justify-center gap-0.5">
+                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-right">
+                          <div className="flex flex-col items-end justify-center gap-0.5">
                             <input
                               ref={(element) => {
                                 cellRefs.current[`${row.id}:workUnits`] = element;
@@ -3075,10 +3033,10 @@ export default function Page() {
                               className={`${sheetNumericClass} ${rowHasDailyEntries ? "text-stone-500" : ""}`}
                               style={{ fontSize: "16px", fontWeight: "600" }}
                             />
-                            {rowHasDailyEntries ? <p className="text-center text-[13.5px] leading-[1.25] text-stone-400">일자합계</p> : null}
+                            {rowHasDailyEntries ? <p className="text-right text-[13px] leading-[1.2] text-stone-400">일자합계</p> : null}
                           </div>
                         </td>
-                        <td rowSpan={2} className="print-cell-unit-price print-cell-number border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-unit-price print-cell-number border-r border-slate-300 px-0.5 py-2 align-middle text-right">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
@@ -3095,15 +3053,15 @@ export default function Page() {
                             className={`${sheetNumericClass} px-0.5 text-[16px]`}
                           />
                         </td>
-                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 bg-blue-50 px-2 py-2 align-middle text-center text-[16.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 bg-blue-50 px-2 py-2 align-middle text-right text-[16.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
                         {FORM_DEDUCTION_COLUMNS.map((column) => (
-                          <td key={`${row.id}:${column.key}`} rowSpan={2} className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
+                          <td key={`${row.id}:${column.key}`} rowSpan={2} className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-right text-[15px] leading-[1.3] tabular-nums text-slate-700">
                             {formatCurrency(insurance[column.key])}
                           </td>
                         ))}
-                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 bg-emerald-50 px-1 py-2 align-middle text-center text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 bg-emerald-50 px-1 py-2 align-middle text-right text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(insurance.netPay)}
                         </td>
                         <td rowSpan={2} className="print-cell-note border-r border-slate-300 px-0.5 py-2 align-middle text-center">
@@ -3161,20 +3119,20 @@ export default function Page() {
                       className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900"
                       style={workUnitsDisplayCellStyle}
                     >
-                      <span style={workUnitsDisplayStyle}>{formatGongsu(totalWorkUnits) || "0.0"}</span>
+                      <span className="block text-right" style={workUnitsDisplayStyle}>{formatGongsu(totalWorkUnits) || "0.0"}</span>
                     </td>
                     <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-500">
                       -
                     </td>
-                    <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
                     {FORM_DEDUCTION_COLUMNS.map((column) => (
-                      <td key={`total-${column.key}`} className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                      <td key={`total-${column.key}`} className="print-summary-value border-r border-slate-300 px-1 py-3 text-right text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                         {formatCurrency(insuranceTotals[column.key])}
                       </td>
                     ))}
-                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-right text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(insuranceTotals.netPay)}
                     </td>
                     <td className="print-note-summary border-r border-slate-300 px-2 py-2"></td>
@@ -3190,24 +3148,24 @@ export default function Page() {
             </datalist>
 
             <footer className="border-t border-slate-300 px-3 py-3">
-              <div className="print-footer-grid grid gap-0 border border-slate-300 md:grid-cols-[1.05fr_0.85fr_0.95fr_0.95fr_0.95fr_1.15fr]">
-                <div className="print-summary-label border-b border-r border-slate-300 bg-blue-50 px-3 py-3 text-[17px] font-medium leading-[1.35] text-slate-700 md:border-b-0">하단 요약</div>
-                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
+                <div className="print-footer-grid grid gap-0 border border-slate-300 md:grid-cols-[1fr_0.9fr_0.95fr_0.95fr_0.95fr_1.1fr]">
+                <div className="print-summary-label border-b border-r border-slate-300 bg-blue-50 px-3 py-2 text-[16px] font-medium leading-[1.25] text-slate-700 md:border-b-0">하단 요약</div>
+                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-2 text-[16px] leading-[1.25] md:border-b-0">
                   총 공수{" "}
-                  <span className="whitespace-nowrap float-right font-semibold tabular-nums" style={workUnitsDisplayStyle}>
+                  <span className="whitespace-nowrap float-right font-semibold tabular-nums text-right" style={workUnitsDisplayStyle}>
                     {formatGongsu(totalWorkUnits) || "0.0"}
                   </span>
                 </div>
-                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
+                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-2 text-[16px] leading-[1.25] md:border-b-0">
                   총 지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
                 </div>
-                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
+                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-2 text-[16px] leading-[1.25] md:border-b-0">
                   총 공제액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(insuranceTotals.totalDeduction)}</span>
                 </div>
-                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
+                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-2 text-[16px] leading-[1.25] md:border-b-0">
                   총 실지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(insuranceTotals.netPay)}</span>
                 </div>
-                <div className="print-footer-guide print-summary-note px-3 py-3 text-[16px] leading-[1.45] text-slate-600">
+                <div className="print-footer-guide print-summary-note px-3 py-2 text-[14px] leading-[1.35] text-slate-600">
                   <span className="mb-1 block font-medium text-slate-700">입력 안내</span>
                   <span className="block leading-6">Enter는 아래 행, Tab은 다음 칸으로 이동합니다. 날짜 칸도 동일하게 이동합니다.</span>
                 </div>
@@ -3216,131 +3174,12 @@ export default function Page() {
                 <p>주민번호는 숫자만 입력하면 자동 포맷됩니다.</p>
                 <p>전화번호는 숫자만 입력하면 자동 포맷됩니다.</p>
                 <p>날짜 칸에 공수를 입력하면 총 공수와 지급액이 즉시 연동됩니다.</p>
+                <p>보험/세금 기준요율은 상단의 보험/세금 설정 버튼에서 별도 화면으로 관리합니다.</p>
                 {isLoading ? <p>기초 데이터를 불러오는 중입니다.</p> : null}
                 {isRecordsLoading ? <p>월별 저장 내역을 불러오는 중입니다.</p> : null}
                 {!isLoading && !baseStatementRows.length ? <p>선택한 조건에 기존 저장 데이터가 없어 새로 입력할 수 있습니다.</p> : null}
               </div>
             </footer>
-
-            <details className="mt-4 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm" open>
-              <summary className="flex cursor-pointer list-none items-center justify-between bg-slate-50 px-4 py-3 text-[16px] font-semibold text-slate-800">
-                <span>보험/세금 설정</span>
-                <span className="text-[13px] font-medium text-slate-500">입력값이 즉시 입력표와 출력표 계산에 반영됩니다.</span>
-              </summary>
-              <div className="border-t border-slate-200 px-4 py-4">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-[14px] leading-[1.5] text-slate-600">
-                    기준요율표는 현재 브라우저에 저장되고, 출력 화면으로도 같은 설정값이 전달됩니다.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRateConfig(defaultRateConfig)}
-                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50"
-                  >
-                    기본값으로 되돌리기
-                  </button>
-                </div>
-
-                <div className="grid gap-4 xl:grid-cols-[1.2fr_0.95fr]">
-                  <section className="overflow-hidden rounded-xl border border-slate-300 bg-white">
-                    <div className="border-b border-slate-200 bg-blue-50 px-4 py-3">
-                      <h3 className="text-[16px] font-semibold text-slate-800">기준요율표</h3>
-                      <p className="mt-1 text-[13px] leading-[1.5] text-slate-600">요율은 % 숫자만 입력하고, 금액 기준은 원 단위로 바로 입력합니다.</p>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse text-[14px] leading-[1.45]">
-                        <thead className="bg-slate-50 text-slate-700">
-                          <tr>
-                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">구분</th>
-                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">항목</th>
-                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">기준값</th>
-                            <th className="border-b border-slate-200 px-3 py-2 text-left font-semibold">단위</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {RATE_TABLE_SECTIONS.map((section) =>
-                            section.fields.map((field, fieldIndex) => (
-                              <tr key={`${section.title}-${String(field.key)}`} className="odd:bg-white even:bg-slate-50/40">
-                                {fieldIndex === 0 ? (
-                                  <th
-                                    rowSpan={section.fields.length}
-                                    className="border-b border-r border-slate-200 bg-slate-50 px-3 py-2 text-left align-top font-semibold text-slate-700"
-                                  >
-                                    {section.title}
-                                  </th>
-                                ) : null}
-                                <td className="border-b border-r border-slate-200 px-3 py-2 text-slate-700">{field.label}</td>
-                                <td className="border-b border-r border-slate-200 px-3 py-2">
-                                  <input
-                                    type="number"
-                                    inputMode="decimal"
-                                    step={field.step ?? "0.01"}
-                                    value={String(rateConfig[field.key] as number)}
-                                    onChange={(event) => updateRateNumberField(field.key, event.target.value)}
-                                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-right font-medium text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                                  />
-                                </td>
-                                <td className="border-b border-slate-200 px-3 py-2 text-slate-500">{field.suffix ?? "-"}</td>
-                              </tr>
-                            )),
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="border-t border-slate-200 px-4 py-4">
-                      <h4 className="mb-3 text-[15px] font-semibold text-slate-800">추가 적용 옵션</h4>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        {RATE_OPTION_FIELDS.map((option) => (
-                          <label
-                            key={String(option.key)}
-                            className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-3"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={Boolean(rateConfig[option.key])}
-                              onChange={(event) => updateRateToggleField(option.key, event.target.checked)}
-                              className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span>
-                              <span className="block text-[14px] font-medium text-slate-800">{option.label}</span>
-                              <span className="mt-1 block text-[12.5px] leading-[1.45] text-slate-500">{option.description}</span>
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="overflow-hidden rounded-xl border border-slate-300 bg-white">
-                    <div className="border-b border-slate-200 bg-blue-50 px-4 py-3">
-                      <h3 className="text-[16px] font-semibold text-slate-800">계산식 요약표</h3>
-                      <p className="mt-1 text-[13px] leading-[1.5] text-slate-600">현재 설정값을 기준으로 어떤 공식이 적용되는지 한눈에 볼 수 있습니다.</p>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse text-[13.5px] leading-[1.5]">
-                        <thead className="bg-slate-50 text-slate-700">
-                          <tr>
-                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">항목</th>
-                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">계산식</th>
-                            <th className="border-b border-slate-200 px-3 py-2 text-left font-semibold">비고</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rateFormulaRows.map((row) => (
-                            <tr key={row.label} className="odd:bg-white even:bg-slate-50/40">
-                              <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold text-slate-700">{row.label}</th>
-                              <td className="border-b border-r border-slate-200 px-3 py-2 font-medium text-slate-800">{row.formula}</td>
-                              <td className="border-b border-slate-200 px-3 py-2 text-slate-500">{row.note}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                </div>
-              </div>
-            </details>
           </section>
         </div>
       </main>
