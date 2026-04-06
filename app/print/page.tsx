@@ -51,10 +51,24 @@ interface DailyWorkerMonthlyRecord {
   gross_amount: number;
 }
 
-interface PrintPageContentProps {}
+interface LaborRow {
+  id: string;
+  name: string;
+  residentId: string;
+  trade: string;
+  unitPrice: number;
+  dailyWorkEntries: Record<string, string>;
+  totalWorkUnits: number;
+  grossAmount: number;
+  note: string;
+  category: string;
+}
 
-function PrintPageContent({}: PrintPageContentProps) {
+function PrintPageContent() {
   const searchParams = useSearchParams();
+  const year = searchParams.get('year') || '2024';
+  const month = searchParams.get('month') || '12';
+
   const [data, setData] = useState<{
     company: Company | null;
     site: Site | null;
@@ -75,15 +89,10 @@ function PrintPageContent({}: PrintPageContentProps) {
         setIsLoading(true);
         setError(null);
 
-        const companyId = searchParams.get('companyId');
         const siteId = searchParams.get('siteId');
-        const targetMonth = searchParams.get('targetMonth');
-
-        console.log('Search params:', { companyId, siteId, targetMonth });
-
-        if (!companyId || !siteId || !targetMonth) {
-          console.log('Missing required params, using sample data');
-          // 파라미터 없으면 샘플 데이터 사용
+        if (!siteId) {
+          console.warn('siteId 파라미터가 없어 샘플 데이터를 사용합니다');
+          // siteId 없으면 샘플 데이터 사용
           setData({
             company: {
               id: 1,
@@ -131,29 +140,15 @@ function PrintPageContent({}: PrintPageContentProps) {
           return;
         }
 
-        const parsedCompanyId = parseInt(companyId);
         const parsedSiteId = parseInt(siteId);
-
-        if (isNaN(parsedCompanyId) || isNaN(parsedSiteId)) {
-          throw new Error('잘못된 파라미터 형식입니다');
+        if (isNaN(parsedSiteId)) {
+          throw new Error('잘못된 siteId 파라미터 형식입니다');
         }
 
-        // 회사 정보 로드
-        const { data: company, error: companyError } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('id', parsedCompanyId)
-          .single();
-
-        if (companyError) {
-          console.error('Company load error:', companyError);
-          throw new Error(`회사 정보 조회 실패: ${companyError.message}`);
-        }
-
-        // 현장 정보 로드
-        const { data: site, error: siteError } = await supabase
+        // 현장 정보 및 회사 정보 로드
+        const { data: siteData, error: siteError } = await supabase
           .from('sites')
-          .select('*')
+          .select('*, companies(*)')
           .eq('id', parsedSiteId)
           .single();
 
@@ -166,7 +161,7 @@ function PrintPageContent({}: PrintPageContentProps) {
         const { data: workers, error: workersError } = await supabase
           .from('daily_workers')
           .select('*')
-          .eq('company_id', parsedCompanyId);
+          .eq('site_id', parsedSiteId);
 
         if (workersError) {
           console.error('Workers load error:', workersError);
@@ -174,6 +169,7 @@ function PrintPageContent({}: PrintPageContentProps) {
         }
 
         // 월별 기록 로드
+        const targetMonth = `${year}-${month.padStart(2, '0')}`;
         const { data: records, error: recordsError } = await supabase
           .from('daily_worker_monthly_records')
           .select('*')
@@ -185,17 +181,16 @@ function PrintPageContent({}: PrintPageContentProps) {
           throw new Error(`기록 조회 실패: ${recordsError.message}`);
         }
 
-        console.log('Loaded data:', { 
-          company, 
-          site, 
-          workers: workers?.length, 
-          records: records?.length,
-          recordsData: records 
+        console.log('Loaded data:', {
+          company: siteData.companies,
+          site: siteData,
+          workers: workers?.length,
+          records: records?.length
         });
 
         setData({
-          company,
-          site,
+          company: siteData.companies || null,
+          site: siteData,
           workers: workers || [],
           records: records || [],
         });
@@ -253,55 +248,71 @@ function PrintPageContent({}: PrintPageContentProps) {
     };
 
     loadData();
-  }, [searchParams]);
+  }, [searchParams, year, month]);
 
   if (isLoading) {
-    return <div>데이터를 불러오는 중...</div>;
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        데이터를 불러오는 중...
+      </div>
+    );
   }
 
   if (error && !data.company) {
-    return <div>에러: {error}</div>;
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+        <h2>출력 데이터를 불러오지 못했습니다</h2>
+        <p>{error}</p>
+        <p>콘솔에서 자세한 오류 정보를 확인하세요.</p>
+      </div>
+    );
   }
-
-  const targetMonth = searchParams.get('targetMonth') || '2024-04';
-  const [year, month] = targetMonth.split('-');
 
   // 메인 페이지와 동일한 로직으로 행 데이터 생성
   const statementRows = useMemo(() => {
-    const workerMap = new Map(data.workers.map((worker) => [worker.id, worker]));
+    try {
+      if (!data.workers || !data.records) {
+        console.log('No data available for statement rows');
+        return [];
+      }
 
-    return data.records.map((record) => {
-      const workerId = record.daily_worker_id;
-      const worker = workerId ? workerMap.get(workerId) : undefined;
+      const workerMap = new Map(data.workers.map((worker) => [worker.id, worker]));
 
-      // work_entries에서 일별 공수 계산
-      const dailyWorkEntries: { [date: string]: string } = {};
-      record.work_entries?.forEach(entry => {
-        if (entry.date && entry.units && entry.units > 0) {
-          dailyWorkEntries[entry.date] = String(entry.units);
+      return data.records.map((record) => {
+        const workerId = record.daily_worker_id;
+        const worker = workerId ? workerMap.get(workerId) : undefined;
+
+        // work_entries에서 일별 공수 계산
+        const dailyWorkEntries: { [date: string]: string } = {};
+        if (record.work_entries && Array.isArray(record.work_entries)) {
+          record.work_entries.forEach(entry => {
+            if (entry.date && entry.units !== undefined && entry.units > 0) {
+              dailyWorkEntries[entry.date] = String(entry.units);
+            }
+          });
         }
+
+        const totalWorkUnits = record.total_work_units || 0;
+        const grossAmount = record.gross_amount || 0;
+        const unitPrice = worker?.hourly_rate || (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
+
+        return {
+          id: record.id,
+          name: worker?.name || `근로자 #${workerId || "-"}`,
+          residentId: worker?.resident_number || "",
+          trade: worker?.job_type || "",
+          unitPrice: unitPrice || 0,
+          dailyWorkEntries,
+          totalWorkUnits,
+          grossAmount,
+          note: "",
+          category: "",
+        };
       });
-
-      const totalWorkUnits = record.total_work_units || 0;
-      const grossAmount = record.gross_amount || 0;
-      const unitPrice = worker?.hourly_rate || (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
-
-      return {
-        id: record.id,
-        workerId,
-        worker,
-        name: worker?.name || `근로자 #${workerId || "-"}`,
-        residentId: worker?.resident_number || "",
-        phone: worker?.phone || "",
-        trade: worker?.job_type || "",
-        unitPrice,
-        totalWorkUnits,
-        grossAmount,
-        dailyWorkEntries,
-        note: "",
-        category: "",
-      };
-    });
+    } catch (err) {
+      console.error('Error creating statement rows:', err);
+      return [];
+    }
   }, [data.workers, data.records]);
 
   console.log('Statement rows:', statementRows.length, statementRows[0]);
@@ -335,11 +346,11 @@ function PrintPageContent({}: PrintPageContentProps) {
           <tbody>
             <tr>
               <td style={{ border: '1px solid #000', padding: '8px', width: '20%', fontWeight: 'bold', textAlign: 'center' }}>사업장명</td>
-              <td style={{ border: '1px solid #000', padding: '8px' }}>{data.company?.name}</td>
+              <td style={{ border: '1px solid #000', padding: '8px' }}>{data.company?.name || '정보 없음'}</td>
             </tr>
             <tr>
               <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold', textAlign: 'center' }}>현장명</td>
-              <td style={{ border: '1px solid #000', padding: '8px' }}>{data.site?.name}</td>
+              <td style={{ border: '1px solid #000', padding: '8px' }}>{data.site?.name || '정보 없음'}</td>
             </tr>
             <tr>
               <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold', textAlign: 'center' }}>기간</td>
@@ -406,10 +417,24 @@ function PrintPageContent({}: PrintPageContentProps) {
               <td key={`total-${Math.random()}`} style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}></td>
             ))}
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>
-              {statementRows.reduce((sum, row) => sum + row.totalWorkUnits, 0)}
+              {(() => {
+                try {
+                  return statementRows.reduce((sum, row) => sum + (row.totalWorkUnits || 0), 0);
+                } catch (err) {
+                  console.error('Error calculating total work units:', err);
+                  return 0;
+                }
+              })()}
             </td>
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>
-              {statementRows.reduce((sum, row) => sum + row.grossAmount, 0).toLocaleString()}
+              {(() => {
+                try {
+                  return statementRows.reduce((sum, row) => sum + (row.grossAmount || 0), 0).toLocaleString();
+                } catch (err) {
+                  console.error('Error calculating total gross amount:', err);
+                  return '0';
+                }
+              })()}
             </td>
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}></td>
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{statementRows.length}명</td>
