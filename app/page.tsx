@@ -2887,6 +2887,7 @@ export default function Page() {
                               placeholder="0"
                               readOnly={rowHasDailyEntries}
                               className={`${sheetNumericClass} ${rowHasDailyEntries ? "text-stone-500" : ""}`}
+                              style={{ fontSize: "16px", fontWeight: "600" }}
                             />
                             {rowHasDailyEntries ? <p className="text-center text-[13.5px] leading-[1.25] text-stone-400">일자합계</p> : null}
                           </div>
