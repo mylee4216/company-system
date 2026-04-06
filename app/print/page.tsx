@@ -256,12 +256,28 @@ function PrintPageContent() {
 
   // 날짜별 공수 계산을 위한 날짜 목록
   const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month, 0).getDate();
+    try {
+      const parsedYear = parseInt(String(year));
+      const parsedMonth = parseInt(String(month));
+      if (isNaN(parsedYear) || isNaN(parsedMonth)) return 31;
+      return new Date(parsedYear, parsedMonth, 0).getDate();
+    } catch (err) {
+      console.error('Error calculating days in month:', err);
+      return 31;
+    }
   };
-  const daysInMonth = getDaysInMonth(parseInt(year), parseInt(month));
+  const daysInMonth = getDaysInMonth(parseInt(String(year)), parseInt(String(month)));
   const monthDates = Array.from({ length: daysInMonth }, (_, i) => {
-    const date = new Date(parseInt(year), parseInt(month) - 1, i + 1);
-    return date.toISOString().split('T')[0];
+    try {
+      const parsedYear = parseInt(String(year));
+      const parsedMonth = parseInt(String(month));
+      if (isNaN(parsedYear) || isNaN(parsedMonth)) return `2024-12-${String(i + 1).padStart(2, '0')}`;
+      const date = new Date(parsedYear, parsedMonth - 1, i + 1);
+      return date.toISOString().split('T')[0];
+    } catch (err) {
+      console.error('Error creating date:', err);
+      return `2024-12-${String(i + 1).padStart(2, '0')}`;
+    }
   });
 
   return (
@@ -308,7 +324,15 @@ function PrintPageContent() {
             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>단가</th>
             {monthDates.map(date => (
               <th key={date} style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: '9px', fontWeight: 'bold' }}>
-                {new Date(date).getDate()}
+                {(() => {
+                  try {
+                    const dateObj = new Date(date);
+                    return isNaN(dateObj.getTime()) ? date.split('-')[2] : dateObj.getDate();
+                  } catch (err) {
+                    console.error('Error parsing date for header:', err);
+                    return date.split('-')[2] || '1';
+                  }
+                })()}
               </th>
             ))}
             <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>총공수</th>
@@ -318,7 +342,7 @@ function PrintPageContent() {
           </tr>
         </thead>
         <tbody>
-          {statementRows.length === 0 ? (
+          {(!Array.isArray(statementRows) || statementRows.length === 0) ? (
             <tr>
               <td colSpan={5 + monthDates.length + 5} style={{ border: '1px solid #000', padding: '20px', textAlign: 'center', fontSize: '12px', color: '#666' }}>
                 근무내역이 없습니다
@@ -328,22 +352,51 @@ function PrintPageContent() {
             statementRows.map((row, index) => (
               <tr key={row.id}>
                 <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{index + 1}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{row.name}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: '9px' }}>{row.residentId}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{row.trade}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{row.unitPrice.toLocaleString()}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{row?.name || ''}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: '9px' }}>{row?.residentId || ''}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{row?.trade || ''}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>
+                  {(() => {
+                    try {
+                      const price = row?.unitPrice || 0;
+                      return typeof price === 'number' ? price.toLocaleString() : '0';
+                    } catch (err) {
+                      console.error('Error formatting unit price:', err);
+                      return '0';
+                    }
+                  })()}
+                </td>
                 {monthDates.map(date => {
-                  const units = parseFloat(row.dailyWorkEntries[date] || '0');
+                  const units = (() => {
+                    try {
+                      const entry = row?.dailyWorkEntries?.[date] || '0';
+                      const parsed = parseFloat(String(entry));
+                      return isNaN(parsed) ? 0 : parsed;
+                    } catch (err) {
+                      console.error('Error parsing daily work units:', err);
+                      return 0;
+                    }
+                  })();
                   return (
                     <td key={date} style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>
                       {units > 0 ? units : ''}
                     </td>
                   );
                 })}
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{row.totalWorkUnits}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{row.grossAmount.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{row.note}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{row.category}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{row?.totalWorkUnits || 0}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>
+                  {(() => {
+                    try {
+                      const amount = row?.grossAmount || 0;
+                      return typeof amount === 'number' ? amount.toLocaleString() : '0';
+                    } catch (err) {
+                      console.error('Error formatting gross amount:', err);
+                      return '0';
+                    }
+                  })()}
+                </td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{row?.note || ''}</td>
+                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{row?.category || ''}</td>
               </tr>
             ))
           )}
@@ -356,7 +409,8 @@ function PrintPageContent() {
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>
               {(() => {
                 try {
-                  return statementRows.reduce((sum, row) => sum + (row.totalWorkUnits || 0), 0);
+                  if (!Array.isArray(statementRows)) return 0;
+                  return statementRows.reduce((sum, row) => sum + (row?.totalWorkUnits || 0), 0);
                 } catch (err) {
                   console.error('Error calculating total work units:', err);
                   return 0;
@@ -366,7 +420,9 @@ function PrintPageContent() {
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>
               {(() => {
                 try {
-                  return statementRows.reduce((sum, row) => sum + (row.grossAmount || 0), 0).toLocaleString();
+                  if (!Array.isArray(statementRows)) return '0';
+                  const total = statementRows.reduce((sum, row) => sum + (row?.grossAmount || 0), 0);
+                  return typeof total === 'number' ? total.toLocaleString() : '0';
                 } catch (err) {
                   console.error('Error calculating total gross amount:', err);
                   return '0';
@@ -374,7 +430,9 @@ function PrintPageContent() {
               })()}
             </td>
             <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}></td>
-            <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{statementRows.length}명</td>
+            <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>
+              {Array.isArray(statementRows) ? `${statementRows.length}명` : '0명'}
+            </td>
           </tr>
         </tbody>
       </table>
