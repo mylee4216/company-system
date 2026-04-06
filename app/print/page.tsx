@@ -66,8 +66,11 @@ interface LaborRow {
 
 function PrintPageContent() {
   const searchParams = useSearchParams();
-  const year = searchParams.get('year') || '2024';
-  const month = searchParams.get('month') || '12';
+  const year = searchParams?.get('year') || '2024';
+  const month = searchParams?.get('month') || '12';
+  const siteId = searchParams?.get('siteId');
+
+  console.log('Search params:', { year, month, siteId });
 
   const [data, setData] = useState<{
     company: Company | null;
@@ -89,53 +92,14 @@ function PrintPageContent() {
         setIsLoading(true);
         setError(null);
 
-        const siteId = searchParams.get('siteId');
+        // siteId가 없으면 빈 데이터로 처리
         if (!siteId) {
-          console.warn('siteId 파라미터가 없어 샘플 데이터를 사용합니다');
-          // siteId 없으면 샘플 데이터 사용
+          console.log('No siteId provided, showing empty state');
           setData({
-            company: {
-              id: 1,
-              name: '테스트건설회사',
-              business_number: '123-45-67890',
-              address: '서울시 강남구',
-              representative: '김대표'
-            },
-            site: {
-              id: 1,
-              name: '테스트현장',
-              company_id: 1,
-              client_name: '의뢰처',
-              contract_type: '원도급',
-              construction_start_date: '2024-01-01',
-              construction_end_date: '2024-12-31',
-              start_date: '2024-01-01',
-              end_date: '2024-12-31',
-              address: '현장주소'
-            },
-            workers: [
-              {
-                id: '1',
-                name: '김철수',
-                phone: '010-1234-5678',
-                resident_number: '800101-1234567',
-                job_type: '철근공',
-                company_id: 1,
-                site_id: 1,
-                hourly_rate: 50000
-              },
-              {
-                id: '2',
-                name: '이영희',
-                phone: '010-9876-5432',
-                resident_number: '850202-2345678',
-                job_type: '목공',
-                company_id: 1,
-                site_id: 1,
-                hourly_rate: 55000
-              }
-            ],
-            records: []
+            company: null,
+            site: null,
+            workers: [],
+            records: [],
           });
           return;
         }
@@ -197,50 +161,12 @@ function PrintPageContent() {
       } catch (err) {
         console.error('Data load failed:', err);
         setError(err instanceof Error ? err.message : '데이터를 불러오지 못했습니다');
-        // 에러 시에도 샘플 데이터 표시
+        // 에러 시 빈 데이터로 설정
         setData({
-          company: {
-            id: 1,
-            name: '테스트건설회사',
-            business_number: '123-45-67890',
-            address: '서울시 강남구',
-            representative: '김대표'
-          },
-          site: {
-            id: 1,
-            name: '테스트현장',
-            company_id: 1,
-            client_name: '의뢰처',
-            contract_type: '원도급',
-            construction_start_date: '2024-01-01',
-            construction_end_date: '2024-12-31',
-            start_date: '2024-01-01',
-            end_date: '2024-12-31',
-            address: '현장주소'
-          },
-          workers: [
-            {
-              id: '1',
-              name: '김철수',
-              phone: '010-1234-5678',
-              resident_number: '800101-1234567',
-              job_type: '철근공',
-              company_id: 1,
-              site_id: 1,
-              hourly_rate: 50000
-            },
-            {
-              id: '2',
-              name: '이영희',
-              phone: '010-9876-5432',
-              resident_number: '850202-2345678',
-              job_type: '목공',
-              company_id: 1,
-              site_id: 1,
-              hourly_rate: 55000
-            }
-          ],
-          records: []
+          company: null,
+          site: null,
+          workers: [],
+          records: [],
         });
       } finally {
         setIsLoading(false);
@@ -248,7 +174,7 @@ function PrintPageContent() {
     };
 
     loadData();
-  }, [searchParams, year, month]);
+  }, [searchParams, year, month, siteId]);
 
   if (isLoading) {
     return (
@@ -258,7 +184,18 @@ function PrintPageContent() {
     );
   }
 
-  if (error && !data.company) {
+  // siteId가 없으면 안내 메시지 표시
+  if (!siteId) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h2>출력 조건이 없습니다</h2>
+        <p>현장 ID(siteId)를 URL 파라미터로 전달해 주세요.</p>
+        <p>예: /print?siteId=1&year=2024&month=12</p>
+      </div>
+    );
+  }
+
+  if (error) {
     return (
       <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
         <h2>출력 데이터를 불러오지 못했습니다</h2>
