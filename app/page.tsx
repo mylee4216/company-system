@@ -4,7 +4,18 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type 
 import * as XLSX from "xlsx";
 
 import { buildLaborDayGrid, FORM_DAY_COLUMN_COUNT, FORM_DEDUCTION_COLUMNS } from "@/lib/labor-layout";
-import { buildSnapshotNote, calculateInsurance, formatGongsu, getLaborRemark, parseSnapshotNote } from "@/lib/labor";
+import {
+  buildSnapshotNote,
+  calculateInsurance,
+  defaultRateConfig,
+  formatGongsu,
+  getLaborRemark,
+  getRateFormulaSummary,
+  loadDefaultRateConfig,
+  parseSnapshotNote,
+  serializeRateConfig,
+  type LaborRateConfig,
+} from "@/lib/labor";
 import { supabase } from "@/lib/supabase";
 
 type CompanyRow = {
@@ -148,8 +159,53 @@ const CATEGORY_FILTER_OPTIONS = [ALL_CATEGORIES_LABEL, "직영", "용역", "기�
 const MAX_DAY_COLUMNS = 31;
 const APP_PASSWORD = "leejuu1996!";
 const AUTH_STORAGE_KEY = "company-system-authenticated";
+const RATE_CONFIG_STORAGE_KEY = "company-system-labor-rate-config";
 const SCREEN_UI_SCALE = 0.68;
 const isBrowser = () => typeof window !== "undefined";
+
+const RATE_TABLE_SECTIONS: Array<{
+  title: string;
+  fields: Array<{ key: keyof LaborRateConfig; label: string; suffix?: string; step?: string }>;
+}> = [
+  {
+    title: "소득세",
+    fields: [
+      { key: "incomeTaxRate1", label: "요율1", suffix: "%", step: "0.01" },
+      { key: "incomeTaxRate2", label: "요율2", suffix: "%", step: "0.01" },
+      { key: "incomeTaxNonTaxableBase", label: "비과세 기준액", suffix: "원", step: "1" },
+      { key: "residentTaxRate", label: "주민세 요율", suffix: "%", step: "0.01" },
+    ],
+  },
+  {
+    title: "건강보험",
+    fields: [{ key: "healthRate", label: "요율", suffix: "%", step: "0.001" }],
+  },
+  {
+    title: "노인장기요양보험",
+    fields: [{ key: "longTermCareRate", label: "요율", suffix: "%", step: "0.01" }],
+  },
+  {
+    title: "국민연금",
+    fields: [
+      { key: "pensionRate", label: "요율", suffix: "%", step: "0.01" },
+      { key: "pensionApplyMinDays", label: "적용 근무일수 기준", suffix: "일", step: "1" },
+      { key: "pensionNonTaxableBase", label: "비과세 기준액", suffix: "원", step: "1" },
+      { key: "pensionMinAmount", label: "하한액", suffix: "원", step: "1" },
+      { key: "pensionMaxAmount", label: "상한액", suffix: "원", step: "1" },
+    ],
+  },
+  {
+    title: "고용보험",
+    fields: [{ key: "employmentRate", label: "요율", suffix: "%", step: "0.01" }],
+  },
+];
+
+const RATE_OPTION_FIELDS: Array<{ key: keyof LaborRateConfig; label: string; description: string }> = [
+  { key: "truncateIncomeTaxUnderTen", label: "소득세 10원 미만 절사", description: "소득세 계산 후 10원 미만을 절사합니다." },
+  { key: "applyEmploymentForSenior65", label: "65세 이상 고용보험 적용", description: "주민번호로 65세 이상을 판별해 고용보험 적용 여부를 결정합니다." },
+  { key: "applyEmploymentForForeigners", label: "외국인 고용보험 적용", description: "외국인 등록번호 패턴인 경우 고용보험 적용 여부를 결정합니다." },
+  { key: "applyResidentTaxForForeigners", label: "외국인 지방소득세 적용", description: "외국인 등록번호 패턴인 경우 주민세 적용 여부를 결정합니다." },
+];
 
 function getStoredAuthStatus(): boolean {
   if (!isBrowser()) {
@@ -170,6 +226,22 @@ function setStoredAuthStatus(isAuthenticated: boolean): void {
   }
 
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function getStoredRateConfig(): LaborRateConfig {
+  if (!isBrowser()) {
+    return defaultRateConfig;
+  }
+
+  return loadDefaultRateConfig(window.localStorage.getItem(RATE_CONFIG_STORAGE_KEY));
+}
+
+function setStoredRateConfig(config: LaborRateConfig): void {
+  if (!isBrowser()) {
+    return;
+  }
+
+  window.localStorage.setItem(RATE_CONFIG_STORAGE_KEY, serializeRateConfig(config));
 }
 
 function runOnNextFrame(callback: () => void): void {
@@ -762,6 +834,7 @@ export default function Page() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState(ALL_CATEGORIES_LABEL);
   const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth);
   const [rows, setRows] = useState<LaborRow[]>([createEmptyRow("manual-1")]);
+  const [rateConfig, setRateConfig] = useState<LaborRateConfig>(getStoredRateConfig);
   const [passwordInput, setPasswordInput] = useState("");
   const [authError, setAuthError] = useState("");
   const [authStatus, setAuthStatus] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
@@ -784,6 +857,10 @@ export default function Page() {
   useEffect(() => {
     setAuthStatus(getStoredAuthStatus() ? "authenticated" : "unauthenticated");
   }, []);
+
+  useEffect(() => {
+    setStoredRateConfig(rateConfig);
+  }, [rateConfig]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") {
@@ -1069,6 +1146,28 @@ export default function Page() {
     return rows.filter((row) => getCategoryFilterValue(row.category) === selectedCategoryFilter);
   }, [rows, selectedCategoryFilter]);
 
+  const rateFormulaRows = useMemo(() => getRateFormulaSummary(rateConfig), [rateConfig]);
+
+  const updateRateNumberField = (field: keyof LaborRateConfig, rawValue: string) => {
+    const nextValue = rawValue.trim() === "" ? 0 : Number(rawValue);
+
+    if (!Number.isFinite(nextValue)) {
+      return;
+    }
+
+    setRateConfig((currentConfig) => ({
+      ...currentConfig,
+      [field]: nextValue,
+    }));
+  };
+
+  const updateRateToggleField = (field: keyof LaborRateConfig, checked: boolean) => {
+    setRateConfig((currentConfig) => ({
+      ...currentConfig,
+      [field]: checked,
+    }));
+  };
+
   const totalWorkUnits = useMemo(
     () => visibleRows.reduce((sum, row) => sum + getEffectiveWorkUnits(row), 0),
     [visibleRows],
@@ -1082,7 +1181,10 @@ export default function Page() {
   const getRowInsurance = (row: LaborRow) =>
     calculateInsurance({
       grossPay: getPaymentAmount(row),
-    });
+      workDays: getWorkedDaysCount(row),
+      residentId: row.residentId,
+      targetMonth: selectedMonth,
+    }, rateConfig);
 
   const insuranceTotals = useMemo(
     () =>
@@ -1111,7 +1213,7 @@ export default function Page() {
           netPay: 0,
         },
       ),
-    [visibleRows],
+    [rateConfig, selectedMonth, visibleRows],
   );
 
   const getRowRemark = (row: LaborRow) =>
@@ -1801,6 +1903,7 @@ export default function Page() {
       companyId: selectedCompanyId,
       siteId: selectedSiteId,
       targetMonth: selectedMonth,
+      rateConfig: serializeRateConfig(rateConfig),
     });
     window.open(`/print?${params.toString()}`, "_blank");
   };
@@ -3118,6 +3221,126 @@ export default function Page() {
                 {!isLoading && !baseStatementRows.length ? <p>선택한 조건에 기존 저장 데이터가 없어 새로 입력할 수 있습니다.</p> : null}
               </div>
             </footer>
+
+            <details className="mt-4 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm" open>
+              <summary className="flex cursor-pointer list-none items-center justify-between bg-slate-50 px-4 py-3 text-[16px] font-semibold text-slate-800">
+                <span>보험/세금 설정</span>
+                <span className="text-[13px] font-medium text-slate-500">입력값이 즉시 입력표와 출력표 계산에 반영됩니다.</span>
+              </summary>
+              <div className="border-t border-slate-200 px-4 py-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-[14px] leading-[1.5] text-slate-600">
+                    기준요율표는 현재 브라우저에 저장되고, 출력 화면으로도 같은 설정값이 전달됩니다.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRateConfig(defaultRateConfig)}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50"
+                  >
+                    기본값으로 되돌리기
+                  </button>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-[1.2fr_0.95fr]">
+                  <section className="overflow-hidden rounded-xl border border-slate-300 bg-white">
+                    <div className="border-b border-slate-200 bg-blue-50 px-4 py-3">
+                      <h3 className="text-[16px] font-semibold text-slate-800">기준요율표</h3>
+                      <p className="mt-1 text-[13px] leading-[1.5] text-slate-600">요율은 % 숫자만 입력하고, 금액 기준은 원 단위로 바로 입력합니다.</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-[14px] leading-[1.45]">
+                        <thead className="bg-slate-50 text-slate-700">
+                          <tr>
+                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">구분</th>
+                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">항목</th>
+                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">기준값</th>
+                            <th className="border-b border-slate-200 px-3 py-2 text-left font-semibold">단위</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {RATE_TABLE_SECTIONS.map((section) =>
+                            section.fields.map((field, fieldIndex) => (
+                              <tr key={`${section.title}-${String(field.key)}`} className="odd:bg-white even:bg-slate-50/40">
+                                {fieldIndex === 0 ? (
+                                  <th
+                                    rowSpan={section.fields.length}
+                                    className="border-b border-r border-slate-200 bg-slate-50 px-3 py-2 text-left align-top font-semibold text-slate-700"
+                                  >
+                                    {section.title}
+                                  </th>
+                                ) : null}
+                                <td className="border-b border-r border-slate-200 px-3 py-2 text-slate-700">{field.label}</td>
+                                <td className="border-b border-r border-slate-200 px-3 py-2">
+                                  <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    step={field.step ?? "0.01"}
+                                    value={String(rateConfig[field.key] as number)}
+                                    onChange={(event) => updateRateNumberField(field.key, event.target.value)}
+                                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-right font-medium text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                  />
+                                </td>
+                                <td className="border-b border-slate-200 px-3 py-2 text-slate-500">{field.suffix ?? "-"}</td>
+                              </tr>
+                            )),
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="border-t border-slate-200 px-4 py-4">
+                      <h4 className="mb-3 text-[15px] font-semibold text-slate-800">추가 적용 옵션</h4>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {RATE_OPTION_FIELDS.map((option) => (
+                          <label
+                            key={String(option.key)}
+                            className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-3"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(rateConfig[option.key])}
+                              onChange={(event) => updateRateToggleField(option.key, event.target.checked)}
+                              className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span>
+                              <span className="block text-[14px] font-medium text-slate-800">{option.label}</span>
+                              <span className="mt-1 block text-[12.5px] leading-[1.45] text-slate-500">{option.description}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="overflow-hidden rounded-xl border border-slate-300 bg-white">
+                    <div className="border-b border-slate-200 bg-blue-50 px-4 py-3">
+                      <h3 className="text-[16px] font-semibold text-slate-800">계산식 요약표</h3>
+                      <p className="mt-1 text-[13px] leading-[1.5] text-slate-600">현재 설정값을 기준으로 어떤 공식이 적용되는지 한눈에 볼 수 있습니다.</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-[13.5px] leading-[1.5]">
+                        <thead className="bg-slate-50 text-slate-700">
+                          <tr>
+                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">항목</th>
+                            <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">계산식</th>
+                            <th className="border-b border-slate-200 px-3 py-2 text-left font-semibold">비고</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rateFormulaRows.map((row) => (
+                            <tr key={row.label} className="odd:bg-white even:bg-slate-50/40">
+                              <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold text-slate-700">{row.label}</th>
+                              <td className="border-b border-r border-slate-200 px-3 py-2 font-medium text-slate-800">{row.formula}</td>
+                              <td className="border-b border-slate-200 px-3 py-2 text-slate-500">{row.note}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </details>
           </section>
         </div>
       </main>

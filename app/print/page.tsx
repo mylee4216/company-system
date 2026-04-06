@@ -4,7 +4,7 @@ import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { buildLaborDayGrid, FORM_DAY_COLUMN_COUNT, FORM_DEDUCTION_COLUMNS } from "@/lib/labor-layout";
-import { calculateInsurance, formatGongsu, getLaborRemark, parseSnapshotNote } from "@/lib/labor";
+import { calculateInsurance, formatGongsu, getLaborRemark, loadDefaultRateConfig, parseSnapshotNote } from "@/lib/labor";
 import { supabase } from "@/lib/supabase";
 
 interface Company {
@@ -111,6 +111,11 @@ function formatAmount(value: number) {
   return Math.round(value).toLocaleString("ko-KR");
 }
 
+function getWorkedDaysCountFromEntries(entries: WorkEntry[] | null | undefined, totalWorkUnits: number) {
+  const workedDays = (entries ?? []).filter((entry) => Number(entry.units ?? 0) > 0).length;
+  return workedDays > 0 ? workedDays : (totalWorkUnits > 0 ? Math.ceil(totalWorkUnits) : 0);
+}
+
 function PrintPageContent() {
   const searchParams = useSearchParams();
   const targetMonthParam = searchParams?.get("targetMonth");
@@ -118,6 +123,7 @@ function PrintPageContent() {
   const queryMonth = searchParams?.get("month") || "12";
   const targetMonth = targetMonthParam || `${queryYear}-${queryMonth.padStart(2, "0")}`;
   const siteId = searchParams?.get("siteId");
+  const rateConfig = useMemo(() => loadDefaultRateConfig(searchParams?.get("rateConfig")), [searchParams]);
   const monthPeriod = useMemo(() => getMonthPeriod(targetMonth), [targetMonth]);
 
   const [data, setData] = useState<{
@@ -235,15 +241,17 @@ function PrintPageContent() {
       const note =
         getLaborRemark(targetMonth, worker?.first_work_date || null, record.work_entries ?? []).text ||
         snapshotMeta.note;
+      const residentId =
+        snapshot?.resident_number?.trim() ||
+        getMonthlyRecordTextValue(record, "resident_number") ||
+        worker?.resident_number ||
+        "";
+      const workedDays = getWorkedDaysCountFromEntries(record.work_entries, totalWorkUnits);
 
       return {
         id: record.id,
         name: snapshot?.name?.trim() || worker?.name || "",
-        residentId:
-          snapshot?.resident_number?.trim() ||
-          getMonthlyRecordTextValue(record, "resident_number") ||
-          worker?.resident_number ||
-          "",
+        residentId,
         trade:
           snapshot?.job_type?.trim() ||
           getMonthlyRecordTextValue(record, "job_type") ||
@@ -255,10 +263,10 @@ function PrintPageContent() {
         grossAmount,
         note,
         category: snapshotMeta.category || "",
-        insurance: calculateInsurance({ grossPay: grossAmount }),
+        insurance: calculateInsurance({ grossPay: grossAmount, workDays: workedDays, residentId, targetMonth }, rateConfig),
       } satisfies PrintRow;
     });
-  }, [data.records, data.workers, targetMonth]);
+  }, [data.records, data.workers, rateConfig, targetMonth]);
 
   const totals = useMemo(
     () =>
