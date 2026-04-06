@@ -282,7 +282,9 @@ function PrintPageContent() {
           health: sum.health + row.insurance.health,
           longTermCare: sum.longTermCare + row.insurance.longTermCare,
           employment: sum.employment + row.insurance.employment,
-          total: sum.total + row.insurance.total,
+          incomeTax: sum.incomeTax + row.insurance.incomeTax,
+          residentTax: sum.residentTax + row.insurance.residentTax,
+          total: sum.total + row.insurance.totalDeduction,
           netPay: sum.netPay + row.insurance.netPay,
         }),
         {
@@ -292,6 +294,8 @@ function PrintPageContent() {
           health: 0,
           longTermCare: 0,
           employment: 0,
+          incomeTax: 0,
+          residentTax: 0,
           total: 0,
           netPay: 0,
         },
@@ -339,7 +343,7 @@ function PrintPageContent() {
         <div>기간: {monthPeriod}</div>
       </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", marginBottom: "20px" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "9px", marginBottom: "20px" }}>
         <thead>
           <tr style={{ backgroundColor: "#f0f0f0" }}>
             <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center", fontWeight: "bold" }}>번호</th>
@@ -358,6 +362,8 @@ function PrintPageContent() {
             <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center", fontWeight: "bold" }}>건강보험</th>
             <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center", fontWeight: "bold" }}>장기요양</th>
             <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center", fontWeight: "bold" }}>고용보험</th>
+            <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center", fontWeight: "bold" }}>소득세</th>
+            <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center", fontWeight: "bold" }}>주민세</th>
             <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center", fontWeight: "bold" }}>공제합계</th>
             <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center", fontWeight: "bold" }}>실지급액</th>
             <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center", fontWeight: "bold" }}>비고</th>
@@ -367,7 +373,7 @@ function PrintPageContent() {
         <tbody>
           {statementRows.length === 0 ? (
             <tr>
-              <td colSpan={5 + monthDates.length + 10} style={{ border: "1px solid #000", padding: "20px", textAlign: "center", fontSize: "12px", color: "#666" }}>
+              <td colSpan={5 + monthDates.length + 12} style={{ border: "1px solid #000", padding: "20px", textAlign: "center", fontSize: "12px", color: "#666" }}>
                 근무 내역이 없습니다.
               </td>
             </tr>
@@ -393,7 +399,9 @@ function PrintPageContent() {
                 <td style={{ border: "1px solid #000", padding: "4px", textAlign: "right" }}>{formatNumber(row.insurance.health)}</td>
                 <td style={{ border: "1px solid #000", padding: "4px", textAlign: "right" }}>{formatNumber(row.insurance.longTermCare)}</td>
                 <td style={{ border: "1px solid #000", padding: "4px", textAlign: "right" }}>{formatNumber(row.insurance.employment)}</td>
-                <td style={{ border: "1px solid #000", padding: "4px", textAlign: "right" }}>{formatNumber(row.insurance.total)}</td>
+                <td style={{ border: "1px solid #000", padding: "4px", textAlign: "right" }}>{formatNumber(row.insurance.incomeTax)}</td>
+                <td style={{ border: "1px solid #000", padding: "4px", textAlign: "right" }}>{formatNumber(row.insurance.residentTax)}</td>
+                <td style={{ border: "1px solid #000", padding: "4px", textAlign: "right" }}>{formatNumber(row.insurance.totalDeduction)}</td>
                 <td style={{ border: "1px solid #000", padding: "4px", textAlign: "right" }}>{formatNumber(row.insurance.netPay)}</td>
                 <td style={{ border: "1px solid #000", padding: "4px", textAlign: "center", whiteSpace: "pre-line" }}>{row.note || ""}</td>
                 <td style={{ border: "1px solid #000", padding: "4px", textAlign: "center" }}>{row.category}</td>
@@ -411,6 +419,8 @@ function PrintPageContent() {
             <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>{formatNumber(totals.health)}</td>
             <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>{formatNumber(totals.longTermCare)}</td>
             <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>{formatNumber(totals.employment)}</td>
+            <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>{formatNumber(totals.incomeTax)}</td>
+            <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>{formatNumber(totals.residentTax)}</td>
             <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>{formatNumber(totals.total)}</td>
             <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>{formatNumber(totals.netPay)}</td>
             <td style={{ border: "1px solid #000", padding: "6px", textAlign: "center" }}>보험 1차 반영</td>

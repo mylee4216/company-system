@@ -39,6 +39,9 @@ export type InsuranceBreakdown = {
   health: number;
   longTermCare: number;
   employment: number;
+  incomeTax: number;
+  residentTax: number;
+  totalDeduction: number;
   total: number;
   netPay: number;
 };
@@ -57,6 +60,8 @@ const INSURANCE_RATES = {
   health: 0.03545,
   longTermCare: 0.004,
   employment: 0.009,
+  incomeTax: 0.03,
+  residentTaxOnIncomeTax: 0.1,
 } as const;
 
 function parseNumber(value: string | number | null | undefined) {
@@ -240,14 +245,19 @@ export function calculateInsurance({ grossPay }: { grossPay: number }): Insuranc
   const health = floorWon(normalizedGrossPay * INSURANCE_RATES.health);
   const longTermCare = floorWon(normalizedGrossPay * INSURANCE_RATES.longTermCare);
   const employment = floorWon(normalizedGrossPay * INSURANCE_RATES.employment);
-  const total = national + health + longTermCare + employment;
+  const incomeTax = floorWon(normalizedGrossPay * INSURANCE_RATES.incomeTax);
+  const residentTax = floorWon(incomeTax * INSURANCE_RATES.residentTaxOnIncomeTax);
+  const totalDeduction = national + health + longTermCare + employment + incomeTax + residentTax;
 
   return {
     national,
     health,
     longTermCare,
     employment,
-    total,
-    netPay: normalizedGrossPay - total,
+    incomeTax,
+    residentTax,
+    totalDeduction,
+    total: totalDeduction,
+    netPay: normalizedGrossPay - totalDeduction,
   };
 }

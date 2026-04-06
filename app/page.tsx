@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
 import * as XLSX from "xlsx";
 
-import { buildSnapshotNote, getLaborRemark, parseSnapshotNote } from "@/lib/labor";
+import { buildSnapshotNote, calculateInsurance, getLaborRemark, parseSnapshotNote } from "@/lib/labor";
 import { supabase } from "@/lib/supabase";
 
 type CompanyRow = {
@@ -189,6 +189,9 @@ const TABLE_COLUMN_BASE_WIDTHS = {
   total: 70,
   unitPrice: 108,
   payment: 98,
+  deduction: 88,
+  deductionTotal: 98,
+  netPay: 104,
   note: 144,
   category: 120,
   actions: 64,
@@ -924,6 +927,9 @@ export default function Page() {
       TABLE_COLUMN_WIDTHS.total +
       TABLE_COLUMN_WIDTHS.unitPrice +
       TABLE_COLUMN_WIDTHS.payment +
+      TABLE_COLUMN_WIDTHS.deduction * 6 +
+      TABLE_COLUMN_WIDTHS.deductionTotal +
+      TABLE_COLUMN_WIDTHS.netPay +
       TABLE_COLUMN_WIDTHS.note +
       TABLE_COLUMN_WIDTHS.category +
       TABLE_COLUMN_WIDTHS.actions,
@@ -1069,6 +1075,41 @@ export default function Page() {
 
   const totalPaymentAmount = useMemo(
     () => visibleRows.reduce((sum, row) => sum + getPaymentAmount(row), 0),
+    [visibleRows],
+  );
+
+  const getRowInsurance = (row: LaborRow) =>
+    calculateInsurance({
+      grossPay: getPaymentAmount(row),
+    });
+
+  const insuranceTotals = useMemo(
+    () =>
+      visibleRows.reduce(
+        (sum, row) => {
+          const insurance = getRowInsurance(row);
+          return {
+            national: sum.national + insurance.national,
+            health: sum.health + insurance.health,
+            longTermCare: sum.longTermCare + insurance.longTermCare,
+            employment: sum.employment + insurance.employment,
+            incomeTax: sum.incomeTax + insurance.incomeTax,
+            residentTax: sum.residentTax + insurance.residentTax,
+            totalDeduction: sum.totalDeduction + insurance.totalDeduction,
+            netPay: sum.netPay + insurance.netPay,
+          };
+        },
+        {
+          national: 0,
+          health: 0,
+          longTermCare: 0,
+          employment: 0,
+          incomeTax: 0,
+          residentTax: 0,
+          totalDeduction: 0,
+          netPay: 0,
+        },
+      ),
     [visibleRows],
   );
 
@@ -2722,25 +2763,25 @@ export default function Page() {
                   <p className="print-kicker text-xs tracking-[0.28em] text-stone-500">LABOR STATEMENT</p>
                   <h1 className="print-title mt-1 text-[30px] font-bold tracking-[0.15em] text-slate-900 sm:text-[34px]">노무비 명세서</h1>
                 </div>
-                <div className="print-top-summary hidden min-w-[220px] border border-blue-300 text-[16px] leading-[1.3] sm:block">
+                <div className="print-top-summary hidden min-w-[220px] border border-blue-200 text-[16px] leading-[1.3] sm:block">
                   <div className="grid min-h-[56px] grid-cols-[68px_1fr]">
-                    <div className="flex items-center border-r border-blue-200 bg-blue-50 px-2.5 py-2.5 font-semibold">인원수</div>
+                    <div className="flex items-center bg-blue-50 px-2.5 py-2.5 font-semibold">인원수</div>
                     <div className="flex items-center justify-end px-2.5 py-2.5 text-right font-medium tabular-nums">{visibleRows.length}명</div>
                   </div>
                 </div>
               </div>
 
-              <div className="overflow-hidden border border-slate-300">
-                <div className="grid grid-cols-1 border-slate-300 md:grid-cols-2">
-                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300 md:border-r">
+              <div className="overflow-hidden rounded-[2px] border border-slate-300">
+                <div className="grid grid-cols-1 md:grid-cols-2">
+                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)] border-b border-slate-200">
                     <div className="print-meta-label flex items-center bg-blue-50 px-3 py-3.5 text-[16.5px] font-semibold leading-[1.4]">회사명</div>
                     <div className="print-meta-value flex min-w-0 items-center px-3 py-3.5 text-[16.5px] leading-[1.4] break-keep">{resolvedCompanyName}</div>
                   </div>
-                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300">
+                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)] border-b border-slate-200">
                     <div className="print-meta-label flex items-center bg-blue-50 px-3 py-3.5 text-[16.5px] font-semibold leading-[1.4]">현장명</div>
                     <div className="print-meta-value flex min-w-0 items-center px-3 py-3.5 text-[16.5px] leading-[1.4] break-keep">{resolvedSiteName}</div>
                   </div>
-                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)] md:border-r">
+                  <div className="grid min-h-[56px] grid-cols-[112px_minmax(0,1fr)]">
                     <div className="print-meta-label flex items-center bg-blue-50 px-3 py-3.5 text-[16.5px] font-semibold leading-[1.4]">기준월</div>
                     <div className="print-meta-value flex min-w-0 items-center px-3 py-3.5 text-[16.5px] leading-[1.4] break-keep">{selectedMonth || "-"}</div>
                   </div>
@@ -2769,6 +2810,14 @@ export default function Page() {
                   <col className="print-col-total" style={{ width: `${TABLE_COLUMN_WIDTHS.total}px` }} />
                   <col className="print-col-unit-price" style={{ width: `${TABLE_COLUMN_WIDTHS.unitPrice}px` }} />
                   <col className="print-col-payment" style={{ width: `${TABLE_COLUMN_WIDTHS.payment}px` }} />
+                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
+                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
+                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
+                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
+                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
+                  <col className="print-col-deduction" style={{ width: `${TABLE_COLUMN_WIDTHS.deduction}px` }} />
+                  <col className="print-col-deduction-total" style={{ width: `${TABLE_COLUMN_WIDTHS.deductionTotal}px` }} />
+                  <col className="print-col-net-pay" style={{ width: `${TABLE_COLUMN_WIDTHS.netPay}px` }} />
                   <col className="print-col-note" style={{ width: `${TABLE_COLUMN_WIDTHS.note}px` }} />
                   <col className="print-col-category" style={{ width: `${TABLE_COLUMN_WIDTHS.category}px` }} />
                   <col className="print-col-actions" style={{ width: `${TABLE_COLUMN_WIDTHS.actions}px` }} />
@@ -2784,6 +2833,14 @@ export default function Page() {
                     <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">총 공수</th>
                     <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">단가</th>
                     <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">지급액</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">국민연금</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">건강보험</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">장기요양보험</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">고용보험</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">소득세</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">주민세</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">공제합계</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1 py-3 text-center text-[15px] font-semibold leading-[1.25]">실지급액</th>
                     <th rowSpan={2} className="print-note-header border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">비고</th>
                     <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">구분</th>
                     <th rowSpan={2} className="print-col-actions px-2 py-3 text-center text-[17.5px] font-semibold leading-[1.3]">관리</th>
@@ -2803,6 +2860,7 @@ export default function Page() {
                   {visibleRows.map((row, index) => {
                     const rowIndex = rows.findIndex((currentRow) => currentRow.id === row.id);
                     const rowHasDailyEntries = hasDailyWorkEntries(row.dailyWorkEntries);
+                    const insurance = getRowInsurance(row);
 
                     return (
                       <tr key={row.id} className="border-b border-slate-300 odd:bg-white even:bg-slate-50/30">
@@ -2919,6 +2977,30 @@ export default function Page() {
                         <td className="print-cell-number border-r border-slate-300 bg-blue-50 px-2 py-2 align-middle text-center text-[16.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
+                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
+                          {formatCurrency(insurance.national)}
+                        </td>
+                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
+                          {formatCurrency(insurance.health)}
+                        </td>
+                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
+                          {formatCurrency(insurance.longTermCare)}
+                        </td>
+                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
+                          {formatCurrency(insurance.employment)}
+                        </td>
+                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
+                          {formatCurrency(insurance.incomeTax)}
+                        </td>
+                        <td className="print-cell-number border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.3] tabular-nums text-slate-700">
+                          {formatCurrency(insurance.residentTax)}
+                        </td>
+                        <td className="print-cell-number border-r border-slate-300 bg-slate-50 px-1 py-2 align-middle text-center text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                          {formatCurrency(insurance.totalDeduction)}
+                        </td>
+                        <td className="print-cell-number border-r border-slate-300 bg-emerald-50 px-1 py-2 align-middle text-center text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                          {formatCurrency(insurance.netPay)}
+                        </td>
                         <td className="print-cell-note border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                           <textarea
                             ref={(element) => {
@@ -2965,11 +3047,19 @@ export default function Page() {
                     >
                       <span style={workUnitsDisplayStyle}>{totalWorkUnits.toLocaleString("ko-KR")}</span>
                     </td>
-                    <td className="print-note-summary border-r border-slate-300 px-2 py-2"></td>
+                    <td className="border-r border-slate-300 px-2 py-2"></td>
                     <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
-                    <td className="border-r border-slate-300 px-2 py-2"></td>
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.national)}</td>
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.health)}</td>
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.longTermCare)}</td>
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.employment)}</td>
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.incomeTax)}</td>
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.residentTax)}</td>
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.totalDeduction)}</td>
+                    <td className="print-summary-value border-r border-slate-300 px-1 py-3 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">{formatCurrency(insuranceTotals.netPay)}</td>
+                    <td className="print-note-summary border-r border-slate-300 px-2 py-2"></td>
                     <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] leading-[1.3] text-slate-600">{visibleRows.length}명</td>
                     <td className="print-col-actions px-2 py-2"></td>
                   </tr>
@@ -2983,7 +3073,7 @@ export default function Page() {
             </datalist>
 
             <footer className="border-t border-slate-300 px-3 py-3">
-              <div className="print-footer-grid grid gap-0 border border-slate-300 md:grid-cols-[1.05fr_0.9fr_1fr_1.35fr]">
+              <div className="print-footer-grid grid gap-0 border border-slate-300 md:grid-cols-[1.05fr_0.85fr_0.95fr_0.95fr_0.95fr_1.15fr]">
                 <div className="print-summary-label border-b border-r border-slate-300 bg-blue-50 px-3 py-3 text-[17px] font-medium leading-[1.35] text-slate-700 md:border-b-0">하단 요약</div>
                 <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
                   총 공수{" "}
@@ -2993,6 +3083,12 @@ export default function Page() {
                 </div>
                 <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
                   총 지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(totalPaymentAmount)}</span>
+                </div>
+                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
+                  총 공제액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(insuranceTotals.totalDeduction)}</span>
+                </div>
+                <div className="print-summary-value border-b border-r border-slate-300 px-3 py-3 text-[17px] leading-[1.35] md:border-b-0">
+                  총 실지급액 <span className="whitespace-nowrap float-right font-semibold tabular-nums">{formatCurrency(insuranceTotals.netPay)}</span>
                 </div>
                 <div className="print-footer-guide print-summary-note px-3 py-3 text-[16px] leading-[1.45] text-slate-600">
                   <span className="mb-1 block font-medium text-slate-700">입력 안내</span>
