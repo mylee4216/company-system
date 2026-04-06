@@ -1792,11 +1792,17 @@ export default function Page() {
   };
 
   const handlePrint = () => {
-    if (!isBrowser()) {
+    if (!selectedCompanyId || !selectedSiteId || !selectedMonth) {
+      setSaveError("회사명과 현장명, 기준월을 먼저 선택해주세요.");
       return;
     }
 
-    window.print();
+    const params = new URLSearchParams({
+      companyId: selectedCompanyId,
+      siteId: selectedSiteId,
+      targetMonth: selectedMonth,
+    });
+    window.open(`/print?${params.toString()}`, "_blank");
   };
 
   const handleExcelUpload = async (event: ChangeEvent<HTMLInputElement>) => {
