@@ -34,6 +34,15 @@ export type LaborDeductionInput = {
   otherDeductions?: number;
 };
 
+export type InsuranceBreakdown = {
+  national: number;
+  health: number;
+  longTermCare: number;
+  employment: number;
+  total: number;
+  netPay: number;
+};
+
 const DEDUCTION_RATES = {
   nationalPension: 0.045,
   healthInsurance: 0.03545,
@@ -41,6 +50,13 @@ const DEDUCTION_RATES = {
   employmentInsurance: 0.009,
   incomeTax: 0.03,
   localIncomeTaxRateOnIncomeTax: 0.1,
+} as const;
+
+const INSURANCE_RATES = {
+  national: 0.045,
+  health: 0.03545,
+  longTermCare: 0.004,
+  employment: 0.009,
 } as const;
 
 function parseNumber(value: string | number | null | undefined) {
@@ -53,7 +69,6 @@ function parseNumber(value: string | number | null | undefined) {
   }
 
   const normalized = value.replace(/,/g, "").trim();
-
   if (!normalized) {
     return 0;
   }
@@ -64,6 +79,10 @@ function parseNumber(value: string | number | null | undefined) {
 
 function roundWon(value: number) {
   return Math.round(value);
+}
+
+function floorWon(value: number) {
+  return Math.floor(value);
 }
 
 function isValidDateString(value: string | null | undefined): value is string {
@@ -90,7 +109,6 @@ export function parseSnapshotNote(value: string | null | undefined): SnapshotMet
   }
 
   const markerIndex = normalized.indexOf(SNAPSHOT_META_PREFIX);
-
   if (markerIndex < 0) {
     return { note: normalized, category: "" };
   }
@@ -213,5 +231,23 @@ export function calculateLaborDeductions(input: LaborDeductionInput): LaborDeduc
     otherDeductions,
     totalDeductions,
     netPayment: Math.max(0, grossAmount - totalDeductions),
+  };
+}
+
+export function calculateInsurance({ grossPay }: { grossPay: number }): InsuranceBreakdown {
+  const normalizedGrossPay = Math.max(0, grossPay || 0);
+  const national = floorWon(normalizedGrossPay * INSURANCE_RATES.national);
+  const health = floorWon(normalizedGrossPay * INSURANCE_RATES.health);
+  const longTermCare = floorWon(normalizedGrossPay * INSURANCE_RATES.longTermCare);
+  const employment = floorWon(normalizedGrossPay * INSURANCE_RATES.employment);
+  const total = national + health + longTermCare + employment;
+
+  return {
+    national,
+    health,
+    longTermCare,
+    employment,
+    total,
+    netPay: normalizedGrossPay - total,
   };
 }
