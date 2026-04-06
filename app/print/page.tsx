@@ -121,11 +121,12 @@ function PrintPageContent() {
           throw new Error(`현장 정보 조회 실패: ${siteError.message}`);
         }
 
-        // 근로자 정보 로드
+        // 근로자 정보 로드 (company_id 기준으로 조회)
+        console.log('Querying daily_workers with company_id:', siteData.company_id);
         const { data: workers, error: workersError } = await supabase
           .from('daily_workers')
           .select('*')
-          .eq('site_id', parsedSiteId);
+          .eq('company_id', siteData.company_id);
 
         if (workersError) {
           console.error('Workers load error:', workersError);
@@ -134,6 +135,7 @@ function PrintPageContent() {
 
         // 월별 기록 로드
         const targetMonth = `${year}-${month.padStart(2, '0')}`;
+        console.log('Querying daily_worker_monthly_records with site_id:', parsedSiteId, 'target_month:', targetMonth);
         const { data: records, error: recordsError } = await supabase
           .from('daily_worker_monthly_records')
           .select('*')
@@ -145,12 +147,7 @@ function PrintPageContent() {
           throw new Error(`기록 조회 실패: ${recordsError.message}`);
         }
 
-        console.log('Loaded data:', {
-          company: siteData.companies,
-          site: siteData,
-          workers: workers?.length,
-          records: records?.length
-        });
+        console.log('Query results - workers:', workers?.length || 0, 'records:', records?.length || 0);
 
         setData({
           company: siteData.companies || null,
