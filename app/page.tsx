@@ -2646,30 +2646,30 @@ export default function Page() {
         <div className="print-root mx-auto w-full max-w-none">
           <section className="screen-control-panel print-hidden print-interactive mb-1 border border-slate-300 bg-blue-50 text-[16px] shadow-[0_8px_20px_-16px_rgba(15,23,42,0.45)]">
             <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-[1.1fr_1.1fr_0.8fr_0.8fr]">
-              <label className="screen-control-field border-b border-r border-slate-300 px-4 py-5 min-h-[140px] text-[17px] leading-[1.35]">
+              <label className="screen-control-field border-b border-r border-slate-300 px-2 py-2 text-[17px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-slate-700">회사명</span>
                 <input
                   type="text"
-                  className="screen-control-input h-16 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
+                  className="screen-control-input h-12 w-full border border-slate-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={companyNameInput}
                   onChange={(event) => setCompanyNameInput(event.target.value)}
                   placeholder="회사명 입력"
                 />
               </label>
-              <label className="screen-control-field border-b border-r border-slate-300 px-4 py-5 min-h-[140px] text-[17px] leading-[1.35]">
+              <label className="screen-control-field border-b border-r border-slate-300 px-2 py-2 text-[17px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-slate-700">현장명</span>
                 <input
                   type="text"
-                  className="screen-control-input h-16 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
+                  className="screen-control-input h-12 w-full border border-slate-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={siteNameInput}
                   onChange={(event) => setSiteNameInput(event.target.value)}
                   placeholder="현장명 입력"
                 />
               </label>
-              <label className="screen-control-field border-b border-r border-slate-300 px-4 py-5 min-h-[140px] text-[17px] leading-[1.35]">
+              <label className="screen-control-field border-b border-r border-slate-300 px-2 py-2 text-[17px] leading-[1.35]">
                 <span className="mb-1 block font-medium text-slate-700">구분</span>
                 <select
-                  className="screen-control-input h-16 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
+                  className="screen-control-input h-12 w-full border border-slate-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={selectedCategoryFilter}
                   onChange={(event) => setSelectedCategoryFilter(event.target.value)}
                 >
@@ -2680,11 +2680,11 @@ export default function Page() {
                   ))}
                 </select>
               </label>
-              <label className="screen-control-field border-b border-slate-300 px-4 py-5 min-h-[140px] text-[17px] leading-[1.35] md:border-r xl:border-r-0">
+              <label className="screen-control-field border-b border-slate-300 px-2 py-2 text-[17px] leading-[1.35] md:border-r xl:border-r-0">
                 <span className="mb-1 block font-medium text-slate-700">기준월</span>
                 <input
                   type="month"
-                  className="screen-control-input h-16 w-full border border-slate-300 bg-white px-3 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
+                  className="screen-control-input h-12 w-full border border-slate-300 bg-white px-2.5 text-[17px] leading-[1.35] outline-none transition focus:border-blue-700"
                   value={selectedMonth}
                   onChange={(event) => setSelectedMonth(event.target.value)}
                 />
@@ -2775,20 +2775,20 @@ export default function Page() {
               <div className="overflow-hidden border border-slate-300">
                 <div className="grid grid-cols-1 border-slate-300 md:grid-cols-2">
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300 md:border-r">
-                    <div className="print-meta-label bg-blue-50 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">회사명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{resolvedCompanyName}</div>
+                    <div className="print-meta-label bg-blue-50 px-3 py-4 text-[16.5px] font-semibold leading-[1.35]">회사명</div>
+                    <div className="print-meta-value min-w-0 px-3 py-4 text-[16.5px] leading-[1.35] break-keep">{resolvedCompanyName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300">
-                    <div className="print-meta-label bg-blue-50 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">현장명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{resolvedSiteName}</div>
+                    <div className="print-meta-label bg-blue-50 px-3 py-4 text-[16.5px] font-semibold leading-[1.35]">현장명</div>
+                    <div className="print-meta-value min-w-0 px-3 py-4 text-[16.5px] leading-[1.35] break-keep">{resolvedSiteName}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)] md:border-r">
-                    <div className="print-meta-label bg-blue-50 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">기준월</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{selectedMonth || "-"}</div>
+                    <div className="print-meta-label bg-blue-50 px-3 py-4 text-[16.5px] font-semibold leading-[1.35]">기준월</div>
+                    <div className="print-meta-value min-w-0 px-3 py-4 text-[16.5px] leading-[1.35] break-keep">{selectedMonth || "-"}</div>
                   </div>
                   <div className="grid grid-cols-[112px_minmax(0,1fr)]">
-                    <div className="print-meta-label bg-blue-50 px-3 py-2 text-[16.5px] font-semibold leading-[1.35]">기간</div>
-                    <div className="print-meta-value min-w-0 px-3 py-2 text-[16.5px] leading-[1.35] break-keep">{monthPeriod.label}</div>
+                    <div className="print-meta-label bg-blue-50 px-3 py-4 text-[16.5px] font-semibold leading-[1.35]">기간</div>
+                    <div className="print-meta-value min-w-0 px-3 py-4 text-[16.5px] leading-[1.35] break-keep">{monthPeriod.label}</div>
                   </div>
                 </div>
               </div>

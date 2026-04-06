@@ -153,9 +153,9 @@ function getPrintRemark(targetMonth: string, workerFirstWorkDate?: string | null
 
   if (normalizedFirstWorkDate && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(normalizedFirstWorkDate)) {
     if (normalizedFirstWorkDate.startsWith(`${targetMonth}-`)) {
-      return `최초근무일 ${normalizedFirstWorkDate}`;
+      return `전월첫근무일 ${normalizedFirstWorkDate}`;
     }
-    return `전월최초근무일 ${normalizedFirstWorkDate}`;
+    return `전월첫근무일 ${normalizedFirstWorkDate}`;
   }
 
   const workedDates = workEntries
@@ -165,7 +165,7 @@ function getPrintRemark(targetMonth: string, workerFirstWorkDate?: string | null
     .sort((left, right) => left.localeCompare(right));
 
   if (workedDates.length) {
-    return `최초근무일 ${workedDates[0]}`;
+    return `전월첫근무일 ${workedDates[0]}`;
   }
 
   return "";
