@@ -86,6 +86,7 @@ function PrintPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 항상 최상단에서 Hook 호출
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -109,17 +110,30 @@ function PrintPageContent() {
           throw new Error('잘못된 siteId 파라미터 형식입니다');
         }
 
-        // 현장 정보 및 회사 정보 로드
-        const { data: siteData, error: siteError } = await supabase
+        // 현장 정보 및 회사 정보 로드 (.single() 제거하여 안전하게 처리)
+        const { data: sitesData, error: siteError } = await supabase
           .from('sites')
           .select('*, companies(*)')
-          .eq('id', parsedSiteId)
-          .single();
+          .eq('id', parsedSiteId);
 
         if (siteError) {
           console.error('Site load error:', siteError);
           throw new Error(`현장 정보 조회 실패: ${siteError.message}`);
         }
+
+        console.log('Sites query result count:', sitesData?.length || 0);
+
+        // 결과 검증 및 처리
+        if (!sitesData || sitesData.length === 0) {
+          console.log('No site found for siteId:', parsedSiteId);
+          throw new Error('현장 정보를 찾을 수 없습니다');
+        }
+
+        if (sitesData.length > 1) {
+          console.warn('Multiple sites found for siteId:', parsedSiteId, 'using first one');
+        }
+
+        const siteData = sitesData[0]; // 첫 번째 결과 사용
 
         // 근로자 정보 로드 (company_id 기준으로 조회)
         console.log('Querying daily_workers with company_id:', siteData.company_id);
@@ -173,36 +187,7 @@ function PrintPageContent() {
     loadData();
   }, [searchParams, year, month, siteId]);
 
-  if (isLoading) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        데이터를 불러오는 중...
-      </div>
-    );
-  }
-
-  // siteId가 없으면 안내 메시지 표시
-  if (!siteId) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>출력 조건이 없습니다</h2>
-        <p>현장 ID(siteId)를 URL 파라미터로 전달해 주세요.</p>
-        <p>예: /print?siteId=1&year=2024&month=12</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
-        <h2>출력 데이터를 불러오지 못했습니다</h2>
-        <p>{error}</p>
-        <p>콘솔에서 자세한 오류 정보를 확인하세요.</p>
-      </div>
-    );
-  }
-
-  // 메인 페이지와 동일한 로직으로 행 데이터 생성
+  // 항상 최상단에서 Hook 호출
   const statementRows = useMemo(() => {
     try {
       if (!data.workers || !data.records) {
@@ -249,33 +234,56 @@ function PrintPageContent() {
     }
   }, [data.workers, data.records]);
 
+  // 날짜별 공수 계산을 위한 날짜 목록
+  const monthDates = useMemo(() => {
+    try {
+      const parsedYear = parseInt(String(year));
+      const parsedMonth = parseInt(String(month));
+      if (isNaN(parsedYear) || isNaN(parsedMonth)) {
+        return Array.from({ length: 31 }, (_, i) => `2024-12-${String(i + 1).padStart(2, '0')}`);
+      }
+      const daysInMonth = new Date(parsedYear, parsedMonth, 0).getDate();
+      return Array.from({ length: daysInMonth }, (_, i) => {
+        const date = new Date(parsedYear, parsedMonth - 1, i + 1);
+        return date.toISOString().split('T')[0];
+      });
+    } catch (err) {
+      console.error('Error creating month dates:', err);
+      return Array.from({ length: 31 }, (_, i) => `2024-12-${String(i + 1).padStart(2, '0')}`);
+    }
+  }, [year, month]);
+
   console.log('Statement rows:', statementRows.length, statementRows[0]);
 
-  // 날짜별 공수 계산을 위한 날짜 목록
-  const getDaysInMonth = (year: number, month: number) => {
-    try {
-      const parsedYear = parseInt(String(year));
-      const parsedMonth = parseInt(String(month));
-      if (isNaN(parsedYear) || isNaN(parsedMonth)) return 31;
-      return new Date(parsedYear, parsedMonth, 0).getDate();
-    } catch (err) {
-      console.error('Error calculating days in month:', err);
-      return 31;
-    }
-  };
-  const daysInMonth = getDaysInMonth(parseInt(String(year)), parseInt(String(month)));
-  const monthDates = Array.from({ length: daysInMonth }, (_, i) => {
-    try {
-      const parsedYear = parseInt(String(year));
-      const parsedMonth = parseInt(String(month));
-      if (isNaN(parsedYear) || isNaN(parsedMonth)) return `2024-12-${String(i + 1).padStart(2, '0')}`;
-      const date = new Date(parsedYear, parsedMonth - 1, i + 1);
-      return date.toISOString().split('T')[0];
-    } catch (err) {
-      console.error('Error creating date:', err);
-      return `2024-12-${String(i + 1).padStart(2, '0')}`;
-    }
-  });
+  // 조건부 렌더링은 Hook 호출 이후에만
+  if (isLoading) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        데이터를 불러오는 중...
+      </div>
+    );
+  }
+
+  // siteId가 없으면 안내 메시지 표시
+  if (!siteId) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h2>출력 조건이 없습니다</h2>
+        <p>현장 ID(siteId)를 URL 파라미터로 전달해 주세요.</p>
+        <p>예: /print?siteId=1&year=2024&month=12</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+        <h2>출력 데이터를 불러오지 못했습니다</h2>
+        <p>{error}</p>
+        <p>콘솔에서 자세한 오류 정보를 확인하세요.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="print-container">
