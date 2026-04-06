@@ -416,7 +416,7 @@ function PrintPageContent() {
       `}</style>
 
       <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-        <h1 style={{ margin: '0', fontSize: '18px', fontWeight: 'bold' }}>노무현황표</h1>
+        <h1 style={{ margin: '0', fontSize: '18px', fontWeight: 'bold' }}>일용노무비지급명세서</h1>
       </div>
 
       <div style={{ marginBottom: '20px' }}>

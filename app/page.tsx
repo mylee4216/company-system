@@ -2774,21 +2774,21 @@ export default function Page() {
 
               <div className="overflow-hidden border border-slate-300">
                 <div className="grid grid-cols-1 border-slate-300 md:grid-cols-2">
-                  <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300 md:border-r">
-                    <div className="print-meta-label bg-blue-50 px-3 py-4 text-[16.5px] font-semibold leading-[1.35]">회사명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-4 text-[16.5px] leading-[1.35] break-keep">{resolvedCompanyName}</div>
+                  <div className="flex items-center h-[80px] grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300 md:border-r">
+                    <div className="print-meta-label bg-blue-50 px-3 py-6 text-[16.5px] font-semibold leading-[1.6]">회사명</div>
+                    <div className="print-meta-value min-w-0 px-3 py-6 text-[16.5px] leading-[1.6] break-keep">{resolvedCompanyName}</div>
                   </div>
-                  <div className="grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300">
-                    <div className="print-meta-label bg-blue-50 px-3 py-4 text-[16.5px] font-semibold leading-[1.35]">현장명</div>
-                    <div className="print-meta-value min-w-0 px-3 py-4 text-[16.5px] leading-[1.35] break-keep">{resolvedSiteName}</div>
+                  <div className="flex items-center h-[80px] grid grid-cols-[112px_minmax(0,1fr)] border-b border-slate-300">
+                    <div className="print-meta-label bg-blue-50 px-3 py-6 text-[16.5px] font-semibold leading-[1.6]">현장명</div>
+                    <div className="print-meta-value min-w-0 px-3 py-6 text-[16.5px] leading-[1.6] break-keep">{resolvedSiteName}</div>
                   </div>
-                  <div className="grid grid-cols-[112px_minmax(0,1fr)] md:border-r">
-                    <div className="print-meta-label bg-blue-50 px-3 py-4 text-[16.5px] font-semibold leading-[1.35]">기준월</div>
-                    <div className="print-meta-value min-w-0 px-3 py-4 text-[16.5px] leading-[1.35] break-keep">{selectedMonth || "-"}</div>
+                  <div className="flex items-center h-[80px] grid grid-cols-[112px_minmax(0,1fr)] md:border-r">
+                    <div className="print-meta-label bg-blue-50 px-3 py-6 text-[16.5px] font-semibold leading-[1.6]">기준월</div>
+                    <div className="print-meta-value min-w-0 px-3 py-6 text-[16.5px] leading-[1.6] break-keep">{selectedMonth || "-"}</div>
                   </div>
-                  <div className="grid grid-cols-[112px_minmax(0,1fr)]">
-                    <div className="print-meta-label bg-blue-50 px-3 py-4 text-[16.5px] font-semibold leading-[1.35]">기간</div>
-                    <div className="print-meta-value min-w-0 px-3 py-4 text-[16.5px] leading-[1.35] break-keep">{monthPeriod.label}</div>
+                  <div className="flex items-center h-[80px] grid grid-cols-[112px_minmax(0,1fr)]">
+                    <div className="print-meta-label bg-blue-50 px-3 py-6 text-[16.5px] font-semibold leading-[1.6]">기간</div>
+                    <div className="print-meta-value min-w-0 px-3 py-6 text-[16.5px] leading-[1.6] break-keep">{monthPeriod.label}</div>
                   </div>
                 </div>
               </div>
