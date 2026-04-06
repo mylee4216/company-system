@@ -2733,6 +2733,24 @@ export default function Page() {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  if (!selectedCompanyId || !selectedSiteId || !selectedMonth) {
+                    alert("회사명과 현장명, 기준월을 먼저 선택해주세요.");
+                    return;
+                  }
+                  const params = new URLSearchParams({
+                    companyId: selectedCompanyId,
+                    siteId: selectedSiteId,
+                    targetMonth: selectedMonth,
+                  });
+                  window.open(`/print?${params.toString()}`, "print_window", "width=1200,height=800");
+                }}
+                className="screen-control-button inline-flex h-12 items-center justify-center border border-purple-700 bg-white px-3.5 text-[17px] leading-none font-medium text-purple-700 transition hover:bg-purple-50"
+              >
+                📋 출력 보기
+              </button>
+              <button
+                type="button"
                 onClick={handleSave}
                 disabled={isSaving || isLoading || isRecordsLoading}
                 className="screen-control-button inline-flex h-12 items-center justify-center border border-emerald-700 bg-emerald-700 px-4 text-[17px] leading-none font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-300 disabled:bg-emerald-300"
