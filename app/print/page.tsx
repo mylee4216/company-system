@@ -36,9 +36,21 @@ interface DailyWorker {
   hourly_rate: number;
 }
 
+interface MonthlyRecordRowSnapshot {
+  name?: string;
+  resident_number?: string;
+  phone?: string;
+  job_type?: string;
+  unit_price?: number;
+  total_work_units?: number;
+  gross_amount?: number;
+  note?: string;
+}
+
 interface WorkEntry {
   date?: string;
   units?: number;
+  row_snapshot?: MonthlyRecordRowSnapshot | null;
 }
 
 interface DailyWorkerMonthlyRecord {
@@ -49,6 +61,9 @@ interface DailyWorkerMonthlyRecord {
   work_entries: WorkEntry[];
   total_work_units: number;
   gross_amount: number;
+  resident_number?: string | null;
+  job_type?: string | null;
+  phone?: string | null;
 }
 
 interface LaborRow {
@@ -82,6 +97,25 @@ function getMonthPeriod(targetMonth: string) {
   const startDate = `${targetMonth}-01`;
   const endDate = `${targetMonth}-${String(lastDay).padStart(2, '0')}`;
   return `${startDate} ~ ${endDate}`;
+}
+
+function getMonthlyRecordSnapshot(entries: WorkEntry[] | null) {
+  if (!entries) {
+    return null;
+  }
+
+  for (const entry of entries) {
+    if (entry.row_snapshot) {
+      return entry.row_snapshot;
+    }
+  }
+
+  return null;
+}
+
+function getMonthlyRecordTextValue(record: DailyWorkerMonthlyRecord, field: "resident_number" | "job_type" | "phone") {
+  const value = record[field];
+  return typeof value === "string" ? value : "";
 }
 
 function PrintPageContent() {
@@ -227,6 +261,7 @@ function PrintPageContent() {
       return data.records.map((record) => {
         const workerId = record.daily_worker_id;
         const worker = workerId ? workerMap.get(workerId) : undefined;
+        const snapshot = getMonthlyRecordSnapshot(record.work_entries);
 
         // work_entries에서 일별 공수 계산
         const dailyWorkEntries: { [date: string]: string } = {};
@@ -240,18 +275,21 @@ function PrintPageContent() {
 
         const totalWorkUnits = record.total_work_units || 0;
         const grossAmount = record.gross_amount || 0;
-        const unitPrice = worker?.hourly_rate || (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
+        const unitPrice = snapshot?.unit_price ?? worker?.hourly_rate ?? (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
+        const name = snapshot?.name?.trim() || worker?.name || (workerId ? `근로자 #${workerId}` : "");
+        const residentId = snapshot?.resident_number?.trim() || record.resident_number || worker?.resident_number || "";
+        const trade = snapshot?.job_type?.trim() || record.job_type || worker?.job_type || "";
 
         return {
           id: record.id,
-          name: worker?.name || `근로자 #${workerId || "-"}`,
-          residentId: worker?.resident_number || "",
-          trade: worker?.job_type || "",
+          name,
+          residentId,
+          trade,
           unitPrice: unitPrice || 0,
           dailyWorkEntries,
           totalWorkUnits,
           grossAmount,
-          note: "",
+          note: snapshot?.note || "",
           category: "",
         };
       });
