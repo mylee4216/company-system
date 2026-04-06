@@ -2897,9 +2897,9 @@ export default function Page() {
                     <th colSpan={dayGrid.count} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">일자별 공수</th>
                     <th colSpan={3} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">노무비</th>
                     <th colSpan={FORM_DEDUCTION_COLUMNS.length} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">공제</th>
-                    <th className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">차감지급액</th>
-                    <th className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">비고</th>
-                    <th className="px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">관리</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">차감지급액</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">비고</th>
+                    <th rowSpan={2} className="px-2 py-2 text-center text-[15px] font-semibold leading-[1.15]">관리</th>
                   </tr>
                   <tr className="border-b border-slate-300 bg-blue-50/70">
                     <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">번호</th>
@@ -2928,8 +2928,6 @@ export default function Page() {
                       </th>
                     ))}
                     <th className="border-r border-slate-300 px-1 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">지급액</th>
-                    <th className="border-r border-slate-300 px-1 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">비고</th>
-                    <th className="px-1 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">관리</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -365,9 +365,9 @@ function PrintPageContent() {
             <th colSpan={dayGrid.count} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
             <th colSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
             <th colSpan={FORM_DEDUCTION_COLUMNS.length} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
-            <th style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>차감지급액</th>
-            <th style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>비고</th>
-            <th style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>구분</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>차감지급액</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>비고</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>구분</th>
           </tr>
           <tr style={{ backgroundColor: "#f8fbff" }}>
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>번호</th>
@@ -395,8 +395,6 @@ function PrintPageContent() {
               </th>
             ))}
             <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>지급액</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>비고</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>구분</th>
           </tr>
         </thead>
         <tbody>

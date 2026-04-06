@@ -420,7 +420,7 @@ export function formatLaborRemarkLines(remark: LaborRemarkResult): LaborRemarkLi
     };
   }
 
-  const title = remark.source === "previous_month" ? "전월첫근무일" : "최초근무일";
+  const title = "전일첫근무일";
 
   return {
     title,
