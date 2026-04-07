@@ -365,36 +365,45 @@ function PrintPageContent() {
             <th colSpan={dayGrid.count} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
             <th colSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
             <th colSpan={FORM_DEDUCTION_COLUMNS.length} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>차감지급액</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>비고</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>구분</th>
+            <th rowSpan={3} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>차감지급액</th>
+            <th rowSpan={3} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>비고</th>
+            <th rowSpan={3} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>구분</th>
           </tr>
           <tr style={{ backgroundColor: "#f8fbff" }}>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>번호</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>직종</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>성명</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>전화번호</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>주민등록번호</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>구분</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>번호</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>직종</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>성명</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>전화번호</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>주민등록번호</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>구분</th>
             {dayGrid.top.map((cell, index) => (
               <th
-                key={`day-${index + 1}`}
+                key={`day-top-${index + 1}`}
                 style={{ border: "1px solid #000", borderRightWidth: index === 14 ? "2px" : "1px", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}
               >
-                <div>{cell.label}</div>
-                <div style={{ marginTop: "2px", paddingTop: "2px", borderTop: "1px solid #94a3b8", color: "#64748b" }}>{dayGrid.bottom[index]?.label || ""}</div>
+                {cell.label}
               </th>
             ))}
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로일수</th>
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>총액</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로일수</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>총액</th>
             {FORM_DEDUCTION_COLUMNS.map((column) => (
-              <th key={column.key} style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.1 }}>
+              <th key={column.key} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.1 }}>
                 {column.lines.map((line) => (
                   <span key={line} style={{ display: "block" }}>{line}</span>
                 ))}
               </th>
             ))}
-            <th style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>지급액</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>지급액</th>
+          </tr>
+          <tr style={{ backgroundColor: "#f8fbff" }}>
+            {dayGrid.bottom.map((cell, index) => (
+              <th
+                key={`day-bottom-${index + 1}`}
+                style={{ border: "1px solid #000", borderRightWidth: index === 14 ? "2px" : "1px", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}
+              >
+                {cell.label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>

@@ -979,13 +979,21 @@ export default function Page() {
   const resolvedSiteName = siteNameInput.trim() || selectedSite?.name || "-";
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
-  const dayHeaders = useMemo(
+  const daysTop = useMemo(() => Array.from({ length: 15 }, (_, index) => index + 1), []);
+  const daysBottom = useMemo(() => Array.from({ length: 16 }, (_, index) => index + 16), []);
+  const dayColumns = useMemo(
     () =>
-      Array.from({ length: MAX_DAY_COLUMNS }, (_, index) => ({
-        day: index + 1,
-        date: monthDates[index] ?? null,
-      })),
-    [monthDates],
+      daysBottom.map((bottomDay, index) => {
+        const topDay = daysTop[index] ?? null;
+
+        return {
+          topDay,
+          topDate: topDay ? monthDates[topDay - 1] ?? null : null,
+          bottomDay,
+          bottomDate: monthDates[bottomDay - 1] ?? null,
+        };
+      }),
+    [daysBottom, daysTop, monthDates],
   );
   const monthPeriod = useMemo(() => getMonthPeriod(selectedMonth), [selectedMonth]);
   const tableMinWidth = useMemo(
@@ -996,14 +1004,14 @@ export default function Page() {
       TABLE_COLUMN_WIDTHS.phone +
       TABLE_COLUMN_WIDTHS.resident +
       TABLE_COLUMN_WIDTHS.category +
-      TABLE_COLUMN_WIDTHS.day * MAX_DAY_COLUMNS +
+      TABLE_COLUMN_WIDTHS.day * daysBottom.length +
       TABLE_COLUMN_WIDTHS.total +
       TABLE_COLUMN_WIDTHS.unitPrice +
       TABLE_COLUMN_WIDTHS.payment +
       TABLE_COLUMN_WIDTHS.netPay +
       TABLE_COLUMN_WIDTHS.deduction * FORM_DEDUCTION_COLUMNS.length +
       TABLE_COLUMN_WIDTHS.actions,
-    [],
+    [daysBottom.length],
   );
 
   useEffect(() => {
@@ -1306,7 +1314,7 @@ export default function Page() {
     focusedNumericCell?.rowId === rowId && focusedNumericCell.field === field;
 
   const getNumericInputValue = (row: LaborRow, field: NumericField) => {
-    const rawValue = field === "workUnits" ? getDisplayedWorkUnits(row) : row[field];
+    const rawValue = (field === "workUnits" ? getDisplayedWorkUnits(row) : row[field]) ?? "";
 
     if (isFocusedNumericCell(row.id, field)) {
       return rawValue;
@@ -2905,8 +2913,8 @@ export default function Page() {
                   <col className="print-col-phone" style={{ width: `${TABLE_COLUMN_WIDTHS.phone}px` }} />
                   <col className="print-col-resident" style={{ width: `${TABLE_COLUMN_WIDTHS.resident}px` }} />
                   <col className="print-col-category" style={{ width: `${TABLE_COLUMN_WIDTHS.category}px` }} />
-                  {dayHeaders.map((header) => (
-                    <col key={`col-${header.day}`} className="print-col-day" style={{ width: `${TABLE_COLUMN_WIDTHS.day}px` }} />
+                  {dayColumns.map((column, index) => (
+                    <col key={`col-day-${column.bottomDay}-${index}`} className="print-col-day" style={{ width: `${TABLE_COLUMN_WIDTHS.day}px` }} />
                   ))}
                   <col className="print-col-total" style={{ width: `${TABLE_COLUMN_WIDTHS.total}px` }} />
                   <col className="print-col-unit-price" style={{ width: `${TABLE_COLUMN_WIDTHS.unitPrice}px` }} />
@@ -2919,25 +2927,29 @@ export default function Page() {
                 </colgroup>
                 <thead className="bg-blue-100 text-slate-700">
                   <tr className="border-b border-slate-300 bg-blue-50/70">
-                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">번호</th>
-                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">직종</th>
-                    <th className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">성명</th>
-                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15]">전화번호</th>
-                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15] whitespace-nowrap">주민등록번호</th>
-                    <th className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15]">구분</th>
-                    {dayHeaders.map((header) => (
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">번호</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">직종</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-2 py-3 text-center text-[14px] font-semibold leading-[1.15]">성명</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15]">전화번호</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15] whitespace-nowrap">주민등록번호</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[14px] font-semibold leading-[1.15]">구분</th>
+                    {dayColumns.map((column, index) => (
                       <th
-                        key={`day-head-${header.day}`}
-                        className="print-day-header border-r border-slate-300 px-0 py-3 text-center text-[12px] font-semibold leading-[1.05] text-slate-700"
+                        key={`day-head-top-${column.topDay ?? `blank-${index}`}`}
+                        className={`print-day-header border-r border-slate-300 px-0 py-1.5 text-center text-[12px] font-semibold leading-[1.05] text-slate-700 ${column.topDay === 15 ? "border-r-[2px] border-r-black" : ""}`}
                       >
-                        {header.day}
+                        {column.topDay ?? ""}
                       </th>
                     ))}
-                    <th className="border-r border-slate-300 px-1.5 py-3 text-right text-[14px] font-semibold leading-[1.15]">근로일수</th>
-                    <th className="border-r border-slate-300 px-1.5 py-3 text-right text-[12.5px] font-semibold leading-[1.1]">단가</th>
-                    <th className="border-r border-slate-300 px-1.5 py-3 text-right text-[12.5px] font-semibold leading-[1.1]">총액</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[13px] font-semibold leading-[1.05]">
+                      근로
+                      <br />
+                      일수
+                    </th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-right text-[12.5px] font-semibold leading-[1.1]">단가</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-right text-[12.5px] font-semibold leading-[1.1]">총액</th>
                     {FORM_DEDUCTION_COLUMNS.map((column) => (
-                      <th key={column.key} className="border-r border-slate-300 px-1.5 py-2 text-right text-[12px] font-semibold leading-tight">
+                      <th key={`top-${column.key}`} rowSpan={2} className="border-r border-slate-300 px-1.5 py-2 text-right text-[12px] font-semibold leading-tight">
                         {column.key === "longTermCare" ? (
                           <>
                             <span className="block whitespace-nowrap text-center">장기요양</span>
@@ -2950,8 +2962,18 @@ export default function Page() {
                         )}
                       </th>
                     ))}
-                    <th className="px-1.5 py-2 text-right text-[12.5px] font-semibold leading-[1.1]">지급액</th>
-                    <th className="border-l border-slate-300 px-1.5 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">관리</th>
+                    <th rowSpan={2} className="px-1.5 py-2 text-right text-[12.5px] font-semibold leading-[1.1]">지급액</th>
+                    <th rowSpan={2} className="border-l border-slate-300 px-1.5 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">관리</th>
+                  </tr>
+                  <tr className="border-b border-slate-300 bg-blue-50/70">
+                    {dayColumns.map((column, index) => (
+                      <th
+                        key={`day-head-bottom-${column.bottomDay}`}
+                        className={`print-day-header border-r border-slate-300 px-0 py-1.5 text-center text-[12px] font-semibold leading-[1.05] text-slate-700 ${index === 14 ? "border-r-[2px] border-r-black" : ""}`}
+                      >
+                        {column.bottomDay}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -2961,9 +2983,10 @@ export default function Page() {
                     const workedDays = getWorkedDaysCount(row);
 
                     return (
-                      <tr key={row.id} className="border-b border-slate-200 bg-white">
-                        <td className="border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.2] tabular-nums">{index + 1}</td>
-                        <td className="print-cell-trade border-r border-slate-300 px-1 py-2 align-middle text-center">
+                      <Fragment key={row.id}>
+                      <tr className="border-b border-slate-200 bg-white">
+                        <td rowSpan={2} className="border-r border-slate-300 px-1 py-2 align-middle text-center text-[15px] leading-[1.2] tabular-nums">{index + 1}</td>
+                        <td rowSpan={2} className="print-cell-trade border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:trade`] = element;
@@ -2975,7 +2998,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-name border-r border-slate-300 px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-name border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:name`] = element;
@@ -2987,7 +3010,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td className="print-cell-phone border-r border-slate-300 px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-phone border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:phone`] = element;
@@ -3000,7 +3023,7 @@ export default function Page() {
                             className={`${sheetInputClass} whitespace-nowrap px-0.5 text-[16px] tracking-[-0.015em]`}
                           />
                         </td>
-                        <td className="print-cell-resident border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-resident border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
@@ -3013,7 +3036,7 @@ export default function Page() {
                             className={sheetResidentInputClass}
                           />
                         </td>
-                        <td className="print-cell-category border-r border-slate-300 px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-category border-r border-slate-300 px-1 py-2 align-middle text-center">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:category`] = element;
@@ -3026,31 +3049,31 @@ export default function Page() {
                             className={sheetCategoryInputClass}
                           />
                         </td>
-                        {dayHeaders.map((header) => (
-                          <td key={`${row.id}:day:${header.day}`} className="screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center">
-                            {header.date ? (
+                        {dayColumns.map((column, dayIndex) => (
+                          <td key={`${row.id}:day:top:${column.topDay ?? dayIndex}`} className={`screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center ${column.topDay === 15 ? "border-r-[2px] border-r-black" : ""}`}>
+                            {column.topDate ? (
                               <input
                                 ref={(element) => {
-                                  dailyCellRefs.current[`${row.id}:${header.date}`] = element;
+                                  dailyCellRefs.current[`${row.id}:${column.topDate}`] = element;
                                 }}
                                 type="text"
-                                value={getDailyWorkEntryInputValue(row, header.date)}
-                                onChange={(event) => updateDailyWorkEntry(row.id, header.date as string, event.target.value)}
-                                onFocus={() => setFocusedDailyWorkCell({ rowId: row.id, date: header.date as string })}
-                                onBlur={() => handleDailyWorkEntryBlur(row.id, header.date as string)}
-                                onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, header.date as string)}
+                                value={getDailyWorkEntryInputValue(row, column.topDate)}
+                                onChange={(event) => updateDailyWorkEntry(row.id, column.topDate as string, event.target.value)}
+                                onFocus={() => setFocusedDailyWorkCell({ rowId: row.id, date: column.topDate as string })}
+                                onBlur={() => handleDailyWorkEntryBlur(row.id, column.topDate as string)}
+                                onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, column.topDate as string)}
                                 inputMode="decimal"
                                 autoComplete="off"
-                                aria-label={`${header.day}일 공수`}
+                                aria-label={`${column.topDay}일 공수`}
                                 className={dailyEntryInputClass}
                               />
                             ) : null}
                           </td>
                         ))}
-                        <td className="border-r border-slate-300 pl-1 pr-1.5 py-2 align-middle text-right text-[15px] tabular-nums">
+                        <td rowSpan={2} className="border-r border-slate-300 pl-1 pr-1.5 py-2 align-middle text-center text-[15px] tabular-nums">
                           {workedDays > 0 ? String(workedDays) : ""}
                         </td>
-                        <td className="print-cell-unit-price print-cell-number border-r border-slate-300 px-0.5 py-2 align-middle text-right">
+                        <td rowSpan={2} className="print-cell-unit-price print-cell-number border-r border-slate-300 px-0.5 py-2 align-middle text-right">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:unitPrice`] = element;
@@ -3067,32 +3090,56 @@ export default function Page() {
                             className={`${sheetNumericClass} px-0.5 text-[16px]`}
                           />
                         </td>
-                        <td className="print-cell-number border-r border-slate-300 bg-blue-50 pl-1 pr-1.5 py-2 align-middle text-right text-[16.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                        <td rowSpan={2} className="print-cell-number border-r border-slate-300 bg-blue-50 pl-1 pr-1.5 py-2 align-middle text-right text-[16.5px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(getPaymentAmount(row))}
                         </td>
                         {FORM_DEDUCTION_COLUMNS.map((column) => (
-                          <td key={`${row.id}:${column.key}`} className="print-cell-number border-r border-slate-300 pl-1 pr-1.5 py-2 align-middle text-right text-[15px] leading-[1.3] tabular-nums text-slate-700">
+                          <td key={`${row.id}:${column.key}`} rowSpan={2} className="print-cell-number border-r border-slate-300 pl-1 pr-1.5 py-2 align-middle text-right text-[15px] leading-[1.3] tabular-nums text-slate-700">
                             {formatCurrency(insurance[column.key])}
                           </td>
                         ))}
-                        <td className="print-cell-number bg-emerald-50 pl-1 pr-1.5 py-2 align-middle text-right text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                        <td rowSpan={2} className="print-cell-number bg-emerald-50 pl-1 pr-1.5 py-2 align-middle text-right text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(insurance.netPay)}
                         </td>
-                        <td className="print-cell-actions border-l border-slate-300 px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-actions border-l border-slate-300 px-1 py-2 align-middle text-center">
                           <button type="button" aria-label="삭제" onClick={() => removeRowAtIndex(rowIndex)} className={`${deleteButtonClass} h-7 min-w-[42px] text-[11px]`}>
                             삭제
                           </button>
                         </td>
                       </tr>
+                      <tr className="border-b border-slate-200 bg-white">
+                        {dayColumns.map((column, dayIndex) => (
+                          <td key={`${row.id}:day:bottom:${column.bottomDay}`} className={`screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center ${dayIndex === 14 ? "border-r-[2px] border-r-black" : ""}`}>
+                            {column.bottomDate ? (
+                              <input
+                                ref={(element) => {
+                                  dailyCellRefs.current[`${row.id}:${column.bottomDate}`] = element;
+                                }}
+                                type="text"
+                                value={getDailyWorkEntryInputValue(row, column.bottomDate)}
+                                onChange={(event) => updateDailyWorkEntry(row.id, column.bottomDate as string, event.target.value)}
+                                onFocus={() => setFocusedDailyWorkCell({ rowId: row.id, date: column.bottomDate as string })}
+                                onBlur={() => handleDailyWorkEntryBlur(row.id, column.bottomDate as string)}
+                                onKeyDown={(event) => handleDailyCellKeyDown(event, row.id, column.bottomDate as string)}
+                                inputMode="decimal"
+                                autoComplete="off"
+                                aria-label={`${column.bottomDay}일 공수`}
+                                className={dailyEntryInputClass}
+                              />
+                            ) : null}
+                          </td>
+                        ))}
+                      </tr>
+                      </Fragment>
                     );
                   })}
                 </tbody>
                 <tfoot className="bg-blue-100">
                   <tr className="border-t-2 border-blue-700">
-                    <td colSpan={6 + MAX_DAY_COLUMNS} className="print-summary-label border-r border-slate-300 px-2 py-3 text-right text-[17px] font-semibold leading-[1.3] text-slate-700">
+                    <td colSpan={6 + dayColumns.length} className="print-summary-label border-r border-slate-300 px-2 py-3 text-center text-[17px] font-semibold leading-[1.3] text-slate-700">
                       합계
                     </td>
-                    <td className="print-summary-value border-r border-slate-300 pl-1 pr-1.5 py-3 text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-slate-300 pl-1 pr-1.5 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {visibleRows.reduce((sum, row) => sum + getWorkedDaysCount(row), 0) || ""}
                     </td>
                     <td className="print-summary-value border-r border-slate-300 px-2 py-3 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-500">
