@@ -71,18 +71,6 @@ interface PrintRow {
   insurance: ReturnType<typeof calculateInsurance>;
 }
 
-type DeductionColumnKey = (typeof FORM_DEDUCTION_COLUMNS)[number]["key"];
-
-const PRINT_DEDUCTION_HEADERS: Record<DeductionColumnKey, [string, string]> = {
-  national: ["국민", "연금"],
-  health: ["건강", "보험"],
-  longTermCare: ["장기요양", "보험"],
-  employment: ["고용", "보험"],
-  incomeTax: ["소득세", ""],
-  residentTax: ["주민세", ""],
-  totalDeduction: ["공제", "금액"],
-};
-
 const PRINT_TABLE_WIDTH = "1698px";
 
 function getMonthLastDay(targetMonth: string) {
@@ -456,20 +444,10 @@ function PrintPageContent() {
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>근로<br />공수</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>노무비<br />단가</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>노무비<br />총액</th>
-            {FORM_DEDUCTION_COLUMNS.map((column) => {
-              const [topLabel, bottomLabel] =
-                column.key === "incomeTax"
-                  ? ["소득", "세"]
-                  : column.key === "residentTax"
-                    ? ["주민", "세"]
-                    : PRINT_DEDUCTION_HEADERS[column.key];
-              return (
-                <th key={column.key} rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>
-                  {topLabel}
-                  {bottomLabel}
-                </th>
-              );
-            })}
+            <th colSpan={2} style={{ border: "1px solid #000", height: "18px", padding: "1px 2px", textAlign: "center", verticalAlign: "middle" }}>국민연금</th>
+            <th colSpan={2} style={{ border: "1px solid #000", height: "18px", padding: "1px 2px", textAlign: "center", verticalAlign: "middle" }}>건강보험</th>
+            <th colSpan={2} style={{ border: "1px solid #000", height: "18px", padding: "1px 2px", textAlign: "center", verticalAlign: "middle" }}>고용보험</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>공제<br />금액</th>
           </tr>
           <tr style={{ backgroundColor: "#f8fbff" }}>
             <th style={{ border: "1px solid #000", height: "18px", padding: "1px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.1 }}>주민등록번호</th>
@@ -482,6 +460,9 @@ function PrintPageContent() {
                 {cell.label}
               </th>
             ))}
+            <th colSpan={2} style={{ border: "1px solid #000", height: "18px", padding: "1px 2px", textAlign: "center", verticalAlign: "middle" }}>갑근세</th>
+            <th colSpan={2} style={{ border: "1px solid #000", height: "18px", padding: "1px 2px", textAlign: "center", verticalAlign: "middle" }}>주민세</th>
+            <th colSpan={2} style={{ border: "1px solid #000", height: "18px", padding: "1px 2px", textAlign: "center", verticalAlign: "middle" }}>노인장기요양</th>
           </tr>
         </thead>
         <tbody>
@@ -509,11 +490,10 @@ function PrintPageContent() {
                   <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle" }}>{formatOneDecimal(row.totalWorkUnits)}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.unitPrice)}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.grossAmount)}</td>
-                  {FORM_DEDUCTION_COLUMNS.map((column) => (
-                    <td key={`${row.id}:${column.key}`} rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>
-                      {formatAmount(row.insurance[column.key])}
-                    </td>
-                  ))}
+                  <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.insurance.national)}</td>
+                  <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.insurance.health)}</td>
+                  <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.insurance.employment)}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.insurance.totalDeduction)}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.insurance.netPay)}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{row.note || ""}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle", color: "#444" }}>{row.category || "-"}</td>
@@ -526,6 +506,9 @@ function PrintPageContent() {
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
                     </td>
                   ))}
+                  <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.insurance.incomeTax)}</td>
+                  <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.insurance.residentTax)}</td>
+                  <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.insurance.longTermCare)}</td>
                 </tr>
               </Fragment>
             ))
@@ -533,22 +516,26 @@ function PrintPageContent() {
         </tbody>
         <tfoot>
           <tr style={{ backgroundColor: "#fff200", fontWeight: 700, height: "32px" }}>
-            <td colSpan={6} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", padding: "5px 4px" }}>총계</td>
+            <td rowSpan={2} colSpan={6} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", padding: "5px 4px" }}>총계</td>
             {Array.from({ length: dayGrid.count }, (_, index) => (
-              <td key={`sum-day-${index + 1}`} style={{ border: "1px solid #000" }}></td>
+              <td key={`sum-day-${index + 1}`} rowSpan={2} style={{ border: "1px solid #000" }}></td>
             ))}
-            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{totals.workedDays || ""}</td>
-            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{formatOneDecimal(totals.totalWorkUnits)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
-            <td style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.grossAmount)}</td>
-            {FORM_DEDUCTION_COLUMNS.map((column) => (
-              <td key={`sum-${column.key}`} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>
-                {formatAmount(totals[column.key])}
-              </td>
-            ))}
-            <td style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.netPay)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>합계</td>
-            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{`${statementRows.length}명`}</td>
+            <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{totals.workedDays || ""}</td>
+            <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{formatOneDecimal(totals.totalWorkUnits)}</td>
+            <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
+            <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.grossAmount)}</td>
+            <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.national)}</td>
+            <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.health)}</td>
+            <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.employment)}</td>
+            <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.totalDeduction)}</td>
+            <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.netPay)}</td>
+            <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>합계</td>
+            <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{`${statementRows.length}명`}</td>
+          </tr>
+          <tr style={{ backgroundColor: "#fff200", fontWeight: 700, height: "32px" }}>
+            <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.incomeTax)}</td>
+            <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.residentTax)}</td>
+            <td colSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.longTermCare)}</td>
           </tr>
         </tfoot>
       </table>
