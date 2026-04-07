@@ -354,8 +354,17 @@ function PrintPageContent() {
         }
       `}</style>
 
-      <div style={{ marginBottom: "8px", textAlign: "center" }}>
-        <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "bold", letterSpacing: "0.08em" }}>
+      <div
+        style={{
+          width: PRINT_TABLE_WIDTH,
+          margin: "0 auto",
+          border: "1px solid #000",
+          borderBottom: 0,
+          padding: "12px 0 10px",
+          textAlign: "center",
+        }}
+      >
+        <h1 style={{ margin: 0, fontSize: "23px", fontWeight: "bold", letterSpacing: "0.14em", lineHeight: 1.15 }}>
           {`${targetYearLabel}년 ${targetMonthLabel}월 일용노무비지급명세서`}
         </h1>
       </div>
@@ -365,26 +374,26 @@ function PrintPageContent() {
           display: "grid",
           gridTemplateColumns: "1fr 1.15fr 1fr",
           width: PRINT_TABLE_WIDTH,
-          margin: "0 auto 8px",
+          margin: "0 auto 6px",
           border: "1px solid #000",
           fontSize: "11px",
-          lineHeight: 1.5,
+          lineHeight: 1.35,
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: "52px 1fr", borderRight: "1px solid #000" }}>
-          <div style={{ borderRight: "1px solid #000", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>상호</div>
-          <div style={{ padding: "6px 8px" }}>{data.company?.name || "-"}</div>
+          <div style={{ borderRight: "1px solid #000", padding: "5px 4px", textAlign: "center", fontWeight: 700 }}>상호</div>
+          <div style={{ padding: "5px 8px" }}>{data.company?.name || "-"}</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "52px 1fr", borderRight: "1px solid #000" }}>
-          <div style={{ borderRight: "1px solid #000", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>기간</div>
-          <div style={{ padding: "6px 8px", textAlign: "center" }}>
+          <div style={{ borderRight: "1px solid #000", padding: "5px 4px", textAlign: "center", fontWeight: 700 }}>기간</div>
+          <div style={{ padding: "4px 8px", textAlign: "center" }}>
             <div>{`${targetMonth}-01`}</div>
             <div>{`${targetMonth}-${String(getMonthLastDay(targetMonth)).padStart(2, "0")}`}</div>
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "58px 1fr" }}>
-          <div style={{ borderRight: "1px solid #000", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>공사명</div>
-          <div style={{ padding: "6px 8px" }}>{data.site?.name || "-"}</div>
+          <div style={{ borderRight: "1px solid #000", padding: "5px 4px", textAlign: "center", fontWeight: 700 }}>공사명</div>
+          <div style={{ padding: "5px 8px" }}>{data.site?.name || "-"}</div>
         </div>
       </div>
 
@@ -394,7 +403,8 @@ function PrintPageContent() {
           margin: "0 auto 16px",
           borderCollapse: "collapse",
           tableLayout: "fixed",
-          fontSize: "8.5px",
+          fontSize: "9px",
+          lineHeight: 1.15,
         }}
       >
         <colgroup>
@@ -420,36 +430,36 @@ function PrintPageContent() {
         </colgroup>
         <thead>
           <tr style={{ backgroundColor: "#eef4ff" }}>
-            <th colSpan={6} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
-            <th colSpan={dayGrid.count} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
-            <th colSpan={4} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
-            <th colSpan={FORM_DEDUCTION_COLUMNS.length} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
-            <th rowSpan={3} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>차감지급액</th>
-            <th rowSpan={3} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>비고</th>
-            <th rowSpan={3} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>구분</th>
+            <th colSpan={6} style={{ border: "1px solid #000", padding: "3px 4px", textAlign: "center", verticalAlign: "middle", fontWeight: 700 }}>기본정보</th>
+            <th colSpan={dayGrid.count} style={{ border: "1px solid #000", padding: "3px 4px", textAlign: "center", verticalAlign: "middle", fontWeight: 700 }}>일자별 공수</th>
+            <th colSpan={4} style={{ border: "1px solid #000", padding: "3px 4px", textAlign: "center", verticalAlign: "middle", fontWeight: 700 }}>노무비</th>
+            <th colSpan={FORM_DEDUCTION_COLUMNS.length} style={{ border: "1px solid #000", padding: "3px 4px", textAlign: "center", verticalAlign: "middle", fontWeight: 700 }}>공제</th>
+            <th rowSpan={3} style={{ border: "1px solid #000", padding: "4px 3px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>차감<br />지급액</th>
+            <th rowSpan={3} style={{ border: "1px solid #000", padding: "4px 3px", textAlign: "center", verticalAlign: "middle" }}>비고</th>
+            <th rowSpan={3} style={{ border: "1px solid #000", padding: "4px 3px", textAlign: "center", verticalAlign: "middle", color: "#444" }}>구분</th>
           </tr>
           <tr style={{ backgroundColor: "#f8fbff" }}>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>번호</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>직종</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>성명</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>전화번호</th>
-            <th colSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>주소</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle" }}>번호</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle" }}>직종</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle" }}>성명</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle" }}>전화번호</th>
+            <th colSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle" }}>주소</th>
             {dayGrid.top.map((cell, index) => (
               <th
                 key={`day-top-${index + 1}`}
-                style={{ border: "1px solid #000", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}
+                style={{ border: "1px solid #000", height: "18px", padding: "1px 0", textAlign: "center", verticalAlign: "middle", lineHeight: 1.1 }}
               >
                 {cell.label}
               </th>
             ))}
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로<br />일수</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로<br />공수</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>단가</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>총액</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>근로<br />일수</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>근로<br />공수</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>노무비<br />단가</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>노무비<br />총액</th>
             {FORM_DEDUCTION_COLUMNS.map((column) => {
               const [topLabel, bottomLabel] = PRINT_DEDUCTION_HEADERS[column.key];
               return (
-                <th key={column.key} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>
+                <th key={column.key} rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>
                   <span style={{ display: "block" }}>{topLabel}</span>
                   <span style={{ display: "block" }}>{bottomLabel}</span>
                 </th>
@@ -457,12 +467,12 @@ function PrintPageContent() {
             })}
           </tr>
           <tr style={{ backgroundColor: "#f8fbff" }}>
-            <th style={{ border: "1px solid #000", padding: "3px 2px", textAlign: "center", lineHeight: 1.1 }}>주민등록번호</th>
-            <th style={{ border: "1px solid #000", padding: "3px 2px", textAlign: "center", lineHeight: 1.1 }}>계좌번호</th>
+            <th style={{ border: "1px solid #000", height: "18px", padding: "1px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.1 }}>주민등록번호</th>
+            <th style={{ border: "1px solid #000", height: "18px", padding: "1px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.1 }}>계좌번호</th>
             {dayGrid.bottom.map((cell, index) => (
               <th
                 key={`day-bottom-${index + 1}`}
-                style={{ border: "1px solid #000", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}
+                style={{ border: "1px solid #000", height: "18px", padding: "1px 0", textAlign: "center", verticalAlign: "middle", lineHeight: 1.1 }}
               >
                 {cell.label}
               </th>
@@ -479,35 +489,35 @@ function PrintPageContent() {
           ) : (
             statementRows.map((row, index) => (
               <Fragment key={row.id}>
-                <tr style={{ height: "34px" }}>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{index + 1}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.trade}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.name}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
-                  <td colSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
+                <tr style={{ height: "28px" }}>
+                  <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle" }}>{index + 1}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle" }}>{row.trade || "-"}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle" }}>{row.name || "-"}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle" }}>-</td>
+                  <td colSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle" }}>-</td>
                   {dayGrid.top.map((cell, dayIndex) => (
-                    <td key={`${row.id}:top:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
+                    <td key={`${row.id}:top:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", padding: "1px 0", textAlign: "center", verticalAlign: "middle" }}>
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
                     </td>
                   ))}
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.workedDays || ""}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{formatOneDecimal(row.totalWorkUnits)}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatAmount(row.unitPrice)}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatAmount(row.grossAmount)}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle" }}>{row.workedDays || ""}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle" }}>{formatOneDecimal(row.totalWorkUnits)}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.unitPrice)}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.grossAmount)}</td>
                   {FORM_DEDUCTION_COLUMNS.map((column) => (
-                    <td key={`${row.id}:${column.key}`} rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>
+                    <td key={`${row.id}:${column.key}`} rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>
                       {formatAmount(row.insurance[column.key])}
                     </td>
                   ))}
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatAmount(row.insurance.netPay)}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", whiteSpace: "pre-line" }}>{row.note || ""}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.category}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(row.insurance.netPay)}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{row.note || ""}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle", color: "#444" }}>{row.category || "-"}</td>
                 </tr>
-                <tr style={{ height: "30px", backgroundColor: "#fcfdff" }}>
-                  <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", whiteSpace: "nowrap" }}>{row.residentId || "-"}</td>
-                  <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
+                <tr style={{ height: "24px", backgroundColor: "#fcfdff" }}>
+                  <td style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle", whiteSpace: "nowrap" }}>{row.residentId || "-"}</td>
+                  <td style={{ border: "1px solid #000", padding: "2px 3px", textAlign: "center", verticalAlign: "middle" }}>-</td>
                   {dayGrid.bottom.map((cell, dayIndex) => (
-                    <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
+                    <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", padding: "1px 0", textAlign: "center", verticalAlign: "middle" }}>
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
                     </td>
                   ))}
@@ -517,23 +527,23 @@ function PrintPageContent() {
           )}
         </tbody>
         <tfoot>
-          <tr style={{ backgroundColor: "#fff200", fontWeight: 700, height: "34px" }}>
-            <td colSpan={6} style={{ border: "1px solid #000", textAlign: "center", padding: "6px 4px" }}>합계</td>
+          <tr style={{ backgroundColor: "#fff200", fontWeight: 700, height: "32px" }}>
+            <td colSpan={6} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", padding: "5px 4px" }}>총계</td>
             {Array.from({ length: dayGrid.count }, (_, index) => (
               <td key={`sum-day-${index + 1}`} style={{ border: "1px solid #000" }}></td>
             ))}
-            <td style={{ border: "1px solid #000", textAlign: "center" }}>{totals.workedDays || ""}</td>
-            <td style={{ border: "1px solid #000", textAlign: "center" }}>{formatOneDecimal(totals.totalWorkUnits)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "center" }}>-</td>
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.grossAmount)}</td>
+            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{totals.workedDays || ""}</td>
+            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{formatOneDecimal(totals.totalWorkUnits)}</td>
+            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
+            <td style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.grossAmount)}</td>
             {FORM_DEDUCTION_COLUMNS.map((column) => (
-              <td key={`sum-${column.key}`} style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>
+              <td key={`sum-${column.key}`} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>
                 {formatAmount(totals[column.key])}
               </td>
             ))}
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.netPay)}</td>
-            <td style={{ border: "1px solid #000", textAlign: "center" }}>총계</td>
-            <td style={{ border: "1px solid #000", textAlign: "center" }}>{`${statementRows.length}명`}</td>
+            <td style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "5px" }}>{formatAmount(totals.netPay)}</td>
+            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>합계</td>
+            <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{`${statementRows.length}명`}</td>
           </tr>
         </tfoot>
       </table>
