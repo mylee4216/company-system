@@ -15,7 +15,14 @@ type Worker = {
   updated_at: string;
 };
 
-type FormData = Omit<Worker, "id" | "created_at" | "updated_at">;
+type FormData = {
+  name: string;
+  phone: string;
+  resident_number: string;
+  job_type: string;
+  category: string | null;
+  is_active: boolean;
+};
 
 const CATEGORY_OPTIONS = ["직영", "용역", "기타"] as const;
 const APP_PASSWORD = "leejuu1996!";
@@ -131,21 +138,29 @@ function EditModal({ isOpen, worker, onClose, onSave, isSaving }: EditModalProps
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (worker && isOpen) {
-      setFormData({
-        name: worker.name,
-        phone: worker.phone || "",
-        resident_number: worker.resident_number || "",
-        job_type: worker.job_type || "",
-        category: worker.category as typeof CATEGORY_OPTIONS[number] | null,
-        is_active: worker.is_active,
-      });
-      setError("");
-      setTimeout(() => nameInputRef.current?.focus(), 0);
+    if (!worker || !isOpen) {
+      return;
     }
+
+    const nextFormData: FormData = {
+      name: worker.name,
+      phone: worker.phone || "",
+      resident_number: worker.resident_number || "",
+      job_type: worker.job_type || "",
+      category: worker.category,
+      is_active: worker.is_active,
+    };
+
+    const timer = window.setTimeout(() => {
+      setFormData(nextFormData);
+      setError("");
+      nameInputRef.current?.focus();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [worker, isOpen]);
 
-  const handleChange = (field: keyof FormData, value: string | boolean) => {
+  const handleChange = (field: keyof FormData, value: string | boolean | null) => {
     setError("");
     if (field === "phone") {
       setFormData((prev) => ({ ...prev, [field]: formatPhoneNumber(value as string) }));
@@ -380,7 +395,7 @@ export default function WorkersPage() {
     }
   };
 
-  const handleFormChange = (field: keyof FormData, value: string | boolean) => {
+  const handleFormChange = (field: keyof FormData, value: string | boolean | null) => {
     setFormError("");
     if (field === "phone") {
       setFormData((prev) => ({ ...prev, [field]: formatPhoneNumber(value as string) }));
