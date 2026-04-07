@@ -550,6 +550,19 @@ function getDailyWorkEntriesTotal(dailyWorkEntries: DailyWorkEntryMap) {
   return Object.values(dailyWorkEntries).reduce((sum, value) => sum + parseNumber(value), 0);
 }
 
+function calculateWorkedDays(dailyWorkEntries: DailyWorkEntryMap) {
+  return Object.values(dailyWorkEntries).filter((value) => parseNumber(value) > 0).length;
+}
+
+function calculateWorkedHours(dailyWorkEntries: DailyWorkEntryMap) {
+  return getDailyWorkEntriesTotal(dailyWorkEntries);
+}
+
+function formatOneDecimal(value: string | number | null | undefined) {
+  const parsed = parseNumber(value);
+  return parsed.toFixed(1);
+}
+
 function hasDailyWorkEntries(dailyWorkEntries: DailyWorkEntryMap) {
   return Object.values(dailyWorkEntries).some((value) => parseNumber(value) > 0);
 }
@@ -564,11 +577,10 @@ function getEffectiveWorkUnits(row: LaborRow) {
 
 function getWorkedDaysCount(row: LaborRow) {
   if (hasDailyWorkEntries(row.dailyWorkEntries)) {
-    return Object.values(row.dailyWorkEntries).filter((value) => parseNumber(value) > 0).length;
+    return calculateWorkedDays(row.dailyWorkEntries);
   }
 
-  const workUnits = parseNumber(row.workUnits);
-  return workUnits > 0 ? Math.ceil(workUnits) : 0;
+  return 0;
 }
 
 function getCategoryFilterValue(category: string | null | undefined) {
@@ -1012,6 +1024,7 @@ export default function Page() {
       TABLE_COLUMN_WIDTHS.resident +
       TABLE_COLUMN_WIDTHS.category +
       TABLE_COLUMN_WIDTHS.day * daysBottom.length +
+      TABLE_COLUMN_WIDTHS.total +
       TABLE_COLUMN_WIDTHS.total +
       TABLE_COLUMN_WIDTHS.unitPrice +
       TABLE_COLUMN_WIDTHS.payment +
@@ -2924,6 +2937,7 @@ export default function Page() {
                     <col key={`col-day-${column.bottomDay}-${index}`} className="print-col-day" style={{ width: `${TABLE_COLUMN_WIDTHS.day}px` }} />
                   ))}
                   <col className="print-col-total" style={{ width: `${TABLE_COLUMN_WIDTHS.total}px` }} />
+                  <col className="print-col-total" style={{ width: `${TABLE_COLUMN_WIDTHS.total}px` }} />
                   <col className="print-col-unit-price" style={{ width: `${TABLE_COLUMN_WIDTHS.unitPrice}px` }} />
                   <col className="print-col-payment" style={{ width: `${TABLE_COLUMN_WIDTHS.payment}px` }} />
                   {FORM_DEDUCTION_COLUMNS.map((column) => (
@@ -2952,6 +2966,11 @@ export default function Page() {
                       근로
                       <br />
                       일수
+                    </th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center text-[13px] font-semibold leading-[1.05]">
+                      근로
+                      <br />
+                      공수
                     </th>
                     <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center align-middle text-[12.5px] font-semibold leading-[1.1]">단가</th>
                     <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center align-middle text-[12.5px] font-semibold leading-[1.1]">총액</th>
@@ -3088,6 +3107,9 @@ export default function Page() {
                         <td rowSpan={2} className="border-r border-slate-300 pl-1 pr-1.5 py-2 align-middle text-center text-[15px] tabular-nums">
                           {workedDays > 0 ? String(workedDays) : ""}
                         </td>
+                        <td rowSpan={2} className="border-r border-slate-300 px-1.5 py-2 align-middle text-center text-[15px] tabular-nums">
+                          {formatOneDecimal(calculateWorkedHours(row.dailyWorkEntries))}
+                        </td>
                         <td rowSpan={2} className="print-cell-unit-price print-cell-number border-r border-slate-300 px-0.5 py-2 align-middle text-right">
                           <input
                             ref={(element) => {
@@ -3164,6 +3186,9 @@ export default function Page() {
                     </td>
                     <td className="print-summary-value border-r border-slate-300 px-2 py-6 align-middle text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {visibleRows.reduce((sum, row) => sum + getWorkedDaysCount(row), 0) || ""}
+                    </td>
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 align-middle text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-500">
+                      {formatOneDecimal(totalWorkUnits)}
                     </td>
                     <td className="print-summary-value border-r border-slate-300 px-2 py-6 align-middle text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-500">
                       -

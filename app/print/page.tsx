@@ -3,7 +3,7 @@
 import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { buildLaborDayGrid, FORM_DAY_COLUMN_COUNT, FORM_DEDUCTION_COLUMNS } from "@/lib/labor-layout";
+import { FORM_DAY_COLUMN_COUNT, FORM_DEDUCTION_COLUMNS } from "@/lib/labor-layout";
 import { calculateInsurance, formatGongsu, formatLaborRemarkLines, getLaborRemark, loadDefaultRateConfig, parseSnapshotNote } from "@/lib/labor";
 import { supabase } from "@/lib/supabase";
 
@@ -63,9 +63,11 @@ interface PrintRow {
   trade: string;
   dailyWorkEntries: Record<string, string>;
   totalWorkUnits: number;
+  unitPrice: number;
   grossAmount: number;
   note: string;
   category: string;
+  workedDays: number;
   insurance: ReturnType<typeof calculateInsurance>;
 }
 
@@ -80,11 +82,6 @@ function getMonthLastDay(targetMonth: string) {
   }
 
   return new Date(year, month, 0).getDate();
-}
-
-function getMonthPeriod(targetMonth: string) {
-  const lastDay = getMonthLastDay(targetMonth);
-  return `${targetMonth}-01 ~ ${targetMonth}-${String(lastDay).padStart(2, "0")}`;
 }
 
 function getMonthlyRecordSnapshot(entries: WorkEntry[] | null | undefined) {
@@ -110,9 +107,36 @@ function formatAmount(value: number) {
   return Math.round(value).toLocaleString("ko-KR");
 }
 
-function getWorkedDaysCountFromEntries(entries: WorkEntry[] | null | undefined, totalWorkUnits: number) {
-  const workedDays = (entries ?? []).filter((entry) => Number(entry.units ?? 0) > 0).length;
-  return workedDays > 0 ? workedDays : (totalWorkUnits > 0 ? Math.ceil(totalWorkUnits) : 0);
+function formatOneDecimal(value: string | number | null | undefined) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed.toFixed(1) : "0.0";
+}
+
+function getWorkedDaysCountFromEntries(entries: WorkEntry[] | null | undefined) {
+  return (entries ?? []).filter((entry) => entry.date && Number(entry.units ?? 0) > 0).length;
+}
+
+function buildPrintDayGrid(targetMonth: string) {
+  const allDays = Array.from({ length: 31 }, (_, index) => index + 1);
+  const toDate = (day: number) => `${targetMonth}-${String(day).padStart(2, "0")}`;
+
+  return {
+    top: Array.from({ length: FORM_DAY_COLUMN_COUNT }, (_, index) => {
+      const day = index < 15 ? allDays[index] : null;
+      return {
+        date: day ? toDate(day) : null,
+        label: day ? String(day) : "",
+      };
+    }),
+    bottom: Array.from({ length: FORM_DAY_COLUMN_COUNT }, (_, index) => {
+      const day = allDays[index + 15];
+      return {
+        date: toDate(day),
+        label: String(day),
+      };
+    }),
+    count: FORM_DAY_COLUMN_COUNT,
+  };
 }
 
 function PrintPageContent() {
@@ -123,7 +147,6 @@ function PrintPageContent() {
   const targetMonth = targetMonthParam || `${queryYear}-${queryMonth.padStart(2, "0")}`;
   const siteId = searchParams?.get("siteId");
   const rateConfig = useMemo(() => loadDefaultRateConfig(searchParams?.get("rateConfig")), [searchParams]);
-  const monthPeriod = useMemo(() => getMonthPeriod(targetMonth), [targetMonth]);
 
   const [data, setData] = useState<{
     company: Company | null;
@@ -205,17 +228,7 @@ function PrintPageContent() {
     void loadData();
   }, [siteId, targetMonth]);
 
-  const monthDates = useMemo(() => {
-    const [year, month] = targetMonth.split("-").map(Number);
-    if (Number.isNaN(year) || Number.isNaN(month)) {
-      return [];
-    }
-
-    const daysInMonth = new Date(year, month, 0).getDate();
-    return Array.from({ length: daysInMonth }, (_, index) => `${targetMonth}-${String(index + 1).padStart(2, "0")}`);
-  }, [targetMonth]);
-
-  const dayGrid = useMemo(() => buildLaborDayGrid(monthDates), [monthDates]);
+  const dayGrid = useMemo(() => buildPrintDayGrid(targetMonth), [targetMonth]);
 
   const statementRows = useMemo(() => {
     const workerMap = new Map(data.workers.map((worker) => [worker.id, worker]));
@@ -234,12 +247,13 @@ function PrintPageContent() {
 
       const totalWorkUnits = record.total_work_units || snapshot?.total_work_units || 0;
       const grossAmount = record.gross_amount || snapshot?.gross_amount || 0;
+      const unitPrice = snapshot?.unit_price || (totalWorkUnits > 0 ? grossAmount / totalWorkUnits : 0);
       const residentId =
         snapshot?.resident_number?.trim() ||
         getMonthlyRecordTextValue(record, "resident_number") ||
         worker?.resident_number ||
         "";
-      const workedDays = getWorkedDaysCountFromEntries(record.work_entries, totalWorkUnits);
+      const workedDays = getWorkedDaysCountFromEntries(record.work_entries);
       const note = formatLaborRemarkLines(
         getLaborRemark(targetMonth, worker?.first_work_date || null, record.work_entries ?? []),
       ).text;
@@ -255,9 +269,11 @@ function PrintPageContent() {
           "",
         dailyWorkEntries,
         totalWorkUnits,
+        unitPrice,
         grossAmount,
         note,
         category: snapshotMeta.category || "",
+        workedDays,
         insurance: calculateInsurance({ grossPay: grossAmount, workDays: workedDays, residentId, targetMonth }, rateConfig),
       } satisfies PrintRow;
     });
@@ -268,6 +284,7 @@ function PrintPageContent() {
       statementRows.reduce(
         (sum, row) => ({
           totalWorkUnits: sum.totalWorkUnits + row.totalWorkUnits,
+          workedDays: sum.workedDays + row.workedDays,
           grossAmount: sum.grossAmount + row.grossAmount,
           national: sum.national + row.insurance.national,
           health: sum.health + row.insurance.health,
@@ -280,6 +297,7 @@ function PrintPageContent() {
         }),
         {
           totalWorkUnits: 0,
+          workedDays: 0,
           grossAmount: 0,
           national: 0,
           health: 0,
@@ -321,22 +339,35 @@ function PrintPageContent() {
         }
       `}</style>
 
-      <div style={{ marginBottom: "14px", textAlign: "center" }}>
-        <h1 style={{ margin: 0, fontSize: "20px", fontWeight: "bold", letterSpacing: "0.08em" }}>노무비 명세서</h1>
+      <div style={{ marginBottom: "8px", textAlign: "center" }}>
+        <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "bold", letterSpacing: "0.08em" }}>노무비 지급명세서</h1>
       </div>
 
       <div
         style={{
-          marginBottom: "14px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1.2fr 1fr",
+          marginBottom: "8px",
           border: "1px solid #000",
-          padding: "10px 14px",
           fontSize: "11px",
-          lineHeight: 1.7,
+          lineHeight: 1.5,
         }}
       >
-        <div>회사명: {data.company?.name || "-"}</div>
-        <div>현장명: {data.site?.name || "-"}</div>
-        <div>기간: {monthPeriod}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "52px 1fr", borderRight: "1px solid #000" }}>
+          <div style={{ borderRight: "1px solid #000", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>상호</div>
+          <div style={{ padding: "6px 8px" }}>{data.company?.name || "-"}</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "52px 1fr", borderRight: "1px solid #000" }}>
+          <div style={{ borderRight: "1px solid #000", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>기간</div>
+          <div style={{ padding: "6px 8px", textAlign: "center" }}>
+            <div>{`${targetMonth}-01`}</div>
+            <div>{`${targetMonth}-${String(getMonthLastDay(targetMonth)).padStart(2, "0")}`}</div>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "58px 1fr" }}>
+          <div style={{ borderRight: "1px solid #000", padding: "6px 4px", textAlign: "center", fontWeight: 700 }}>공사명</div>
+          <div style={{ padding: "6px 8px" }}>{data.site?.name || "-"}</div>
+        </div>
       </div>
 
       <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", fontSize: "8.5px", marginBottom: "16px" }}>
@@ -350,7 +381,9 @@ function PrintPageContent() {
           {Array.from({ length: FORM_DAY_COLUMN_COUNT }, (_, index) => (
             <col key={`col-day-${index + 1}`} style={{ width: "24px" }} />
           ))}
+          <col style={{ width: "42px" }} />
           <col style={{ width: "54px" }} />
+          <col style={{ width: "84px" }} />
           <col style={{ width: "84px" }} />
           {FORM_DEDUCTION_COLUMNS.map((column) => (
             <col key={column.key} style={{ width: "54px" }} />
@@ -363,7 +396,7 @@ function PrintPageContent() {
           <tr style={{ backgroundColor: "#eef4ff" }}>
             <th colSpan={6} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
             <th colSpan={dayGrid.count} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
-            <th colSpan={2} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
+            <th colSpan={4} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
             <th colSpan={FORM_DEDUCTION_COLUMNS.length} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
             <th rowSpan={3} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>차감지급액</th>
             <th rowSpan={3} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>비고</th>
@@ -384,7 +417,9 @@ function PrintPageContent() {
                 {cell.label}
               </th>
             ))}
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로일수</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로<br />일수</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로<br />공수</th>
+            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>단가</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>총액</th>
             {FORM_DEDUCTION_COLUMNS.map((column) => (
               <th key={column.key} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.1 }}>
@@ -409,7 +444,7 @@ function PrintPageContent() {
         <tbody>
           {statementRows.length === 0 ? (
             <tr>
-              <td colSpan={6 + dayGrid.count + 2 + FORM_DEDUCTION_COLUMNS.length + 4} style={{ border: "1px solid #000", padding: "18px", textAlign: "center", color: "#666" }}>
+              <td colSpan={6 + dayGrid.count + 4 + FORM_DEDUCTION_COLUMNS.length + 3} style={{ border: "1px solid #000", padding: "18px", textAlign: "center", color: "#666" }}>
                 근무 내역이 없습니다.
               </td>
             </tr>
@@ -428,7 +463,9 @@ function PrintPageContent() {
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
                     </td>
                   ))}
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatGongsu(row.totalWorkUnits) || "0.0"}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.workedDays || ""}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{formatOneDecimal(row.totalWorkUnits)}</td>
+                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatAmount(row.unitPrice)}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>{formatAmount(row.grossAmount)}</td>
                   {FORM_DEDUCTION_COLUMNS.map((column) => (
                     <td key={`${row.id}:${column.key}`} rowSpan={2} style={{ border: "1px solid #000", textAlign: "right", verticalAlign: "middle", paddingRight: "4px" }}>
@@ -451,12 +488,14 @@ function PrintPageContent() {
           )}
         </tbody>
         <tfoot>
-          <tr style={{ backgroundColor: "#eef4ff", fontWeight: 700 }}>
+          <tr style={{ backgroundColor: "#fff200", fontWeight: 700, height: "34px" }}>
             <td colSpan={6} style={{ border: "1px solid #000", textAlign: "center", padding: "6px 4px" }}>합계</td>
             {Array.from({ length: dayGrid.count }, (_, index) => (
               <td key={`sum-day-${index + 1}`} style={{ border: "1px solid #000", borderRightWidth: index === 14 ? "2px" : "1px" }}></td>
             ))}
-            <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatGongsu(totals.totalWorkUnits) || "0.0"}</td>
+            <td style={{ border: "1px solid #000", textAlign: "center" }}>{totals.workedDays || ""}</td>
+            <td style={{ border: "1px solid #000", textAlign: "center" }}>{formatOneDecimal(totals.totalWorkUnits)}</td>
+            <td style={{ border: "1px solid #000", textAlign: "center" }}>-</td>
             <td style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>{formatAmount(totals.grossAmount)}</td>
             {FORM_DEDUCTION_COLUMNS.map((column) => (
               <td key={`sum-${column.key}`} style={{ border: "1px solid #000", textAlign: "right", paddingRight: "4px" }}>
