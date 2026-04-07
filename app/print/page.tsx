@@ -465,10 +465,8 @@ function PrintPageContent() {
                     : PRINT_DEDUCTION_HEADERS[column.key];
               return (
                 <th key={column.key} rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>
-                  <div className="flex flex-col leading-tight" style={{ alignItems: "center" }}>
-                    <span>{topLabel}</span>
-                    <span>{bottomLabel}</span>
-                  </div>
+                  {topLabel}
+                  {bottomLabel}
                 </th>
               );
             })}
