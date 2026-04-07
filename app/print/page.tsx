@@ -71,6 +71,20 @@ interface PrintRow {
   insurance: ReturnType<typeof calculateInsurance>;
 }
 
+type DeductionColumnKey = (typeof FORM_DEDUCTION_COLUMNS)[number]["key"];
+
+const PRINT_DEDUCTION_HEADERS: Record<DeductionColumnKey, [string, string]> = {
+  national: ["국민", "연금"],
+  health: ["건강", "보험"],
+  longTermCare: ["장기요양", "보험"],
+  employment: ["고용", "보험"],
+  incomeTax: ["소득세", ""],
+  residentTax: ["주민세", ""],
+  totalDeduction: ["공제", "금액"],
+};
+
+const PRINT_TABLE_WIDTH = "1606px";
+
 function getMonthLastDay(targetMonth: string) {
   if (!/^\d{4}-\d{2}$/.test(targetMonth)) {
     return 31;
@@ -145,6 +159,7 @@ function PrintPageContent() {
   const queryYear = searchParams?.get("year") || "2024";
   const queryMonth = searchParams?.get("month") || "12";
   const targetMonth = targetMonthParam || `${queryYear}-${queryMonth.padStart(2, "0")}`;
+  const [targetYearLabel = "", targetMonthLabel = ""] = targetMonth.split("-");
   const siteId = searchParams?.get("siteId");
   const rateConfig = useMemo(() => loadDefaultRateConfig(searchParams?.get("rateConfig")), [searchParams]);
 
@@ -340,14 +355,17 @@ function PrintPageContent() {
       `}</style>
 
       <div style={{ marginBottom: "8px", textAlign: "center" }}>
-        <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "bold", letterSpacing: "0.08em" }}>노무비 지급명세서</h1>
+        <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "bold", letterSpacing: "0.08em" }}>
+          {`${targetYearLabel}년 ${targetMonthLabel}월 일용노무비지급명세서`}
+        </h1>
       </div>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1.2fr 1fr",
-          marginBottom: "8px",
+          gridTemplateColumns: "1fr 1.15fr 1fr",
+          width: PRINT_TABLE_WIDTH,
+          margin: "0 auto 8px",
           border: "1px solid #000",
           fontSize: "11px",
           lineHeight: 1.5,
@@ -370,14 +388,21 @@ function PrintPageContent() {
         </div>
       </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", fontSize: "8.5px", marginBottom: "16px" }}>
+      <table
+        style={{
+          width: PRINT_TABLE_WIDTH,
+          margin: "0 auto 16px",
+          borderCollapse: "collapse",
+          tableLayout: "fixed",
+          fontSize: "8.5px",
+        }}
+      >
         <colgroup>
           <col style={{ width: "34px" }} />
           <col style={{ width: "54px" }} />
           <col style={{ width: "68px" }} />
           <col style={{ width: "84px" }} />
           <col style={{ width: "92px" }} />
-          <col style={{ width: "50px" }} />
           {Array.from({ length: FORM_DAY_COLUMN_COUNT }, (_, index) => (
             <col key={`col-day-${index + 1}`} style={{ width: "24px" }} />
           ))}
@@ -386,15 +411,15 @@ function PrintPageContent() {
           <col style={{ width: "84px" }} />
           <col style={{ width: "84px" }} />
           {FORM_DEDUCTION_COLUMNS.map((column) => (
-            <col key={column.key} style={{ width: "54px" }} />
+            <col key={column.key} style={{ width: "60px" }} />
           ))}
-          <col style={{ width: "72px" }} />
-          <col style={{ width: "84px" }} />
-          <col style={{ width: "50px" }} />
+          <col style={{ width: "78px" }} />
+          <col style={{ width: "80px" }} />
+          <col style={{ width: "48px" }} />
         </colgroup>
         <thead>
           <tr style={{ backgroundColor: "#eef4ff" }}>
-            <th colSpan={6} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
+            <th colSpan={5} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
             <th colSpan={dayGrid.count} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
             <th colSpan={4} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
             <th colSpan={FORM_DEDUCTION_COLUMNS.length} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
@@ -408,11 +433,10 @@ function PrintPageContent() {
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>성명</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>전화번호</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>주민등록번호</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>구분</th>
             {dayGrid.top.map((cell, index) => (
               <th
                 key={`day-top-${index + 1}`}
-                style={{ border: "1px solid #000", borderRightWidth: index === 14 ? "2px" : "1px", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}
+                style={{ border: "1px solid #000", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}
               >
                 {cell.label}
               </th>
@@ -421,20 +445,21 @@ function PrintPageContent() {
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>근로<br />공수</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>단가</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>총액</th>
-            {FORM_DEDUCTION_COLUMNS.map((column) => (
-              <th key={column.key} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.1 }}>
-                {column.lines.map((line) => (
-                  <span key={line} style={{ display: "block" }}>{line}</span>
-                ))}
-              </th>
-            ))}
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>지급액</th>
+            {FORM_DEDUCTION_COLUMNS.map((column) => {
+              const [topLabel, bottomLabel] = PRINT_DEDUCTION_HEADERS[column.key];
+              return (
+                <th key={column.key} rowSpan={2} style={{ border: "1px solid #000", padding: "5px 2px", textAlign: "center", lineHeight: 1.15 }}>
+                  <span style={{ display: "block" }}>{topLabel}</span>
+                  <span style={{ display: "block" }}>{bottomLabel}</span>
+                </th>
+              );
+            })}
           </tr>
           <tr style={{ backgroundColor: "#f8fbff" }}>
             {dayGrid.bottom.map((cell, index) => (
               <th
                 key={`day-bottom-${index + 1}`}
-                style={{ border: "1px solid #000", borderRightWidth: index === 14 ? "2px" : "1px", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}
+                style={{ border: "1px solid #000", padding: "3px 0", textAlign: "center", lineHeight: 1.1 }}
               >
                 {cell.label}
               </th>
@@ -444,7 +469,7 @@ function PrintPageContent() {
         <tbody>
           {statementRows.length === 0 ? (
             <tr>
-              <td colSpan={6 + dayGrid.count + 4 + FORM_DEDUCTION_COLUMNS.length + 3} style={{ border: "1px solid #000", padding: "18px", textAlign: "center", color: "#666" }}>
+              <td colSpan={5 + dayGrid.count + 4 + FORM_DEDUCTION_COLUMNS.length + 3} style={{ border: "1px solid #000", padding: "18px", textAlign: "center", color: "#666" }}>
                 근무 내역이 없습니다.
               </td>
             </tr>
@@ -457,9 +482,8 @@ function PrintPageContent() {
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.name}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", whiteSpace: "nowrap" }}>{row.residentId}</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.category}</td>
                   {dayGrid.top.map((cell, dayIndex) => (
-                    <td key={`${row.id}:top:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", borderRightWidth: dayIndex === 14 ? "2px" : "1px", textAlign: "center", verticalAlign: "middle" }}>
+                    <td key={`${row.id}:top:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
                     </td>
                   ))}
@@ -478,7 +502,7 @@ function PrintPageContent() {
                 </tr>
                 <tr style={{ height: "30px", backgroundColor: "#fcfdff" }}>
                   {dayGrid.bottom.map((cell, dayIndex) => (
-                    <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", borderRightWidth: dayIndex === 14 ? "2px" : "1px", textAlign: "center", verticalAlign: "middle" }}>
+                    <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
                     </td>
                   ))}
@@ -489,9 +513,9 @@ function PrintPageContent() {
         </tbody>
         <tfoot>
           <tr style={{ backgroundColor: "#fff200", fontWeight: 700, height: "34px" }}>
-            <td colSpan={6} style={{ border: "1px solid #000", textAlign: "center", padding: "6px 4px" }}>합계</td>
+            <td colSpan={5} style={{ border: "1px solid #000", textAlign: "center", padding: "6px 4px" }}>합계</td>
             {Array.from({ length: dayGrid.count }, (_, index) => (
-              <td key={`sum-day-${index + 1}`} style={{ border: "1px solid #000", borderRightWidth: index === 14 ? "2px" : "1px" }}></td>
+              <td key={`sum-day-${index + 1}`} style={{ border: "1px solid #000" }}></td>
             ))}
             <td style={{ border: "1px solid #000", textAlign: "center" }}>{totals.workedDays || ""}</td>
             <td style={{ border: "1px solid #000", textAlign: "center" }}>{formatOneDecimal(totals.totalWorkUnits)}</td>
