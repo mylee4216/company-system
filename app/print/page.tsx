@@ -457,11 +457,18 @@ function PrintPageContent() {
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>노무비<br />단가</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>노무비<br />총액</th>
             {FORM_DEDUCTION_COLUMNS.map((column) => {
-              const [topLabel, bottomLabel] = PRINT_DEDUCTION_HEADERS[column.key];
+              const [topLabel, bottomLabel] =
+                column.key === "incomeTax"
+                  ? ["소득", "세"]
+                  : column.key === "residentTax"
+                    ? ["주민", "세"]
+                    : PRINT_DEDUCTION_HEADERS[column.key];
               return (
                 <th key={column.key} rowSpan={2} style={{ border: "1px solid #000", padding: "4px 2px", textAlign: "center", verticalAlign: "middle", lineHeight: 1.15 }}>
-                  <span style={{ display: "block" }}>{topLabel}</span>
-                  <span style={{ display: "block" }}>{bottomLabel}</span>
+                  <div className="flex flex-col leading-tight" style={{ alignItems: "center" }}>
+                    <span>{topLabel}</span>
+                    <span>{bottomLabel}</span>
+                  </div>
                 </th>
               );
             })}
