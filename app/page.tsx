@@ -979,21 +979,27 @@ export default function Page() {
   const resolvedSiteName = siteNameInput.trim() || selectedSite?.name || "-";
 
   const monthDates = useMemo(() => getMonthDateList(selectedMonth), [selectedMonth]);
-  const daysTop = useMemo(() => Array.from({ length: 15 }, (_, index) => index + 1), []);
-  const daysBottom = useMemo(() => Array.from({ length: 16 }, (_, index) => index + 16), []);
+  const allDays = useMemo(() => Array.from({ length: 31 }, (_, index) => index + 1), []);
+  const daysTop = useMemo(() => allDays.slice(0, 15), [allDays]);
+  const daysBottom = useMemo(() => allDays.slice(15), [allDays]);
   const dayColumns = useMemo(
-    () =>
-      daysBottom.map((bottomDay, index) => {
-        const topDay = daysTop[index] ?? null;
+    () => {
+      const monthDateByDay = new Map(
+        monthDates.map((date) => [Number(date.slice(-2)), date] as const),
+      );
 
+      return Array.from({ length: 16 }, (_, index) => {
+        const topDay = allDays[index] ?? null;
+        const bottomDay = allDays[index + 15];
         return {
           topDay,
-          topDate: topDay ? monthDates[topDay - 1] ?? null : null,
+          topDate: topDay ? monthDateByDay.get(topDay) ?? null : null,
           bottomDay,
-          bottomDate: monthDates[bottomDay - 1] ?? null,
+          bottomDate: monthDateByDay.get(bottomDay) ?? null,
         };
-      }),
-    [daysBottom, daysTop, monthDates],
+      });
+    },
+    [allDays, monthDates],
   );
   const monthPeriod = useMemo(() => getMonthPeriod(selectedMonth), [selectedMonth]);
   const tableMinWidth = useMemo(
@@ -3010,7 +3016,7 @@ export default function Page() {
                             className={sheetInputClass}
                           />
                         </td>
-                        <td rowSpan={2} className="print-cell-phone border-r border-slate-300 px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-phone border-r border-slate-300 px-1 py-2 text-center align-middle">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:phone`] = element;
@@ -3023,7 +3029,7 @@ export default function Page() {
                             className={`${sheetInputClass} whitespace-nowrap px-0.5 text-[16px] tracking-[-0.015em]`}
                           />
                         </td>
-                        <td rowSpan={2} className="print-cell-resident border-r border-slate-300 px-0.5 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-resident border-r border-slate-300 px-0.5 py-2 text-center align-middle">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:residentId`] = element;
@@ -3036,7 +3042,7 @@ export default function Page() {
                             className={sheetResidentInputClass}
                           />
                         </td>
-                        <td rowSpan={2} className="print-cell-category border-r border-slate-300 px-1 py-2 align-middle text-center">
+                        <td rowSpan={2} className="print-cell-category border-r border-slate-300 px-1 py-2 text-center align-middle">
                           <input
                             ref={(element) => {
                               cellRefs.current[`${row.id}:category`] = element;
@@ -3155,21 +3161,21 @@ export default function Page() {
                     <td colSpan={6 + dayColumns.length} className="print-summary-label border-r border-slate-300 px-2 py-6 text-center text-[17px] font-semibold leading-[1.3] text-slate-700">
                       합계
                     </td>
-                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {visibleRows.reduce((sum, row) => sum + getWorkedDaysCount(row), 0) || ""}
                     </td>
-                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-500">
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-500">
                       -
                     </td>
-                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 text-center text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
                     {FORM_DEDUCTION_COLUMNS.map((column) => (
-                      <td key={`total-${column.key}`} className="print-summary-value border-r border-slate-300 px-2 py-6 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                      <td key={`total-${column.key}`} className="print-summary-value border-r border-slate-300 px-2 py-6 text-right text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                         {formatCurrency(insuranceTotals[column.key])}
                       </td>
                     ))}
-                    <td className="print-summary-value px-2 py-6 text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value px-2 py-6 text-right text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(insuranceTotals.netPay)}
                     </td>
                     <td className="print-summary-value border-l border-slate-300 px-1 py-6 text-center text-[12px] font-semibold leading-[1.3] text-slate-500">
