@@ -987,19 +987,20 @@ export default function Page() {
       const monthDateByDay = new Map(
         monthDates.map((date) => [Number(date.slice(-2)), date] as const),
       );
+      const getDayDateKey = (day: number) => `${selectedMonth}-${String(day).padStart(2, "0")}`;
 
       return Array.from({ length: 16 }, (_, index) => {
         const topDay = daysTop[index] ?? null;
         const bottomDay = daysBottom[index];
         return {
           topDay,
-          topDate: topDay ? monthDateByDay.get(topDay) ?? null : null,
+          topDate: topDay ? monthDateByDay.get(topDay) ?? getDayDateKey(topDay) : null,
           bottomDay,
-          bottomDate: monthDateByDay.get(bottomDay) ?? null,
+          bottomDate: monthDateByDay.get(bottomDay) ?? getDayDateKey(bottomDay),
         };
       });
     },
-    [daysBottom, daysTop, monthDates],
+    [daysBottom, daysTop, monthDates, selectedMonth],
   );
   const monthPeriod = useMemo(() => getMonthPeriod(selectedMonth), [selectedMonth]);
   const tableMinWidth = useMemo(
@@ -2968,7 +2969,7 @@ export default function Page() {
                         )}
                       </th>
                     ))}
-                    <th rowSpan={2} className="px-1.5 py-2 text-right text-[12.5px] font-semibold leading-[1.1]">지급액</th>
+                    <th rowSpan={2} className="px-1.5 py-2 text-center align-middle text-[12.5px] font-semibold leading-[1.1]">지급액</th>
                     <th rowSpan={2} className="border-l border-slate-300 px-1.5 py-2 text-center text-[12.5px] font-semibold leading-[1.1]">관리</th>
                   </tr>
                   <tr className="border-b border-slate-300 bg-blue-50/70">
@@ -3052,7 +3053,7 @@ export default function Page() {
                             onKeyDown={(event) => handleCellKeyDown(event, row.id, "category")}
                             placeholder="직영/용역/기타"
                             list="labor-category-options"
-                            className={sheetCategoryInputClass}
+                            className={`${sheetCategoryInputClass} text-center`}
                           />
                         </td>
                         {dayColumns.map((column, dayIndex) => (
@@ -3112,7 +3113,7 @@ export default function Page() {
                             {formatCurrency(insurance[column.key])}
                           </td>
                         ))}
-                        <td rowSpan={2} className="print-cell-number bg-emerald-50 pl-1 pr-1.5 py-2 align-middle text-right text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
+                        <td rowSpan={2} className="print-cell-number bg-emerald-50 pl-1 pr-1.5 py-2 align-middle text-center text-[15px] font-medium leading-[1.3] tabular-nums text-slate-800">
                           {formatCurrency(insurance.netPay)}
                         </td>
                         <td rowSpan={2} className="print-cell-actions border-l border-slate-300 px-1 py-2 align-middle text-center">
@@ -3175,7 +3176,7 @@ export default function Page() {
                         {formatCurrency(insuranceTotals[column.key])}
                       </td>
                     ))}
-                    <td className="print-summary-value px-2 py-6 align-middle text-right text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value px-2 py-6 align-middle text-center text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(insuranceTotals.netPay)}
                     </td>
                     <td className="print-summary-value border-l border-slate-300 px-1 py-6 align-middle text-center text-[12px] font-semibold leading-[1.3] text-slate-500">
