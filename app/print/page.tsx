@@ -83,7 +83,7 @@ const PRINT_DEDUCTION_HEADERS: Record<DeductionColumnKey, [string, string]> = {
   totalDeduction: ["공제", "금액"],
 };
 
-const PRINT_TABLE_WIDTH = "1606px";
+const PRINT_TABLE_WIDTH = "1698px";
 
 function getMonthLastDay(targetMonth: string) {
   if (!/^\d{4}-\d{2}$/.test(targetMonth)) {
@@ -403,6 +403,7 @@ function PrintPageContent() {
           <col style={{ width: "68px" }} />
           <col style={{ width: "84px" }} />
           <col style={{ width: "92px" }} />
+          <col style={{ width: "92px" }} />
           {Array.from({ length: FORM_DAY_COLUMN_COUNT }, (_, index) => (
             <col key={`col-day-${index + 1}`} style={{ width: "24px" }} />
           ))}
@@ -419,7 +420,7 @@ function PrintPageContent() {
         </colgroup>
         <thead>
           <tr style={{ backgroundColor: "#eef4ff" }}>
-            <th colSpan={5} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
+            <th colSpan={6} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>기본정보</th>
             <th colSpan={dayGrid.count} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>일자별 공수</th>
             <th colSpan={4} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>노무비</th>
             <th colSpan={FORM_DEDUCTION_COLUMNS.length} style={{ border: "1px solid #000", padding: "5px 4px", textAlign: "center" }}>공제</th>
@@ -432,7 +433,7 @@ function PrintPageContent() {
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>직종</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>성명</th>
             <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>전화번호</th>
-            <th rowSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>주민등록번호</th>
+            <th colSpan={2} style={{ border: "1px solid #000", padding: "6px 2px", textAlign: "center" }}>주소</th>
             {dayGrid.top.map((cell, index) => (
               <th
                 key={`day-top-${index + 1}`}
@@ -456,6 +457,8 @@ function PrintPageContent() {
             })}
           </tr>
           <tr style={{ backgroundColor: "#f8fbff" }}>
+            <th style={{ border: "1px solid #000", padding: "3px 2px", textAlign: "center", lineHeight: 1.1 }}>주민등록번호</th>
+            <th style={{ border: "1px solid #000", padding: "3px 2px", textAlign: "center", lineHeight: 1.1 }}>계좌번호</th>
             {dayGrid.bottom.map((cell, index) => (
               <th
                 key={`day-bottom-${index + 1}`}
@@ -469,7 +472,7 @@ function PrintPageContent() {
         <tbody>
           {statementRows.length === 0 ? (
             <tr>
-              <td colSpan={5 + dayGrid.count + 4 + FORM_DEDUCTION_COLUMNS.length + 3} style={{ border: "1px solid #000", padding: "18px", textAlign: "center", color: "#666" }}>
+              <td colSpan={6 + dayGrid.count + 4 + FORM_DEDUCTION_COLUMNS.length + 3} style={{ border: "1px solid #000", padding: "18px", textAlign: "center", color: "#666" }}>
                 근무 내역이 없습니다.
               </td>
             </tr>
@@ -481,7 +484,7 @@ function PrintPageContent() {
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.trade}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.name}</td>
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
-                  <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", whiteSpace: "nowrap" }}>{row.residentId}</td>
+                  <td colSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
                   {dayGrid.top.map((cell, dayIndex) => (
                     <td key={`${row.id}:top:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
@@ -501,6 +504,8 @@ function PrintPageContent() {
                   <td rowSpan={2} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>{row.category}</td>
                 </tr>
                 <tr style={{ height: "30px", backgroundColor: "#fcfdff" }}>
+                  <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle", whiteSpace: "nowrap" }}>{row.residentId || "-"}</td>
+                  <td style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>-</td>
                   {dayGrid.bottom.map((cell, dayIndex) => (
                     <td key={`${row.id}:bottom:${cell.date ?? dayIndex}`} style={{ border: "1px solid #000", textAlign: "center", verticalAlign: "middle" }}>
                       {cell.date ? formatGongsu(row.dailyWorkEntries[cell.date]) : ""}
@@ -513,7 +518,7 @@ function PrintPageContent() {
         </tbody>
         <tfoot>
           <tr style={{ backgroundColor: "#fff200", fontWeight: 700, height: "34px" }}>
-            <td colSpan={5} style={{ border: "1px solid #000", textAlign: "center", padding: "6px 4px" }}>합계</td>
+            <td colSpan={6} style={{ border: "1px solid #000", textAlign: "center", padding: "6px 4px" }}>합계</td>
             {Array.from({ length: dayGrid.count }, (_, index) => (
               <td key={`sum-day-${index + 1}`} style={{ border: "1px solid #000" }}></td>
             ))}
