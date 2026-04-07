@@ -989,8 +989,8 @@ export default function Page() {
       );
 
       return Array.from({ length: 16 }, (_, index) => {
-        const topDay = allDays[index] ?? null;
-        const bottomDay = allDays[index + 15];
+        const topDay = daysTop[index] ?? null;
+        const bottomDay = daysBottom[index];
         return {
           topDay,
           topDate: topDay ? monthDateByDay.get(topDay) ?? null : null,
@@ -999,7 +999,7 @@ export default function Page() {
         };
       });
     },
-    [allDays, monthDates],
+    [daysBottom, daysTop, monthDates],
   );
   const monthPeriod = useMemo(() => getMonthPeriod(selectedMonth), [selectedMonth]);
   const tableMinWidth = useMemo(
@@ -2942,7 +2942,7 @@ export default function Page() {
                     {dayColumns.map((column, index) => (
                       <th
                         key={`day-head-top-${column.topDay ?? `blank-${index}`}`}
-                        className={`print-day-header border-r border-slate-300 px-0 py-1.5 text-center text-[12px] font-semibold leading-[1.05] text-slate-700 ${column.topDay === 15 ? "border-r-[2px] border-r-black" : ""}`}
+                        className="print-day-header border-r border-slate-300 px-0 py-1.5 text-center text-[12px] font-semibold leading-[1.05] text-slate-700"
                       >
                         {column.topDay ?? ""}
                       </th>
@@ -2952,8 +2952,8 @@ export default function Page() {
                       <br />
                       일수
                     </th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-right text-[12.5px] font-semibold leading-[1.1]">단가</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-right text-[12.5px] font-semibold leading-[1.1]">총액</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center align-middle text-[12.5px] font-semibold leading-[1.1]">단가</th>
+                    <th rowSpan={2} className="border-r border-slate-300 px-1.5 py-3 text-center align-middle text-[12.5px] font-semibold leading-[1.1]">총액</th>
                     {FORM_DEDUCTION_COLUMNS.map((column) => (
                       <th key={`top-${column.key}`} rowSpan={2} className="border-r border-slate-300 px-1.5 py-2 text-right text-[12px] font-semibold leading-tight">
                         {column.key === "longTermCare" ? (
@@ -3056,7 +3056,7 @@ export default function Page() {
                           />
                         </td>
                         {dayColumns.map((column, dayIndex) => (
-                          <td key={`${row.id}:day:top:${column.topDay ?? dayIndex}`} className={`screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center ${column.topDay === 15 ? "border-r-[2px] border-r-black" : ""}`}>
+                          <td key={`${row.id}:day:top:${column.topDay ?? dayIndex}`} className="screen-daily-entry-cell print-cell-date border-r border-slate-300 px-0.5 py-2 align-middle text-center">
                             {(() => {
                               const date = column.topDate;
 
@@ -3157,28 +3157,28 @@ export default function Page() {
                   })}
                 </tbody>
                 <tfoot className="bg-blue-100">
-                  <tr className="border-t-2 border-blue-700">
-                    <td colSpan={6 + dayColumns.length} className="print-summary-label border-r border-slate-300 px-2 py-6 text-center text-[17px] font-semibold leading-[1.3] text-slate-700">
+                  <tr className="border-t-2 border-blue-700" style={{ height: "4.5rem" }}>
+                    <td colSpan={6 + dayColumns.length} className="print-summary-label border-r border-slate-300 px-2 py-6 align-middle text-center text-[17px] font-semibold leading-[1.3] text-slate-700">
                       합계
                     </td>
-                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 align-middle text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {visibleRows.reduce((sum, row) => sum + getWorkedDaysCount(row), 0) || ""}
                     </td>
-                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-500">
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 align-middle text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-500">
                       -
                     </td>
-                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value border-r border-slate-300 px-2 py-6 align-middle text-right text-[16px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(totalPaymentAmount)}
                     </td>
                     {FORM_DEDUCTION_COLUMNS.map((column) => (
-                      <td key={`total-${column.key}`} className="print-summary-value border-r border-slate-300 px-2 py-6 text-right text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                      <td key={`total-${column.key}`} className="print-summary-value border-r border-slate-300 px-2 py-6 align-middle text-right text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                         {formatCurrency(insuranceTotals[column.key])}
                       </td>
                     ))}
-                    <td className="print-summary-value px-2 py-6 text-right text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
+                    <td className="print-summary-value px-2 py-6 align-middle text-right text-[14px] font-semibold leading-[1.3] tabular-nums text-slate-900">
                       {formatCurrency(insuranceTotals.netPay)}
                     </td>
-                    <td className="print-summary-value border-l border-slate-300 px-1 py-6 text-center text-[12px] font-semibold leading-[1.3] text-slate-500">
+                    <td className="print-summary-value border-l border-slate-300 px-1 py-6 align-middle text-center text-[12px] font-semibold leading-[1.3] text-slate-500">
                       -
                     </td>
                   </tr>
