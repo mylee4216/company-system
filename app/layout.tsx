@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 
@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 
 const primaryMenus = [
   { href: "/", label: "노무비 입력" },
+  { href: "/fund-request", label: "자금청구서" },
   { href: "/workers", label: "근로자 관리" },
   { href: "/settings/rates", label: "보험/세금 설정" },
 ];
@@ -32,7 +33,7 @@ export default function RootLayout({
           <aside className="w-64 shrink-0 border-r border-slate-200 bg-white px-4 py-5">
             <div className="mb-6">
               <h1 className="text-base font-semibold text-slate-900">Company System</h1>
-              <p className="mt-1 text-xs text-slate-500">업무 메뉴</p>
+              <p className="mt-1 text-xs text-slate-500">?낅Т 硫붾돱</p>
             </div>
 
             <nav className="space-y-1">
@@ -48,7 +49,7 @@ export default function RootLayout({
             </nav>
 
             <div className="mt-7 border-t border-slate-200 pt-5">
-              <p className="mb-2 px-3 text-xs font-semibold tracking-wide text-slate-500">관리자</p>
+              <p className="mb-2 px-3 text-xs font-semibold tracking-wide text-slate-500">愿由ъ옄</p>
               <nav className="space-y-1">
                 {adminMenus.map((menu) => (
                   <Link
