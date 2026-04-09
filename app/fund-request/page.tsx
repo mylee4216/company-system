@@ -1,274 +1,315 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useState } from "react";
+import { Save, Printer, Plus, Trash2 } from "lucide-react";
 
-type FundRow = {
-  id: number;
-  date: string;
-  item: string;
-  company: string;
-  amountOccurred: string;
+interface DetailItem {
+  id: string;
+  companyName: string;
+  itemName: string;
+  supplyAmount: number;
+  taxAmount: number;
+  totalAmount: number;
   issueDate: string;
+  prepaidAmount: number;
+  paymentAmount: number;
   bankName: string;
-  accountNumber: string;
-  amountPaidBefore: string;
-  amountToPay: string;
+  accountNo: string;
+  accountHolder: string;
   note: string;
+}
+
+const EMPTY_ITEM: Omit<DetailItem, "id"> = {
+  companyName: "",
+  itemName: "",
+  supplyAmount: 0,
+  taxAmount: 0,
+  totalAmount: 0,
+  issueDate: "",
+  prepaidAmount: 0,
+  paymentAmount: 0,
+  bankName: "",
+  accountNo: "",
+  accountHolder: "",
+  note: "",
 };
 
-function createEmptyRow(id: number): FundRow {
-  return {
-    id,
-    date: "",
-    item: "",
-    company: "",
-    amountOccurred: "",
-    issueDate: "",
-    bankName: "",
-    accountNumber: "",
-    amountPaidBefore: "",
-    amountToPay: "",
-    note: "",
-  };
-}
+export default function FundRequestPageV3() {
+  const [baseInfo, setBaseInfo] = useState({
+    projectName: "",
+    period: "",
+    contractAmount: 0,
+  });
 
-function parseAmount(value: string): number {
-  const normalized = value.replaceAll(",", "").trim();
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
+  const [items, setItems] = useState<DetailItem[]>([
+    {
+      id: "1",
+      ...EMPTY_ITEM,
+    },
+  ]);
 
-function formatAmount(value: number): string {
-  return value.toLocaleString("ko-KR");
-}
-
-export default function FundRequestPage() {
-  const [writer, setWriter] = useState("");
-  const [siteName, setSiteName] = useState("");
-  const [clientName, setClientName] = useState("");
-  const [createdDate, setCreatedDate] = useState(new Date().toISOString().slice(0, 10));
-  const [rows, setRows] = useState<FundRow>([createEmptyRow(1), createEmptyRow(2), createEmptyRow(3)]);
-
-  const totals = useMemo(() => {
-    return rows.reduce(
-      (acc, row) => {
-        acc.occurred += parseAmount(row.amountOccurred);
-        acc.paidBefore += parseAmount(row.amountPaidBefore);
-        acc.toPay += parseAmount(row.amountToPay);
-        return acc;
-      },
-      { occurred: 0, paidBefore: 0, toPay: 0 },
+  const handleItemChange = (
+    id: string,
+    field:
+      | "companyName"
+      | "itemName"
+      | "issueDate"
+      | "bankName"
+      | "accountNo"
+      | "accountHolder"
+      | "note",
+    value: string,
+  ) => {
+    setItems((prevItems) =>
+      prevItems.map((item) => {
+        if (item.id === id) {
+          return { ...item, [field]: value };
+        }
+        return item;
+      }),
     );
-  }, [rows]);
-
-  const updateRow = (id: number, key: keyof FundRow, value: string) => {
-    setRows((prev) => prev.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
   };
 
   const addRow = () => {
-    setRows((prev) => [...prev, createEmptyRow(Date.now())]);
+    const newItem: DetailItem = {
+      id: Date.now().toString(),
+      ...EMPTY_ITEM,
+    };
+    setItems((prevItems) => [...prevItems, newItem]);
   };
 
-  const removeRow = () => {
-    setRows((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
+  const handleAmountChange = (
+    id: string,
+    field: "supplyAmount" | "taxAmount" | "prepaidAmount",
+    value: number,
+  ) => {
+    setItems((prevItems) =>
+      prevItems.map((item) => {
+        if (item.id === id) {
+          const updated = { ...item, [field]: value };
+
+          if (field === "supplyAmount" || field === "taxAmount") {
+            updated.totalAmount = updated.supplyAmount + updated.taxAmount;
+          }
+
+          updated.paymentAmount = updated.totalAmount - updated.prepaidAmount;
+          return updated;
+        }
+        return item;
+      }),
+    );
   };
+
+  const totalSummary = items.reduce(
+    (acc, curr) => ({
+      supply: acc.supply + curr.supplyAmount,
+      tax: acc.tax + curr.taxAmount,
+      total: acc.total + curr.totalAmount,
+      payment: acc.payment + curr.paymentAmount,
+    }),
+    { supply: 0, tax: 0, total: 0, payment: 0 },
+  );
 
   return (
-    <div className="mx-auto w-full max-w-[1700px] p-6">
-      <div className="rounded-md border border-slate-300 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-300 px-6 py-4">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">자금청구서</h1>
-          <div className="flex items-center gap-2">
+    <div className="p-8 bg-gray-50 min-h-screen font-sans text-sm">
+      <div className="max-w-[1400px] mx-auto bg-white p-6 shadow-sm border border-gray-200">
+        <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
+          <h1 className="text-2xl font-bold">공사투입 자금 청구서 (인건비 상세)</h1>
+          <div className="flex gap-2">
             <button
-              type="button"
               onClick={addRow}
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="flex items-center gap-1 bg-white border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition"
             >
-              행 추가
+              <Plus size={16} /> 행 추가
+            </button>
+            <button className="flex items-center gap-1 bg-blue-600 text-white px-4 py-1.5 rounded hover:bg-blue-700 transition">
+              <Save size={16} /> 저장
             </button>
             <button
-              type="button"
-              onClick={removeRow}
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() => window.print()}
+              className="flex items-center gap-1 bg-gray-800 text-white px-4 py-1.5 rounded hover:bg-black transition"
             >
-              행 삭제
-            </button>
-            <button
-              type="button"
-              onClick={() => window.alert("저장 기능은 준비 중입니다.")}
-              className="rounded border border-blue-700 bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800"
-            >
-              저장
-            </button>
-            <button
-              type="button"
-              onClick={() => window.open("/fund-request/print", "_blank")}
-              className="rounded border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-black"
-            >
-              출력
+              <Printer size={16} /> 인쇄
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-5 gap-3 border-b border-slate-300 bg-slate-50 px-6 py-4">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">작성일</span>
-            <input
-              type="date"
-              value={createdDate}
-              onChange={(e) => setCreatedDate(e.target.value)}
-              className="h-10 rounded border border-slate-300 bg-white px-3 text-slate-900 outline-none focus:border-blue-500"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">현장명</span>
+        <div className="grid grid-cols-3 gap-4 mb-8 p-4 bg-gray-50 rounded">
+          <div>
+            <label className="block font-bold mb-1">공사명</label>
             <input
               type="text"
-              value={siteName}
-              onChange={(e) => setSiteName(e.target.value)}
-              className="h-10 rounded border border-slate-300 bg-white px-3 text-slate-900 outline-none focus:border-blue-500"
+              className="w-full border p-2"
+              placeholder="현장명 입력"
+              value={baseInfo.projectName}
+              onChange={(e) =>
+                setBaseInfo((prev) => ({ ...prev, projectName: e.target.value }))
+              }
             />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">거래처명</span>
+          </div>
+          <div>
+            <label className="block font-bold mb-1">공사투입기간</label>
             <input
               type="text"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              className="h-10 rounded border border-slate-300 bg-white px-3 text-slate-900 outline-none focus:border-blue-500"
+              className="w-full border p-2"
+              placeholder="2026-04-01 ~ 2026-04-30"
+              value={baseInfo.period}
+              onChange={(e) => setBaseInfo((prev) => ({ ...prev, period: e.target.value }))}
             />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">작성자</span>
+          </div>
+          <div>
+            <label className="block font-bold mb-1">공사계약금액</label>
             <input
-              type="text"
-              value={writer}
-              onChange={(e) => setWriter(e.target.value)}
-              className="h-10 rounded border border-slate-300 bg-white px-3 text-slate-900 outline-none focus:border-blue-500"
+              type="number"
+              className="w-full border p-2 text-right"
+              placeholder="0"
+              value={baseInfo.contractAmount || ""}
+              onChange={(e) =>
+                setBaseInfo((prev) => ({
+                  ...prev,
+                  contractAmount: parseInt(e.target.value, 10) || 0,
+                }))
+              }
             />
-          </label>
-          <div className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">합계금액</span>
-            <div className="flex h-10 items-center rounded border border-slate-300 bg-white px-3 font-semibold text-slate-900">
-              {formatAmount(totals.toPay)} 원
-            </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto px-6 py-5">
-          <table className="min-w-[1450px] w-full border-collapse text-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border border-gray-400">
             <thead>
-              <tr className="bg-slate-100 text-slate-800">
-                <th className="border border-slate-300 px-2 py-2">날짜</th>
-                <th className="border border-slate-300 px-2 py-2">품목</th>
-                <th className="border border-slate-300 px-2 py-2">상호</th>
-                <th className="border border-slate-300 px-2 py-2">발생금액</th>
-                <th className="border border-slate-300 px-2 py-2">발행일자</th>
-                <th className="border border-slate-300 px-2 py-2">은행명</th>
-                <th className="border border-slate-300 px-2 py-2">계좌번호</th>
-                <th className="border border-slate-300 px-2 py-2">기지급액</th>
-                <th className="border border-slate-300 px-2 py-2">지급금액</th>
-                <th className="border border-slate-300 px-2 py-2">비고</th>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-400 p-2 w-32">상호 / 품목</th>
+                <th className="border border-gray-400 p-2 w-28">공급가액</th>
+                <th className="border border-gray-400 p-2 w-24">세액</th>
+                <th className="border border-gray-400 p-2 w-28 bg-blue-50">합계(발생)</th>
+                <th className="border border-gray-400 p-2 w-28">발행일자</th>
+                <th className="border border-gray-400 p-2 w-28">기지급/공제</th>
+                <th className="border border-gray-400 p-2 w-28 bg-yellow-50">지급금액</th>
+                <th className="border border-gray-400 p-2">계좌정보 (은행/계좌/예금주)</th>
+                <th className="border border-gray-400 p-2 w-12">삭제</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td className="border border-slate-300 p-1">
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td className="border border-gray-400 p-1">
+                    <input
+                      type="text"
+                      placeholder="상호"
+                      className="w-full mb-1 border-b outline-none"
+                      value={item.companyName}
+                      onChange={(e) => handleItemChange(item.id, "companyName", e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="품목"
+                      className="w-full text-[11px] outline-none"
+                      value={item.itemName}
+                      onChange={(e) => handleItemChange(item.id, "itemName", e.target.value)}
+                    />
+                  </td>
+                  <td className="border border-gray-400 p-1">
+                    <input
+                      type="number"
+                      className="w-full text-right outline-none"
+                      value={item.supplyAmount || ""}
+                      onChange={(e) =>
+                        handleAmountChange(item.id, "supplyAmount", parseInt(e.target.value, 10) || 0)
+                      }
+                    />
+                  </td>
+                  <td className="border border-gray-400 p-1">
+                    <input
+                      type="number"
+                      className="w-full text-right outline-none"
+                      value={item.taxAmount || ""}
+                      onChange={(e) =>
+                        handleAmountChange(item.id, "taxAmount", parseInt(e.target.value, 10) || 0)
+                      }
+                    />
+                  </td>
+                  <td className="border border-gray-400 p-1 bg-blue-50 font-bold text-right">
+                    {item.totalAmount.toLocaleString()}
+                  </td>
+                  <td className="border border-gray-400 p-1">
                     <input
                       type="date"
-                      value={row.date}
-                      onChange={(e) => updateRow(row.id, "date", e.target.value)}
-                      className="h-9 w-full rounded border border-slate-200 px-2 outline-none focus:border-blue-500"
+                      className="w-full text-xs outline-none"
+                      value={item.issueDate}
+                      onChange={(e) => handleItemChange(item.id, "issueDate", e.target.value)}
                     />
                   </td>
-                  <td className="border border-slate-300 p-1">
+                  <td className="border border-gray-400 p-1 text-red-600">
+                    <input
+                      type="number"
+                      className="w-full text-right outline-none"
+                      value={item.prepaidAmount || ""}
+                      onChange={(e) =>
+                        handleAmountChange(item.id, "prepaidAmount", parseInt(e.target.value, 10) || 0)
+                      }
+                    />
+                  </td>
+                  <td className="border border-gray-400 p-1 bg-yellow-50 font-bold text-right text-blue-700">
+                    {item.paymentAmount.toLocaleString()}
+                  </td>
+                  <td className="border border-gray-400 p-1">
+                    <div className="flex gap-1 mb-1">
+                      <input
+                        type="text"
+                        placeholder="은행"
+                        className="w-1/3 border-b outline-none text-[11px]"
+                        value={item.bankName}
+                        onChange={(e) => handleItemChange(item.id, "bankName", e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        placeholder="예금주"
+                        className="w-2/3 border-b outline-none text-[11px]"
+                        value={item.accountHolder}
+                        onChange={(e) => handleItemChange(item.id, "accountHolder", e.target.value)}
+                      />
+                    </div>
                     <input
                       type="text"
-                      value={row.item}
-                      onChange={(e) => updateRow(row.id, "item", e.target.value)}
-                      className="h-9 w-full rounded border border-slate-200 px-2 outline-none focus:border-blue-500"
+                      placeholder="계좌번호"
+                      className="w-full outline-none text-[11px]"
+                      value={item.accountNo}
+                      onChange={(e) => handleItemChange(item.id, "accountNo", e.target.value)}
                     />
                   </td>
-                  <td className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={row.company}
-                      onChange={(e) => updateRow(row.id, "company", e.target.value)}
-                      className="h-9 w-full rounded border border-slate-200 px-2 outline-none focus:border-blue-500"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={row.amountOccurred}
-                      onChange={(e) => updateRow(row.id, "amountOccurred", e.target.value)}
-                      className="h-9 w-full rounded border border-slate-200 px-2 text-right outline-none focus:border-blue-500"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-1">
-                    <input
-                      type="date"
-                      value={row.issueDate}
-                      onChange={(e) => updateRow(row.id, "issueDate", e.target.value)}
-                      className="h-9 w-full rounded border border-slate-200 px-2 outline-none focus:border-blue-500"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={row.bankName}
-                      onChange={(e) => updateRow(row.id, "bankName", e.target.value)}
-                      className="h-9 w-full rounded border border-slate-200 px-2 outline-none focus:border-blue-500"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={row.accountNumber}
-                      onChange={(e) => updateRow(row.id, "accountNumber", e.target.value)}
-                      className="h-9 w-full rounded border border-slate-200 px-2 outline-none focus:border-blue-500"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={row.amountPaidBefore}
-                      onChange={(e) => updateRow(row.id, "amountPaidBefore", e.target.value)}
-                      className="h-9 w-full rounded border border-slate-200 px-2 text-right outline-none focus:border-blue-500"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={row.amountToPay}
-                      onChange={(e) => updateRow(row.id, "amountToPay", e.target.value)}
-                      className="h-9 w-full rounded border border-slate-200 px-2 text-right outline-none focus:border-blue-500"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-1">
-                    <textarea
-                      value={row.note}
-                      onChange={(e) => updateRow(row.id, "note", e.target.value)}
-                      className="h-14 w-full resize-none rounded border border-slate-200 px-2 py-1 outline-none focus:border-blue-500"
-                    />
+                  <td className="border border-gray-400 p-1 text-center">
+                    <button
+                      onClick={() => setItems((prevItems) => prevItems.filter((i) => i.id !== item.id))}
+                      className="text-red-400 hover:text-red-600"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </td>
                 </tr>
               ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-slate-50 font-semibold text-slate-900">
-                <td colSpan={3} className="border border-slate-300 px-3 py-2 text-right">
-                  합계
+              <tr className="bg-gray-800 text-white font-bold">
+                <td className="border border-gray-400 p-2 text-center">합계</td>
+                <td className="border border-gray-400 p-2 text-right">
+                  {totalSummary.supply.toLocaleString()}
                 </td>
-                <td className="border border-slate-300 px-3 py-2 text-right">{formatAmount(totals.occurred)}</td>
-                <td colSpan={3} className="border border-slate-300 px-3 py-2"></td>
-                <td className="border border-slate-300 px-3 py-2 text-right">{formatAmount(totals.paidBefore)}</td>
-                <td className="border border-slate-300 px-3 py-2 text-right">{formatAmount(totals.toPay)}</td>
-                <td className="border border-slate-300 px-3 py-2"></td>
+                <td className="border border-gray-400 p-2 text-right">
+                  {totalSummary.tax.toLocaleString()}
+                </td>
+                <td className="border border-gray-400 p-2 text-right text-yellow-400">
+                  {totalSummary.total.toLocaleString()}
+                </td>
+                <td colSpan={2} className="border border-gray-400"></td>
+                <td className="border border-gray-400 p-2 text-right text-green-400">
+                  {totalSummary.payment.toLocaleString()}
+                </td>
+                <td colSpan={2} className="border border-gray-400"></td>
               </tr>
-            </tfoot>
+            </tbody>
           </table>
+        </div>
+
+        <div className="mt-4 text-xs text-gray-500 italic">
+          * 공급가액과 세액을 입력하면 합계와 지급금액이 자동 계산됩니다.
         </div>
       </div>
     </div>
